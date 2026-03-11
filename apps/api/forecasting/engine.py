@@ -7,9 +7,8 @@ from typing import Optional
 import statistics
 
 from sqlalchemy.orm import Session
-from sqlalchemy import func
 
-from db.models import SalesFact, ForecastRun, ForecastLine, SKU, Outlet
+from db.models import SalesFact, ForecastRun, ForecastLine
 
 WEIGHTS_7 = [0.05, 0.05, 0.10, 0.10, 0.15, 0.20, 0.35]  # oldest → most recent
 DAYPARTS = ["morning", "midday", "evening"]
@@ -74,46 +73,62 @@ def _get_daily_sales(db: Session, outlet_id: int, sku_id: int, start: date, end:
     return result
 
 
-def _weighted_recent(daily_sales: dict[date, dict], target_date: date) -> dict[str, float]:
-    """Weighted 7-day recent trend (Task 5 spec)."""
-    weighted: dict[str, float] = {dp: 0.0 for dp in DAYPARTS}
-    for i, w in enumerate(WEIGHTS_7):  # i=0 oldest, i=6 newest
+def _to_daily_totals(daily_sales: dict[date, dict]) -> dict[date, float]:
+    return {
+        d: float(sum(values.get(dp, 0) for dp in DAYPARTS))
+        for d, values in daily_sales.items()
+    }
+
+
+def _weighted_recent_total(daily_totals: dict[date, float], target_date: date) -> float:
+    """Weighted 7-day recent trend on total demand."""
+    weighted = 0.0
+    for i, weight in enumerate(WEIGHTS_7):  # i=0 oldest, i=6 newest
         day = target_date - timedelta(days=7 - i)
-        if day in daily_sales:
-            for dp in DAYPARTS:
-                weighted[dp] += daily_sales[day].get(dp, 0) * w
+        weighted += daily_totals.get(day, 0.0) * weight
     return weighted
 
 
-def _weekday_pattern(daily_sales: dict[date, dict], target_date: date) -> dict[str, float]:
-    """Average of last 4 same-weekday sales (Task 5 spec)."""
+def _weekday_pattern_total(daily_totals: dict[date, float], target_date: date) -> float:
+    """Average of last 4 same-weekday totals."""
     weekday = target_date.weekday()
     matching_days = sorted(
-        [d for d in daily_sales if d.weekday() == weekday and d < target_date],
+        [d for d in daily_totals if d.weekday() == weekday and d < target_date],
         reverse=True,
     )[:4]
     if not matching_days:
-        return {dp: 0.0 for dp in DAYPARTS}
-    pattern: dict[str, float] = {}
-    for dp in DAYPARTS:
-        vals = [daily_sales[d].get(dp, 0) for d in matching_days]
-        pattern[dp] = statistics.mean(vals) if vals else 0.0
-    return pattern
+        return 0.0
+    vals = [daily_totals[d] for d in matching_days]
+    return float(statistics.mean(vals)) if vals else 0.0
 
 
-def _moving_average_14(daily_sales: dict[date, dict], target_date: date) -> dict[str, float]:
-    """14-day moving average (Task 5 spec)."""
-    avg: dict[str, float] = {dp: 0.0 for dp in DAYPARTS}
+def _moving_average_14_total(daily_totals: dict[date, float], target_date: date) -> float:
+    """14-day moving average on total demand."""
+    total = 0.0
+    count = 0
     window_days = [target_date - timedelta(days=i) for i in range(1, 15)]
-    counts: dict[str, int] = {dp: 0 for dp in DAYPARTS}
-    for d in window_days:
-        if d in daily_sales:
+    for day in window_days:
+        if day in daily_totals:
+            total += daily_totals[day]
+            count += 1
+    return total / count if count > 0 else 0.0
+
+
+def _historical_daypart_ratios(daily_sales: dict[date, dict], target_date: date, lookback_days: int = 28) -> dict[str, float]:
+    """Compute daypart split from recent history for this outlet/SKU."""
+    start = target_date - timedelta(days=lookback_days)
+    totals = {dp: 0.0 for dp in DAYPARTS}
+
+    for day, values in daily_sales.items():
+        if start <= day < target_date:
             for dp in DAYPARTS:
-                avg[dp] += daily_sales[d].get(dp, 0)
-                counts[dp] += 1
-    for dp in DAYPARTS:
-        avg[dp] = avg[dp] / counts[dp] if counts[dp] > 0 else 0.0
-    return avg
+                totals[dp] += float(values.get(dp, 0))
+
+    grand_total = sum(totals.values())
+    if grand_total <= 0:
+        return {"morning": 1 / 3, "midday": 1 / 3, "evening": 1 / 3}
+
+    return {dp: totals[dp] / grand_total for dp in DAYPARTS}
 
 
 def forecast_demand(
@@ -123,7 +138,9 @@ def forecast_demand(
     db: Session,
 ) -> ForecastResult:
     """
-    Combined forecast = 0.4 × weighted_recent + 0.4 × weekday_pattern + 0.2 × 14-day MA
+    Combined total demand forecast:
+    0.4 × weighted_recent + 0.4 × weekday_pattern + 0.2 × 14-day MA
+    Then split into dayparts using historical daypart ratios.
     """
     history_start = target_date - timedelta(days=60)
     daily_sales = _get_daily_sales(db, outlet_id, sku_id, history_start, target_date)
@@ -137,19 +154,15 @@ def forecast_demand(
             rationale={"note": "No historical data available"},
         )
 
-    weighted = _weighted_recent(daily_sales, target_date)
-    weekday = _weekday_pattern(daily_sales, target_date)
-    ma14 = _moving_average_14(daily_sales, target_date)
+    daily_totals = _to_daily_totals(daily_sales)
+    weighted_total = _weighted_recent_total(daily_totals, target_date)
+    weekday_total = _weekday_pattern_total(daily_totals, target_date)
+    ma14_total = _moving_average_14_total(daily_totals, target_date)
 
-    combined: dict[str, float] = {}
-    for dp in DAYPARTS:
-        combined[dp] = (
-            0.40 * weighted.get(dp, 0)
-            + 0.40 * weekday.get(dp, 0)
-            + 0.20 * ma14.get(dp, 0)
-        )
-        combined[dp] = max(0.0, combined[dp])
+    combined_total = max(0.0, (0.40 * weighted_total) + (0.40 * weekday_total) + (0.20 * ma14_total))
+    daypart_ratios = _historical_daypart_ratios(daily_sales, target_date)
 
+    combined = {dp: combined_total * daypart_ratios[dp] for dp in DAYPARTS}
     total = sum(combined.values())
 
     # Determine weekday labelling
@@ -159,17 +172,17 @@ def forecast_demand(
         reason_tags.append("Weekend boost")
     if combined["morning"] > (combined["midday"] + combined["evening"]):
         reason_tags.append("Morning peak")
-    if total > 0 and ma14:
-        ma_total = sum(ma14.values())
-        if total > ma_total * 1.1:
+    if total > 0 and ma14_total > 0:
+        if total > ma14_total * 1.1:
             reason_tags.append("Above recent average")
-        elif total < ma_total * 0.9:
+        elif total < ma14_total * 0.9:
             reason_tags.append("Declining trend")
 
     rationale = {
-        "weighted_recent": {k: round(v, 1) for k, v in weighted.items()},
-        "weekday_pattern": {k: round(v, 1) for k, v in weekday.items()},
-        "moving_avg_14d": {k: round(v, 1) for k, v in ma14.items()},
+        "weighted_recent_total": round(weighted_total, 1),
+        "weekday_pattern_total": round(weekday_total, 1),
+        "moving_avg_14d_total": round(ma14_total, 1),
+        "historical_daypart_ratios": {k: round(v, 3) for k, v in daypart_ratios.items()},
         "reason_tags": reason_tags,
         "target_weekday": day_labels[target_date.weekday()],
     }

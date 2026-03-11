@@ -125,22 +125,22 @@ def recommend_prep(
         "evening": forecast.evening,
     }
 
-    # Freshness: if freshness_hours <= 8, don't prep morning batch for evening (already counted)
-    # For short-shelf-life items we prep per daypart independently
-    short_shelf = sku.freshness_hours <= 8
+    # Freshness rule from TEAM_PLAN: items with <8h shelf life should not be
+    # prepped for evening if a morning batch is already planned.
+    short_shelf = sku.freshness_hours < 8
 
     # Allocate stock against morning first (reduces morning prep)
     stock_remaining = current_stock
     results: dict[str, int] = {}
     for dp in DAYPARTS:
-        demand = daypart_forecasts[dp] * waste_adj
-        # Short shelf: skip evening re-prep if item was prepped morning
         if short_shelf and dp == "evening" and results.get("morning", 0) > 0:
-            # Treat morning leftovers as zero (they'd be wasted anyway)
-            stock_for_dp = 0
-        else:
-            stock_for_dp = min(stock_remaining, demand)
-            stock_remaining = max(0, stock_remaining - int(stock_for_dp))
+            results[dp] = 0
+            adjustments.append("Short shelf life (<8h): skipped evening prep when morning prep exists")
+            continue
+
+        demand = daypart_forecasts[dp] * waste_adj
+        stock_for_dp = min(stock_remaining, demand)
+        stock_remaining = max(0, stock_remaining - int(stock_for_dp))
 
         net_demand = demand - stock_for_dp
         prep = max(0, net_demand + (net_demand * buffer))

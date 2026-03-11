@@ -8,6 +8,7 @@ from typing import Optional
 from sqlalchemy.orm import Session
 
 from db.models import SalesFact, WasteLog, PrepPlanLine, PrepPlan, Outlet, SKU
+from forecasting.engine import forecast_demand
 
 PREP_OVER_FORECAST_THRESHOLD = 0.15  # alert if prep > forecast * (1 + 0.15)
 WASTE_RATE_3D_THRESHOLD = 0.10       # alert if 3-day waste rate > 10%
@@ -87,18 +88,27 @@ def detect_waste_risk(target_date: date, db: Session) -> list[WasteAlert]:
 
     for outlet in outlets:
         for sku in skus:
+            forecast = forecast_demand(outlet.id, sku.id, target_date, db)
+            forecast_map = {
+                "morning": forecast.morning,
+                "midday": forecast.midday,
+                "evening": forecast.evening,
+            }
+            waste_rate = _get_waste_rate_3d(db, outlet.id, sku.id, target_date)
+
             for dp in DAYPARTS:
                 triggers: list[str] = []
-                waste_rate = _get_waste_rate_3d(db, outlet.id, sku.id, target_date)
                 sales_series = _get_daypart_sales(db, outlet.id, sku.id, dp, 7, target_date)
 
                 # Trigger 1: prep exceeds forecast by >15%
                 prep_qty = prep_map.get((outlet.id, sku.id, dp), 0)
-                avg_sales = sum(sales_series) / len(sales_series) if sales_series else 0
+                expected = float(forecast_map.get(dp, 0.0))
                 excess = 0.0
-                if avg_sales > 0 and prep_qty > avg_sales * (1 + PREP_OVER_FORECAST_THRESHOLD):
-                    excess = prep_qty - avg_sales
-                    triggers.append(f"Prep ({prep_qty}) exceeds expected demand ({avg_sales:.0f}) by >{PREP_OVER_FORECAST_THRESHOLD:.0%}")
+                if expected > 0 and prep_qty > expected * (1 + PREP_OVER_FORECAST_THRESHOLD):
+                    excess = prep_qty - expected
+                    triggers.append(
+                        f"Prep ({prep_qty}) exceeds forecast ({expected:.0f}) by >{PREP_OVER_FORECAST_THRESHOLD:.0%}"
+                    )
 
                 # Trigger 2: 3-day waste rate > 10%
                 if waste_rate > WASTE_RATE_3D_THRESHOLD:
@@ -107,7 +117,7 @@ def detect_waste_risk(target_date: date, db: Session) -> list[WasteAlert]:
                 # Trigger 3: evening daypart declined 3+ consecutive days
                 if dp == "evening" and len(sales_series) >= CONSECUTIVE_DECLINE_DAYS:
                     recent = sales_series[-CONSECUTIVE_DECLINE_DAYS:]
-                    if all(recent[i] >= recent[i + 1] for i in range(len(recent) - 1)):
+                    if all(recent[i] > recent[i + 1] for i in range(len(recent) - 1)):
                         triggers.append(f"Evening sales declining for {CONSECUTIVE_DECLINE_DAYS}+ consecutive days")
 
                 if not triggers:
