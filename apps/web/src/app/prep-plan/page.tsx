@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { todayISO, cn } from "@/lib/utils";
@@ -49,6 +49,15 @@ export default function PrepPlanPage() {
   const plan = data?.prep_plan;
   const lines: PrepPlanLine[] = plan?.lines ?? [];
 
+  const totalPrepUnits = useMemo(
+    () => lines.reduce((s, l) => s + (l.edited_units ?? l.prep_qty), 0),
+    [lines]
+  );
+  const editedCount = useMemo(
+    () => lines.filter((l) => l.status === "edited").length,
+    [lines]
+  );
+
   function handleEdit(planId: number, lineId: number) {
     const raw = edits[lineId];
     const units = parseInt(raw ?? "", 10);
@@ -84,54 +93,69 @@ export default function PrepPlanPage() {
         )}
       </Header>
 
-      <main className="p-6">
+      <main className="p-6 space-y-5">
         {error && (
-          <div className="mb-4 rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+          <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
             {error instanceof Error ? error.message : "Failed to load prep plan"}
           </div>
         )}
 
-        {plan && (
-          <div className="mb-4 flex items-center gap-3">
-            <span className="text-sm text-neutral-600">
-              Plan status:
-            </span>
+        {/* Summary strip */}
+        <div className="flex flex-wrap items-center gap-4">
+          {plan && (
             <span
               className={cn(
-                "rounded-full px-3 py-0.5 text-xs font-semibold capitalize",
+                "rounded-full px-3 py-1 text-xs font-semibold capitalize",
                 plan.status === "approved"
-                  ? "bg-green-100 text-green-700"
-                  : "bg-yellow-100 text-yellow-700"
+                  ? "bg-green-100 text-green-700 ring-1 ring-green-200"
+                  : "bg-yellow-100 text-yellow-700 ring-1 ring-yellow-200"
               )}
             >
-              {plan.status}
+              {plan.status === "approved" ? "✓ Approved" : "Draft"}
             </span>
-            {plan.approved_at && (
-              <span className="text-xs text-neutral-400">
-                Approved {new Date(plan.approved_at).toLocaleString()}
+          )}
+          {plan && plan.approved_at && (
+            <span className="text-xs text-neutral-400">
+              Approved {new Date(plan.approved_at).toLocaleString()}
+            </span>
+          )}
+          {lines.length > 0 && (
+            <>
+              <span className="text-sm text-neutral-500">
+                <span className="font-semibold text-neutral-800">{totalPrepUnits}</span> total prep units
               </span>
-            )}
-          </div>
-        )}
+              <span className="text-sm text-neutral-500">
+                <span className="font-semibold text-neutral-800">{lines.length}</span> SKU/daypart lines
+              </span>
+              {editedCount > 0 && (
+                <span className="text-sm text-blue-600 font-medium">
+                  {editedCount} override{editedCount !== 1 && "s"} applied
+                </span>
+              )}
+            </>
+          )}
+        </div>
 
+        {/* Table */}
         <div className="bg-white rounded-xl border border-neutral-200 shadow-sm overflow-hidden">
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-neutral-50 border-b border-neutral-200 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wide">
                 <th className="px-4 py-3">SKU</th>
+                <th className="px-4 py-3">Outlet</th>
                 <th className="px-4 py-3">Daypart</th>
                 <th className="px-4 py-3 text-right">Forecast</th>
                 <th className="px-4 py-3 text-right">Prep Qty</th>
                 <th className="px-4 py-3 text-right">Override</th>
                 <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3" />
+                <th className="px-4 py-3 w-12" />
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-100">
               {isLoading
-                ? Array.from({ length: 5 }).map((_, i) => (
+                ? Array.from({ length: 6 }).map((_, i) => (
                     <tr key={i}>
-                      {Array.from({ length: 7 }).map((__, j) => (
+                      {Array.from({ length: 8 }).map((__, j) => (
                         <td key={j} className="px-4 py-3">
                           <div className="h-4 bg-neutral-100 animate-pulse rounded" />
                         </td>
@@ -141,19 +165,35 @@ export default function PrepPlanPage() {
                 : lines.length === 0
                 ? (
                   <tr>
-                    <td colSpan={7} className="px-4 py-10 text-center text-neutral-400">
-                      No prep plan. Click "Generate Plan" to create one.
+                    <td colSpan={8} className="px-4 py-12 text-center text-sm text-neutral-400">
+                      No prep plan yet — click{" "}
+                      <button
+                        onClick={() => runMutation.mutate()}
+                        className="text-amber-600 hover:text-amber-700 font-medium"
+                      >
+                        Generate Plan
+                      </button>{" "}
+                      to create one.
                     </td>
                   </tr>
                 )
                 : lines.map((line) => (
-                  <tr key={line.id} className="hover:bg-neutral-50 transition-colors">
+                  <tr
+                    key={line.id}
+                    className={cn(
+                      "hover:bg-neutral-50 transition-colors",
+                      line.status === "edited" && "bg-blue-50/30"
+                    )}
+                  >
                     <td className="px-4 py-3 font-medium text-neutral-800">
                       {line.sku_name ?? `SKU ${line.sku_id}`}
                     </td>
+                    <td className="px-4 py-3 text-xs text-neutral-500">
+                      {plan?.outlet_name ?? `Outlet ${plan?.outlet_id ?? "—"}`}
+                    </td>
                     <td className="px-4 py-3 capitalize text-neutral-600">{line.daypart}</td>
-                    <td className="px-4 py-3 text-right tabular-nums">{line.forecast_qty}</td>
-                    <td className="px-4 py-3 text-right tabular-nums font-semibold">{line.prep_qty}</td>
+                    <td className="px-4 py-3 text-right tabular-nums text-neutral-500">{line.forecast_qty}</td>
+                    <td className="px-4 py-3 text-right tabular-nums font-semibold text-neutral-800">{line.prep_qty}</td>
                     <td className="px-4 py-3">
                       <input
                         type="number"

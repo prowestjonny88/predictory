@@ -3,12 +3,17 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { todayISO } from "@/lib/utils";
+import { todayISO, cn } from "@/lib/utils";
 import Header from "@/components/Header";
 import AlertCard from "@/components/AlertCard";
-import type { WasteAlert, StockoutAlert } from "@/types";
+import { Flame, ShoppingCart } from "lucide-react";
+import type { WasteAlert, StockoutAlert, RiskLevel } from "@/types";
 
 type Tab = "waste" | "stockout";
+
+const RISK_ORDER: Record<RiskLevel, number> = {
+  critical: 0, high: 1, medium: 2, low: 3,
+};
 
 export default function RiskCenterPage() {
   const [date, setDate] = useState(todayISO);
@@ -33,7 +38,17 @@ export default function RiskCenterPage() {
   });
 
   const loading = tab === "waste" ? wasteLoading : stockoutLoading;
-  const error = tab === "waste" ? wasteError : stockoutError;
+  const error   = tab === "waste" ? wasteError   : stockoutError;
+
+  const sortedWaste = [...(wasteAlerts ?? [])].sort(
+    (a, b) => RISK_ORDER[a.risk_level] - RISK_ORDER[b.risk_level]
+  );
+  const sortedStockout = [...(stockoutAlerts ?? [])].sort(
+    (a, b) => RISK_ORDER[a.risk_level] - RISK_ORDER[b.risk_level]
+  );
+
+  const criticalWaste    = wasteAlerts?.filter((a) => a.risk_level === "critical").length ?? 0;
+  const criticalStockout = stockoutAlerts?.filter((a) => a.risk_level === "critical").length ?? 0;
 
   return (
     <div className="min-h-screen">
@@ -46,40 +61,48 @@ export default function RiskCenterPage() {
         />
       </Header>
 
-      <main className="p-6 space-y-4">
-        {/* Tab switcher */}
-        <div className="flex gap-2">
-          <button
-            onClick={() => setTab("waste")}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              tab === "waste"
-                ? "bg-amber-500 text-white"
-                : "bg-white border border-neutral-200 text-neutral-600 hover:bg-neutral-50"
-            }`}
-          >
-            Waste Alerts{" "}
-            {!wasteLoading && (
-              <span className="ml-1.5 rounded-full bg-white/20 px-1.5 text-xs">
-                {wasteAlerts?.length ?? 0}
-              </span>
-            )}
-          </button>
-          <button
-            onClick={() => setTab("stockout")}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              tab === "stockout"
-                ? "bg-red-600 text-white"
-                : "bg-white border border-neutral-200 text-neutral-600 hover:bg-neutral-50"
-            }`}
-          >
-            Stockout Alerts{" "}
-            {!stockoutLoading && (
-              <span className="ml-1.5 rounded-full bg-white/20 px-1.5 text-xs">
-                {stockoutAlerts?.length ?? 0}
-              </span>
-            )}
-          </button>
-        </div>
+      <main className="p-6 space-y-5">
+        {/* Summary counts */}
+        {(!wasteLoading || !stockoutLoading) && (
+          <div className="grid grid-cols-2 gap-4">
+            <button
+              onClick={() => setTab("waste")}
+              className={cn(
+                "rounded-xl border p-4 text-left transition-all",
+                tab === "waste"
+                  ? "bg-amber-50 border-amber-300 ring-1 ring-amber-300"
+                  : "bg-white border-neutral-200 hover:border-amber-200"
+              )}
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <Flame className={cn("h-4 w-4", tab === "waste" ? "text-amber-500" : "text-neutral-400")} />
+                <span className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Waste Alerts</span>
+              </div>
+              <p className="text-3xl font-bold text-neutral-900">{wasteAlerts?.length ?? 0}</p>
+              {criticalWaste > 0 && (
+                <p className="text-xs text-red-600 font-medium mt-1">{criticalWaste} critical</p>
+              )}
+            </button>
+            <button
+              onClick={() => setTab("stockout")}
+              className={cn(
+                "rounded-xl border p-4 text-left transition-all",
+                tab === "stockout"
+                  ? "bg-red-50 border-red-300 ring-1 ring-red-300"
+                  : "bg-white border-neutral-200 hover:border-red-200"
+              )}
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <ShoppingCart className={cn("h-4 w-4", tab === "stockout" ? "text-red-500" : "text-neutral-400")} />
+                <span className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Stockout Alerts</span>
+              </div>
+              <p className="text-3xl font-bold text-neutral-900">{stockoutAlerts?.length ?? 0}</p>
+              {criticalStockout > 0 && (
+                <p className="text-xs text-red-600 font-medium mt-1">{criticalStockout} critical</p>
+              )}
+            </button>
+          </div>
+        )}
 
         {/* Error */}
         {error && (
@@ -89,73 +112,79 @@ export default function RiskCenterPage() {
         )}
 
         {/* Alert list */}
-        <div className="space-y-2">
-          {loading ? (
-            Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="h-16 bg-neutral-100 animate-pulse rounded-lg" />
-            ))
-          ) : tab === "waste" ? (
-            (wasteAlerts?.length ?? 0) === 0 ? (
-              <p className="text-sm text-neutral-400 py-8 text-center">
-                No waste alerts for {date}.
-              </p>
+        <section>
+          <h2 className="text-xs font-semibold text-neutral-500 uppercase tracking-wide mb-3">
+            {tab === "waste" ? "Waste" : "Stockout"} Alerts
+            {!loading && (
+              <span className="ml-2 normal-case font-normal text-neutral-400">
+                — sorted by risk level
+              </span>
+            )}
+          </h2>
+          <div className="space-y-2">
+            {loading ? (
+              Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="h-16 bg-neutral-100 animate-pulse rounded-lg" />
+              ))
+            ) : tab === "waste" ? (
+              sortedWaste.length === 0 ? (
+                <div className="rounded-xl bg-white border border-neutral-200 px-5 py-10 text-center text-sm text-neutral-400">
+                  No waste alerts for {date}.
+                </div>
+              ) : (
+                sortedWaste.map((a, i) => (
+                  <AlertCard
+                    key={i}
+                    riskLevel={a.risk_level}
+                    title={a.sku_name ?? `SKU ${a.sku_id}`}
+                    subtitle={a.reason}
+                    meta={[
+                      a.outlet_name ? `Outlet: ${a.outlet_name}` : null,
+                      a.waste_rate_pct != null
+                        ? `Waste rate: ${a.waste_rate_pct.toFixed(1)}%`
+                        : null,
+                      a.days_below_threshold != null
+                        ? `${a.days_below_threshold}d below threshold`
+                        : null,
+                    ].filter(Boolean).join(" · ") || undefined}
+                  >
+                    {a.triggers && a.triggers.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        {a.triggers.map((t, j) => (
+                          <span
+                            key={j}
+                            className="rounded bg-neutral-100 px-2 py-0.5 text-xs text-neutral-600"
+                          >
+                            {t}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </AlertCard>
+                ))
+              )
+            ) : sortedStockout.length === 0 ? (
+              <div className="rounded-xl bg-white border border-neutral-200 px-5 py-10 text-center text-sm text-neutral-400">
+                No stockout alerts for {date}.
+              </div>
             ) : (
-              wasteAlerts!.map((a, i) => (
+              sortedStockout.map((a, i) => (
                 <AlertCard
                   key={i}
                   riskLevel={a.risk_level}
                   title={a.sku_name ?? `SKU ${a.sku_id}`}
-                  subtitle={a.reason}
+                  subtitle={a.reason ?? a.message}
                   meta={[
                     a.outlet_name ? `Outlet: ${a.outlet_name}` : null,
-                    a.waste_rate_pct != null
-                      ? `Waste rate: ${a.waste_rate_pct.toFixed(1)}%`
+                    a.coverage_pct != null
+                      ? `Stock coverage: ${a.coverage_pct.toFixed(1)}%`
                       : null,
-                    a.days_below_threshold != null
-                      ? `Days below threshold: ${a.days_below_threshold}`
-                      : null,
-                  ]
-                    .filter(Boolean)
-                    .join(" · ") || undefined}
-                >
-                  {a.triggers && a.triggers.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      {a.triggers.map((t, j) => (
-                        <span
-                          key={j}
-                          className="rounded bg-neutral-100 px-2 py-0.5 text-xs text-neutral-600"
-                        >
-                          {t}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </AlertCard>
+                  ].filter(Boolean).join(" · ") || undefined}
+                />
               ))
-            )
-          ) : (stockoutAlerts?.length ?? 0) === 0 ? (
-            <p className="text-sm text-neutral-400 py-8 text-center">
-              No stockout alerts for {date}.
-            </p>
-          ) : (
-            stockoutAlerts!.map((a, i) => (
-              <AlertCard
-                key={i}
-                riskLevel={a.risk_level}
-                title={a.sku_name ?? `SKU ${a.sku_id}`}
-                subtitle={a.reason ?? a.message}
-                meta={[
-                  a.outlet_name ? `Outlet: ${a.outlet_name}` : null,
-                  a.coverage_pct != null
-                    ? `Stock coverage: ${a.coverage_pct.toFixed(1)}%`
-                    : null,
-                ]
-                  .filter(Boolean)
-                  .join(" · ") || undefined}
-              />
-            ))
-          )}
-        </div>
+            )}
+          </div>
+        </section>
       </main>
     </div>
   );
