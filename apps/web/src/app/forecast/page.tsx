@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, Fragment } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { HelpCircle, X } from "lucide-react";
 import { api } from "@/lib/api";
 import { todayISO } from "@/lib/utils";
 import Header from "@/components/Header";
@@ -78,6 +79,30 @@ export default function ForecastPage() {
     }
     return t;
   }, [allLines]);
+
+  const [expandedLines, setExpandedLines] = useState(new Set<number>());
+  const [explanations, setExplanations] = useState<
+    Record<number, { text: string; loading: boolean; error: boolean }>
+  >({});
+
+  async function toggleWhy(lineId: number) {
+    const newSet = new Set(expandedLines);
+    if (newSet.has(lineId)) {
+      newSet.delete(lineId);
+      setExpandedLines(newSet);
+      return;
+    }
+    newSet.add(lineId);
+    setExpandedLines(newSet);
+    if (explanations[lineId]) return;
+    setExplanations((prev) => ({ ...prev, [lineId]: { text: "", loading: true, error: false } }));
+    try {
+      const r = await api.explainPlan({ context_type: "forecast_line", line_id: lineId });
+      setExplanations((prev) => ({ ...prev, [lineId]: { text: r.explanation, loading: false, error: false } }));
+    } catch (_err) {
+      setExplanations((prev) => ({ ...prev, [lineId]: { text: "", loading: false, error: true } }));
+    }
+  }
 
   return (
     <div className="min-h-screen">
@@ -164,13 +189,14 @@ export default function ForecastPage() {
                   <th className="px-4 py-3 text-right">Predicted</th>
                   <th className="px-4 py-3 text-right">Adjusted</th>
                   <th className="px-4 py-3 text-right">Δ %</th>
+                  <th className="px-4 py-3 w-16" />
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-100">
                 {isLoading
                   ? Array.from({ length: 8 }).map((_, i) => (
                       <tr key={i}>
-                        {Array.from({ length: 6 }).map((__, j) => (
+                        {Array.from({ length: 7 }).map((__, j) => (
                           <td key={j} className="px-4 py-3">
                             <div className="h-4 bg-neutral-100 animate-pulse rounded" />
                           </td>
@@ -180,7 +206,7 @@ export default function ForecastPage() {
                   : allLines.length === 0
                   ? (
                     <tr>
-                      <td colSpan={6} className="px-4 py-12 text-center text-sm text-neutral-400">
+                      <td colSpan={7} className="px-4 py-12 text-center text-sm text-neutral-400">
                         No forecast data —{" "}
                         <button
                           onClick={() => runMutation.mutate()}
@@ -195,48 +221,92 @@ export default function ForecastPage() {
                   : allLines.map((line, i) => {
                       const dp = line.daypart as Daypart;
                       const delta = line.adjustment_pct;
+                      const expl = explanations[line.id];
+                      const isExpanded = expandedLines.has(line.id);
                       return (
-                        <tr key={i} className="hover:bg-neutral-50 transition-colors">
-                          <td className="px-4 py-3 font-medium text-neutral-800">
-                            {line.sku_name ?? `SKU ${line.sku_id}`}
-                          </td>
-                          <td className="px-4 py-3 text-neutral-500 text-xs">
-                            {line.outlet_name ?? "—"}
-                          </td>
-                          <td className="px-4 py-3">
-                            <span
-                              className={`inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium ${
-                                DAYPART_BADGE[dp] ?? "bg-neutral-100 border-neutral-200 text-neutral-600"
-                              }`}
-                            >
-                              {DAYPART_LABELS[dp] ?? line.daypart}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-right tabular-nums font-semibold text-neutral-800">
-                            {line.predicted_qty}
-                          </td>
-                          <td className="px-4 py-3 text-right tabular-nums text-neutral-500">
-                            {line.adjusted_qty ?? "—"}
-                          </td>
-                          <td className="px-4 py-3 text-right tabular-nums text-sm">
-                            {delta != null ? (
+                        <Fragment key={i}>
+                          <tr className="hover:bg-neutral-50 transition-colors">
+                            <td className="px-4 py-3 font-medium text-neutral-800">
+                              {line.sku_name ?? `SKU ${line.sku_id}`}
+                            </td>
+                            <td className="px-4 py-3 text-neutral-500 text-xs">
+                              {line.outlet_name ?? "—"}
+                            </td>
+                            <td className="px-4 py-3">
                               <span
-                                className={
-                                  delta > 0
-                                    ? "text-green-600"
-                                    : delta < 0
-                                    ? "text-red-500"
-                                    : "text-neutral-400"
-                                }
+                                className={`inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium ${
+                                  DAYPART_BADGE[dp] ?? "bg-neutral-100 border-neutral-200 text-neutral-600"
+                                }`}
                               >
-                                {delta > 0 ? "+" : ""}
-                                {delta.toFixed(1)}%
+                                {DAYPART_LABELS[dp] ?? line.daypart}
                               </span>
-                            ) : (
-                              <span className="text-neutral-300">—</span>
-                            )}
-                          </td>
-                        </tr>
+                            </td>
+                            <td className="px-4 py-3 text-right tabular-nums font-semibold text-neutral-800">
+                              {line.predicted_qty}
+                            </td>
+                            <td className="px-4 py-3 text-right tabular-nums text-neutral-500">
+                              {line.adjusted_qty ?? "—"}
+                            </td>
+                            <td className="px-4 py-3 text-right tabular-nums text-sm">
+                              {delta != null ? (
+                                <span
+                                  className={
+                                    delta > 0
+                                      ? "text-green-600"
+                                      : delta < 0
+                                      ? "text-red-500"
+                                      : "text-neutral-400"
+                                  }
+                                >
+                                  {delta > 0 ? "+" : ""}
+                                  {delta.toFixed(1)}%
+                                </span>
+                              ) : (
+                                <span className="text-neutral-300">—</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              <button
+                                onClick={() => toggleWhy(line.id)}
+                                className={`inline-flex items-center gap-1 text-xs font-medium transition-colors ${
+                                  isExpanded
+                                    ? "text-amber-700"
+                                    : "text-neutral-400 hover:text-amber-600"
+                                }`}
+                              >
+                                {isExpanded ? (
+                                  <X className="h-3 w-3" />
+                                ) : (
+                                  <HelpCircle className="h-3 w-3" />
+                                )}
+                                {isExpanded ? "Close" : "Why?"}
+                              </button>
+                            </td>
+                          </tr>
+                          {isExpanded && (
+                            <tr>
+                              <td
+                                colSpan={7}
+                                className="bg-amber-50 px-6 py-3 border-t border-amber-100"
+                              >
+                                {expl?.loading ? (
+                                  <div className="flex items-center gap-2 text-sm text-neutral-500">
+                                    <div className="h-3 w-3 rounded-full bg-amber-300 animate-pulse" />
+                                    Generating explanation…
+                                  </div>
+                                ) : expl?.error ? (
+                                  <p className="text-xs text-neutral-400 italic">
+                                    Explanation unavailable. Try again later.
+                                  </p>
+                                ) : expl?.text ? (
+                                  <p className="text-sm text-neutral-700 leading-relaxed">
+                                    {expl.text}
+                                  </p>
+                                ) : null}
+                              </td>
+                            </tr>
+                          )}
+                        </Fragment>
                       );
                     })}
               </tbody>

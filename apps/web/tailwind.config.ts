@@ -10,8 +10,18 @@ const config: Config = {
     extend: {
       colors: {
         brand: {
-          amber: "#f59e0b",
+          amber:        "#f59e0b",
           "amber-dark": "#d97706",
+          "amber-light":"#fef3c7",
+        },
+      },
+      animation: {
+        "fade-in": "fadeIn 0.2s ease-out",
+      },
+      keyframes: {
+        fadeIn: {
+          from: { opacity: "0", transform: "translateY(4px)" },
+          to:   { opacity: "1", transform: "translateY(0)" },
         },
       },
     },

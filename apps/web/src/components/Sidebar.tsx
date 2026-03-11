@@ -10,16 +10,18 @@ import {
   AlertTriangle,
   Bot,
   ChefHat,
+  GitBranch,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV = [
-  { href: "/dashboard",      label: "Dashboard",      icon: LayoutDashboard },
-  { href: "/forecast",       label: "Forecast",       icon: TrendingUp },
-  { href: "/prep-plan",      label: "Prep Plan",      icon: ClipboardList },
-  { href: "/replenishment",  label: "Replenishment",  icon: ShoppingCart },
-  { href: "/risk-center",    label: "Risk Centre",    icon: AlertTriangle },
-  { href: "/copilot",        label: "AI Copilot",     icon: Bot },
+  { href: "/dashboard",        label: "Dashboard",       icon: LayoutDashboard },
+  { href: "/forecast",         label: "Forecast",        icon: TrendingUp },
+  { href: "/prep-plan",        label: "Prep Plan",        icon: ClipboardList },
+  { href: "/replenishment",    label: "Replenishment",   icon: ShoppingCart },
+  { href: "/risk-center",      label: "Risk Centre",     icon: AlertTriangle },
+  { href: "/scenario-planner", label: "Scenario Planner", icon: GitBranch },
+  { href: "/copilot",          label: "AI Copilot",      icon: Bot },
 ];
 
 export default function Sidebar() {
@@ -59,7 +61,7 @@ export default function Sidebar() {
 
       {/* Footer */}
       <div className="px-5 py-4 border-t border-neutral-100 text-xs text-neutral-400">
-        BakeWise v1 · Day 1 Build
+        BakeWise v1 &middot; Day 2 Build
       </div>
     </aside>
   );

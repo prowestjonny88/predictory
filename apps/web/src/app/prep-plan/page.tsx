@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, Fragment } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { HelpCircle, X, Factory } from "lucide-react";
 import { api } from "@/lib/api";
 import { todayISO, cn } from "@/lib/utils";
 import Header from "@/components/Header";
@@ -57,6 +58,53 @@ export default function PrepPlanPage() {
     () => lines.filter((l) => l.status === "edited").length,
     [lines]
   );
+
+  const kitchenAllocation = useMemo(() => {
+    const bySkuId = new Map<
+      number,
+      { sku_name: string; morning: number; afternoon: number; evening: number }
+    >();
+    for (const line of lines) {
+      const existing = bySkuId.get(line.sku_id) ?? {
+        sku_name: line.sku_name ?? `SKU ${line.sku_id}`,
+        morning: 0,
+        afternoon: 0,
+        evening: 0,
+      };
+      const qty = line.edited_units ?? line.prep_qty;
+      if (line.daypart === "morning") existing.morning += qty;
+      else if (line.daypart === "afternoon") existing.afternoon += qty;
+      else if (line.daypart === "evening") existing.evening += qty;
+      bySkuId.set(line.sku_id, existing);
+    }
+    return Array.from(bySkuId.values())
+      .map((v) => ({ ...v, total: v.morning + v.afternoon + v.evening }))
+      .sort((a, b) => b.total - a.total);
+  }, [lines]);
+
+  const [expandedLines, setExpandedLines] = useState(new Set<number>());
+  const [explanations, setExplanations] = useState<Record<number, { text: string; loading: boolean; error: boolean }>>({});
+
+  function togglePrepWhy(lineId: number) {
+    const newSet = new Set(expandedLines);
+    if (newSet.has(lineId)) {
+      newSet.delete(lineId);
+      setExpandedLines(newSet);
+      return;
+    }
+    newSet.add(lineId);
+    setExpandedLines(newSet);
+    if (explanations[lineId]) return;
+    setExplanations((prev) => ({ ...prev, [lineId]: { text: "", loading: true, error: false } }));
+    api
+      .explainPlan({ context_type: "prep_line", line_id: lineId })
+      .then((r) => {
+        setExplanations((prev) => ({ ...prev, [lineId]: { text: r.explanation, loading: false, error: false } }));
+      })
+      .catch(() => {
+        setExplanations((prev) => ({ ...prev, [lineId]: { text: "", loading: false, error: true } }));
+      });
+  }
 
   function handleEdit(planId: number, lineId: number) {
     const raw = edits[lineId];
@@ -136,6 +184,42 @@ export default function PrepPlanPage() {
           )}
         </div>
 
+        {/* Central Kitchen Allocation */}
+        {kitchenAllocation.length > 0 && (
+          <section>
+            <div className="flex items-center gap-2 mb-3">
+              <Factory className="h-4 w-4 text-neutral-500" />
+              <h2 className="text-xs font-semibold text-neutral-500 uppercase tracking-wide">
+                Central Kitchen Summary
+              </h2>
+            </div>
+            <div className="bg-white rounded-xl border border-neutral-200 shadow-sm overflow-hidden">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-neutral-50 border-b border-neutral-200 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wide">
+                    <th className="px-4 py-2.5">SKU</th>
+                    <th className="px-4 py-2.5 text-right">Morning</th>
+                    <th className="px-4 py-2.5 text-right">Afternoon</th>
+                    <th className="px-4 py-2.5 text-right">Evening</th>
+                    <th className="px-4 py-2.5 text-right font-bold text-neutral-700">Total</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-neutral-100">
+                  {kitchenAllocation.map((row) => (
+                    <tr key={row.sku_name} className="hover:bg-neutral-50">
+                      <td className="px-4 py-2 font-medium text-neutral-800">{row.sku_name}</td>
+                      <td className="px-4 py-2 text-right tabular-nums text-neutral-500">{row.morning || "—"}</td>
+                      <td className="px-4 py-2 text-right tabular-nums text-neutral-500">{row.afternoon || "—"}</td>
+                      <td className="px-4 py-2 text-right tabular-nums text-neutral-500">{row.evening || "—"}</td>
+                      <td className="px-4 py-2 text-right tabular-nums font-bold text-neutral-800">{row.total}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
+
         {/* Table */}
         <div className="bg-white rounded-xl border border-neutral-200 shadow-sm overflow-hidden">
           <table className="w-full text-sm">
@@ -178,13 +262,13 @@ export default function PrepPlanPage() {
                   </tr>
                 )
                 : lines.map((line) => (
-                  <tr
-                    key={line.id}
-                    className={cn(
-                      "hover:bg-neutral-50 transition-colors",
-                      line.status === "edited" && "bg-blue-50/30"
-                    )}
-                  >
+                  <Fragment key={line.id}>
+                    <tr
+                      className={cn(
+                        "hover:bg-neutral-50 transition-colors",
+                        line.status === "edited" && "bg-blue-50/30"
+                      )}
+                    >
                     <td className="px-4 py-3 font-medium text-neutral-800">
                       {line.sku_name ?? `SKU ${line.sku_id}`}
                     </td>
@@ -218,19 +302,54 @@ export default function PrepPlanPage() {
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      {plan && plan.status !== "approved" && edits[line.id] && (
+                      <div className="flex items-center gap-2">
+                        {plan && plan.status !== "approved" && edits[line.id] && (
+                          <button
+                            onClick={() => handleEdit(plan.id, line.id)}
+                            disabled={editMutation.isPending}
+                            className="text-xs text-amber-600 hover:text-amber-800 font-medium disabled:opacity-50"
+                          >
+                            Save
+                          </button>
+                        )}
                         <button
-                          onClick={() => handleEdit(plan.id, line.id)}
-                          disabled={editMutation.isPending}
-                          className="text-xs text-amber-600 hover:text-amber-800 font-medium disabled:opacity-50"
+                          onClick={() => togglePrepWhy(line.id)}
+                          title="AI Rationale"
+                          className={`inline-flex items-center gap-1 text-xs font-medium transition-colors ${
+                            expandedLines.has(line.id)
+                              ? "text-amber-700"
+                              : "text-neutral-400 hover:text-amber-600"
+                          }`}
                         >
-                          Save
+                          {expandedLines.has(line.id) ? (
+                            <X className="h-3 w-3" />
+                          ) : (
+                            <HelpCircle className="h-3 w-3" />
+                          )}
                         </button>
-                      )}
+                      </div>
                     </td>
                   </tr>
-                ))}
-            </tbody>
+                  {expandedLines.has(line.id) && (
+                    <tr>
+                      <td colSpan={8} className="bg-amber-50 px-6 py-3 border-t border-amber-100">
+                        {explanations[line.id]?.loading ? (
+                          <div className="flex items-center gap-2 text-sm text-neutral-500">
+                            <div className="h-3 w-3 rounded-full bg-amber-300 animate-pulse" />
+                            Generating rationale…
+                          </div>
+                        ) : explanations[line.id]?.error ? (
+                          <p className="text-xs text-neutral-400 italic">Rationale unavailable.</p>
+                        ) : explanations[line.id]?.text ? (
+                          <p className="text-sm text-neutral-700 leading-relaxed">
+                            {explanations[line.id]?.text}
+                          </p>
+                        ) : null}
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
+              ))}            </tbody>
           </table>
         </div>
       </main>
