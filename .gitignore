@@ -1,6 +1,68 @@
 # Environment variables
 .env
 .env.*
+!.env.example
 
-# TaskMaster AI
+# Python / FastAPI
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+.venv/
+venv/
+env/
+.Python
+pip-log.txt
+pip-delete-this-directory.txt
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+coverage.xml
+*.coveragerc
+
+# Local databases
+*.db
+*.sqlite3
+
+# Alembic
+alembic/__pycache__/
+
+# Next.js app
+apps/web/.next/
+apps/web/out/
+apps/web/node_modules/
+apps/web/npm-debug.log*
+apps/web/yarn-debug.log*
+apps/web/yarn-error.log*
+apps/web/.pnp/
+apps/web/.pnp.js
+apps/web/tsconfig.tsbuildinfo
+
+# Node workspaces
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnp/
+.pnp.js
+
+# OS / editor
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Project tools
 .taskmaster/
