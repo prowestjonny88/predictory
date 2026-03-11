@@ -1,6 +1,8 @@
 # BakeWise — 2-Day Hackathon Team Plan
 
-## Team of 5 · 2 Days · 30 Tasks
+## Team of 5 · 2 Days · 30 Tasks · Demo MVP
+
+> **Architecture:** No Docker. Use managed cloud services (Neon/Supabase for Postgres, Upstash for Redis, Vercel for frontend, Railway for backend). Run locally with `uvicorn` and `pnpm dev`.
 
 ---
 
@@ -10,7 +12,7 @@ Each person owns **exclusive directories**. No two people edit the same files.
 
 | Role | Code | Owns These Directories | Does NOT Touch |
 |---|---|---|---|
-| **P1 — Infra Lead** | `P1-INFRA` | `/infrastructure/`, `/apps/api/auth/`, `/apps/api/audit/`, `/apps/api/db/`, root configs, Docker, migrations, seed scripts | Any module code, frontend, copilot |
+| **P1 — Infra Lead** | `P1-INFRA` | `/apps/api/auth/`, `/apps/api/audit/`, `/apps/api/db/`, root configs, managed service setup, migrations, seed scripts | Any module code, frontend, copilot |
 | **P2 — Data Engineer** | `P2-DATA` | `/apps/api/ingestion/`, `/apps/api/catalog/`, `/apps/api/ops_data/` | Forecasting, planning, copilot, frontend |
 | **P3 — Planning Engine** | `P3-ENGINE` | `/apps/api/forecasting/`, `/apps/api/planning/`, `/apps/api/alerts/` | Ingestion, catalog, copilot, frontend |
 | **P4 — Frontend Engineer** | `P4-FRONTEND` | `/apps/web/` (entire frontend) | Any backend Python code |
@@ -27,16 +29,16 @@ Each person owns **exclusive directories**. No two people edit the same files.
 ### Day 1: Build Core
 | Block | Hours | P1-INFRA | P2-DATA | P3-ENGINE | P4-FRONTEND | P5-AI |
 |---|---|---|---|---|---|---|
-| Morning | 0–4h | Monorepo scaffold, Docker Compose, DB schema + migrations | (blocked until schema) Start CSV parser logic | Forecast logic (can use mock data) | App shell, layout, sidebar, navigation | LiteLLM setup, prompt templates |
+| Morning | 0–4h | Monorepo scaffold, Neon DB + Upstash Redis setup, DB schema + migrations | (blocked until schema) Start CSV parser logic | Forecast logic (can use mock data) | App shell, layout, sidebar, navigation | LiteLLM setup, prompt templates |
 | Afternoon | 4–8h | Demo data seed script, run seeds | Ingestion API + CRUD endpoints | Prep, replenishment, waste, stockout logic | Executive overview + forecast screen | Explanation endpoints, daily brief |
-| Evening | 8–12h | CI/CD pipeline, health checks | Acknowledgement API, test with mock data | Daily plan orchestration API (`/api/daily-plan/{date}`) | Prep plan + replenishment screens | What-if scenario agent |
+| Evening | 8–12h | Vercel + Railway deploy, env vars | Acknowledgement API, test with mock data | Daily plan orchestration API (`/api/daily-plan/{date}`) | Prep plan + replenishment screens | What-if scenario agent |
 
 ### Day 2: Integrate & Polish
 | Block | Hours | P1-INFRA | P2-DATA | P3-ENGINE | P4-FRONTEND | P5-AI |
 |---|---|---|---|---|---|---|
-| Morning | 12–16h | Environment polish, final seed data tuning | Manual adjustment API, data validation fixes | Edge cases, tuning, tests | Risk center, central kitchen view, explanation display | Daily planning agent, integration test |
-| Afternoon | 16–18h | Demo walkthrough prep | Data onboarding mapping UI support | Bug fixes, recommendation tuning | UI polish, responsiveness, what-if screen | Agent testing, final integration |
-| Final | 18–20h | Demo rehearsal | Bug fixes | Bug fixes | Final visual polish | Demo rehearsal |
+| Morning | 12–16h | Deploy pipeline, final seed data on prod DB | Manual adjustment API, data validation fixes | Edge cases, tuning, tests | Risk center, explanation display, what-if screen | Daily planning agent, integration test |
+| Afternoon | 16–18h | Demo walkthrough prep | Bug fixes | Bug fixes, recommendation tuning | UI polish, responsiveness | Agent testing, final integration |
+| Final | 18–20h | Demo rehearsal | Demo rehearsal | Demo rehearsal | Final visual polish | Demo rehearsal |
 
 ---
 
@@ -49,17 +51,17 @@ Each person owns **exclusive directories**. No two people edit the same files.
 - [ ] Monorepo initialized with `pnpm-workspace.yaml` listing `/apps/web`, `/apps/api`, `/apps/worker`
 - [ ] `/apps/api` running FastAPI with `GET /health` returning `200 OK`
 - [ ] `/apps/web` running Next.js dev server at `localhost:3000`
-- [ ] `/apps/worker` Celery worker starts and connects to Redis
-- [ ] `docker-compose.yml` spins up PostgreSQL (port 5432), Redis (port 6379), MinIO (port 9000) — all 3 containers healthy
+- [ ] Neon Postgres provisioned — connection string in `.env`, `SELECT 1` succeeds from FastAPI
+- [ ] Upstash Redis provisioned — connection string in `.env`, ping succeeds
+- [ ] `.env.example` committed with all required variable names (no secrets)
 - [ ] FastAPI `/health` endpoint confirms DB + Redis connectivity
 
 **Subtasks:**
 1. Initialize monorepo structure (pnpm workspace + Git)
 2. Set up FastAPI backend service (`/apps/api`)
 3. Set up Next.js frontend service (`/apps/web`)
-4. Set up Celery worker service (`/apps/worker`)
-5. Configure Docker Compose (Postgres + Redis + MinIO)
-6. Health check endpoints confirming all services connected
+4. Provision Neon Postgres + Upstash Redis (free tiers), save connection strings
+5. Health check endpoint confirming all services connected
 
 ---
 
@@ -67,18 +69,17 @@ Each person owns **exclusive directories**. No two people edit the same files.
 **Priority:** HIGH · **Dependencies:** Task 1 · **Day 1 Morning**
 
 **Measurable deliverables:**
-- [ ] SQLAlchemy 2.x models for all 20+ entities from tech spec (Organization, User, Outlet, SKU, Ingredient, RecipeBOM, SalesFact, InventorySnapshot, IngredientInventorySnapshot, WasteLog, PurchaseOrderHistory, ForecastRun, ForecastLine, PrepPlan, PrepPlanLine, ReplenishmentPlan, ReplenishmentPlanLine, ScenarioRun, AgentRun, AuditEvent)
-- [ ] Alembic initial migration runs cleanly: `alembic upgrade head` succeeds
-- [ ] pgvector extension enabled: `SELECT * FROM pg_extension WHERE extname='vector'` returns 1 row
-- [ ] 5 logical schemas created: `core`, `ops`, `planning`, `ai`, `audit`
+- [ ] SQLAlchemy 2.x models for MVP entities: Outlet, SKU, Ingredient, RecipeBOM, SalesFact, InventorySnapshot, WasteLog, ForecastRun, ForecastLine, PrepPlan, PrepPlanLine, ReplenishmentPlan, ReplenishmentPlanLine
+- [ ] Alembic initial migration runs cleanly against Neon: `alembic upgrade head` succeeds
 - [ ] All foreign key relationships verified with sample INSERT statements
+- [ ] Single `public` schema (skip multi-schema for MVP — adds complexity with no demo value)
 
 **Subtasks:**
-1. Configure SQLAlchemy + Alembic + Postgres connection
-2. Core master data models (Outlet, SKU, Ingredient, Organization, User)
-3. Operational data models (SalesFact, InventorySnapshot, WasteLog, PurchaseOrderHistory)
-4. Recipe/BOM + all foreign key relationships
-5. Generate Alembic migration + enable pgvector
+1. Configure SQLAlchemy + Alembic + Neon Postgres connection
+2. Core master data models (Outlet, SKU, Ingredient)
+3. Operational data models (SalesFact, InventorySnapshot, WasteLog)
+4. Recipe/BOM + planning models (ForecastRun/Line, PrepPlan/Line, ReplenishmentPlan/Line)
+5. Generate and apply Alembic migration
 
 ---
 
@@ -107,8 +108,8 @@ Each person owns **exclusive directories**. No two people edit the same files.
 **Priority:** HIGH · **Dependencies:** Tasks 25, 26 · **Day 2 Final**
 
 **Measurable deliverables:**
-- [ ] Written demo script covering: data onboarding → executive overview → forecast → prep plan (with edit) → replenishment → risk alerts → what-if scenario
-- [ ] Demo flows end-to-end in under 5 minutes without errors
+- [ ] Written demo script covering: executive overview → forecast → prep plan (with edit) → replenishment → risk alerts
+- [ ] Demo flows end-to-end on **deployed URL** in under 5 minutes without errors
 - [ ] Backup demo video recorded
 - [ ] Pitch framing includes: "10–20% lower waste, 8–15% fewer stockouts, 50% less planning time"
 
@@ -120,18 +121,18 @@ Each person owns **exclusive directories**. No two people edit the same files.
 **Priority:** HIGH · **Dependencies:** Task 2 · **Day 1 Afternoon**
 
 **Measurable deliverables:**
-- [ ] `POST /imports/upload` accepts CSV file, stores in MinIO/S3, returns import job ID
-- [ ] Import job record created in Postgres with status `uploaded`
+- [ ] `POST /imports/upload` accepts CSV file, parses it in-memory, returns parsed row count
 - [ ] Column mapping logic correctly maps ≥3 CSV formats (sales, inventory, products)
-- [ ] Validation catches: missing required fields, wrong data types, duplicate records
-- [ ] `POST /imports/{id}/commit` moves validated data into production tables
+- [ ] Validation catches: missing required fields, wrong data types
+- [ ] Validated data committed directly to Postgres tables
 - [ ] Upload of 1,000-row CSV completes in <5 seconds
 
+> **MVP simplification:** Skip S3 storage and import job tracking. Parse CSV in-memory and insert directly. Good enough for demo.
+
 **Subtasks:**
-1. Create FastAPI endpoint + S3 upload logic
-2. Implement import job creation + initial validation
-3. CSV parsing and column mapping logic
-4. Data validation and commit to production tables
+1. Create FastAPI upload endpoint with in-memory CSV parsing
+2. Column mapping logic per data type (sales, inventory, products)
+3. Data validation and direct commit to Postgres tables
 
 ---
 
@@ -172,24 +173,14 @@ Each person owns **exclusive directories**. No two people edit the same files.
 
 ---
 
-### Task 28: Data Onboarding Agent (Backend)
-**Priority:** LOW · **Dependencies:** Tasks 3, 18 · **Day 2 Afternoon**
+### Task 28 + 29: Data Onboarding Agent (Backend + Frontend)
+**Priority:** LOW (STRETCH) · **Dependencies:** Tasks 3, 18 · **Day 2 Afternoon**
+
+> **Stretch goal.** Demo uses seed data — only build this if all HIGH tasks are done by Day 2 morning.
 
 **Measurable deliverables:**
-- [ ] `POST /copilot/map-upload` accepts sample CSV headers and returns suggested column mappings
-- [ ] Mapping suggestions have confidence scores (high/medium/low)
-- [ ] Correctly maps ≥80% of columns from 3 different real-world CSV formats
-
----
-
-### Task 29: Data Onboarding Agent (Frontend)
-**Priority:** LOW · **Dependencies:** Task 28 · **Day 2 Afternoon**
-
-**Measurable deliverables:**
-- [ ] Upload modal shows CSV preview (first 5 rows)
-- [ ] Suggested mappings displayed with accept/reject controls
-- [ ] User can manually override any mapping
-- [ ] Final mapping applied on "Confirm Import"
+- [ ] `POST /copilot/map-upload` suggests column mappings for uploaded CSV
+- [ ] Simple upload modal shows preview + suggested mappings
 
 ---
 
@@ -366,14 +357,14 @@ Each person owns **exclusive directories**. No two people edit the same files.
 ---
 
 ### Task 15: Central Kitchen Allocation View (FR3)
-**Priority:** MEDIUM · **Dependencies:** Task 14 · **Day 2 Morning**
+**Priority:** MEDIUM (STRETCH) · **Dependencies:** Task 14 · **Day 2 Morning**
+
+> **Stretch goal.** If behind, skip and show allocation data as a summary row in the Prep Plan screen instead.
 
 **Measurable deliverables:**
 - [ ] View shows total production needed per SKU (sum across outlets)
 - [ ] Breakdown table: SKU × Outlet allocation matrix
-- [ ] Outlet-level imbalance flagged (>20% deviation from proportional allocation)
-- [ ] Items needing outlet-level finishing marked with icon
-- [ ] Visual: stacked bar chart (Recharts) showing allocation per outlet per SKU
+- [ ] Outlet-level imbalance flagged visually
 
 ---
 
@@ -416,14 +407,14 @@ Each person owns **exclusive directories**. No two people edit the same files.
 ---
 
 ### Task 22: What-if Planner Screen (Screen 6)
-**Priority:** LOW · **Dependencies:** Tasks 21, 20 · **Day 2 Afternoon**
+**Priority:** LOW (STRETCH) · **Dependencies:** Tasks 21, 20 · **Day 2 Afternoon**
+
+> **Stretch goal.** First to cut if behind. Mention in pitch as "coming soon" feature.
 
 **Measurable deliverables:**
 - [ ] `/scenario-planner` has text input for scenario description
-- [ ] Predefined quick scenarios: "Cut prep by 15%", "Delay delivery 1 day", "Remove evening prep"
-- [ ] Response panel shows: baseline vs modified comparison table
-- [ ] Delta columns for waste change, stockout change, production change
-- [ ] Recommendation summary text from AI agent displayed
+- [ ] 2–3 predefined quick scenarios as buttons
+- [ ] Response panel shows baseline vs modified comparison
 
 ---
 
@@ -452,15 +443,15 @@ Each person owns **exclusive directories**. No two people edit the same files.
 - [ ] `POST /copilot/daily-brief` accepts date, returns 3-paragraph summary of tomorrow's plan
 - [ ] Prompt templates for: forecast explanation, prep rationale, waste alert reason, stockout alert reason, replenishment rationale (5 templates total)
 - [ ] LLM never invents numbers — all data comes from deterministic inputs (verified by review)
-- [ ] Explanation generation completes in <5 seconds per request
-- [ ] Explanations cached in Redis (same input = cache hit, no re-call)
+- [ ] Explanation generation completes in <8 seconds per request
+
+> **MVP simplification:** Skip Redis caching. Acceptable latency for demo. Add caching post-hackathon.
 
 **Subtasks:**
 1. Configure LiteLLM gateway + test connection
 2. Develop 5 prompt templates
 3. Core `generate_explanation()` function
 4. FastAPI endpoints: explain-plan and daily-brief
-5. Redis caching for explanations
 
 ---
 
@@ -511,13 +502,29 @@ Each person owns **exclusive directories**. No two people edit the same files.
 
 | When | What | Who Syncs |
 |---|---|---|
-| Day 1, Hour 4 | P1 confirms Docker + DB up, shares connection strings | P1 → All |
+| Day 1, Hour 2 | P1 shares Neon + Upstash connection strings in `.env` | P1 → All |
+| Day 1, Hour 4 | P1 confirms DB schema migrated, seed data loaded | P1 → All |
 | Day 1, Hour 6 | P3 shares forecast API contract (request/response JSON shapes) | P3 → P4 |
 | Day 1, Hour 8 | P3 deploys `/api/daily-plan/{date}` — P4 can start consuming | P3 → P4 |
 | Day 1, Hour 10 | P5 deploys `/copilot/explain-plan` — P4 can integrate explanations | P5 → P4 |
 | Day 2, Hour 14 | Full integration test: all screens consuming real APIs | All |
+| Day 2, Hour 16 | Deploy to Vercel (frontend) + Railway (backend) | P1 + P4 |
 | Day 2, Hour 18 | Feature freeze — only bug fixes and visual polish | All |
-| Day 2, Hour 19 | Demo dry run | All |
+| Day 2, Hour 19 | Demo dry run on deployed URL | All |
+
+---
+
+## Deployment Plan
+
+| Service | Platform | Free Tier | Setup Time |
+|---|---|---|---|
+| **PostgreSQL** | Neon | 0.5 GB storage, branching | 2 min |
+| **Redis** | Upstash | 10K commands/day | 2 min |
+| **Frontend** | Vercel | Unlimited deploys | 5 min |
+| **Backend API** | Railway | $5 credit/month | 10 min |
+| **File uploads** | Local filesystem / Vercel Blob | MVP only | 0 min |
+
+> No Docker needed. Each dev runs `uvicorn` (backend) and `pnpm dev` (frontend) locally.
 
 ---
 
@@ -533,8 +540,8 @@ Each person owns **exclusive directories**. No two people edit the same files.
 | 4 | Data Retrieval APIs | P2-DATA | HIGH | D1 Afternoon |
 | 11 | Recommendation Acknowledgement | P2-DATA | MEDIUM | D1 Evening |
 | 27 | Manual Adjustment API | P2-DATA | MEDIUM | D2 Morning |
-| 28 | Data Onboarding Agent (BE) | P2-DATA | LOW | D2 Afternoon |
-| 29 | Data Onboarding Agent (FE) | P2-DATA | LOW | D2 Afternoon |
+| 28 | Data Onboarding Agent (BE) | P2-DATA | LOW | D2 Afternoon (stretch) |
+| 29 | Data Onboarding Agent (FE) | P2-DATA | LOW | D2 Afternoon (stretch) |
 | 5 | Demand Forecasting Logic | P3-ENGINE | HIGH | D1 Morning |
 | 6 | Prep Recommendation Engine | P3-ENGINE | HIGH | D1 Afternoon |
 | 7 | Ingredient Replenishment Logic | P3-ENGINE | HIGH | D1 Afternoon |
@@ -544,17 +551,30 @@ Each person owns **exclusive directories**. No two people edit the same files.
 | 12 | Executive Overview Screen | P4-FRONTEND | HIGH | D1 Afternoon |
 | 13 | Forecast Screen | P4-FRONTEND | HIGH | D1 Afternoon |
 | 14 | Prep Plan Screen | P4-FRONTEND | HIGH | D1 Evening |
-| 15 | Central Kitchen View | P4-FRONTEND | MEDIUM | D2 Morning |
+| 15 | Central Kitchen View | P4-FRONTEND | MEDIUM | D2 Morning (stretch) |
 | 16 | Replenishment Screen | P4-FRONTEND | HIGH | D1 Evening |
 | 17 | Risk & Waste Center | P4-FRONTEND | HIGH | D2 Morning |
 | 19 | LLM Explanation Integration | P4-FRONTEND | HIGH | D2 Morning |
 | 20 | Navigation & Layout | P4-FRONTEND | HIGH | D1 Morning |
-| 22 | What-if Planner Screen | P4-FRONTEND | LOW | D2 Afternoon |
+| 22 | What-if Planner Screen | P4-FRONTEND | LOW | D2 Afternoon (stretch) |
 | 26 | UI Polish & Demo Styling | P4-FRONTEND | HIGH | D2 Afternoon |
 | 18 | Explainability Layer (BE) | P5-AI | HIGH | D1 Afternoon |
 | 21 | What-if Scenario Agent | P5-AI | MEDIUM | D1 Evening |
 | 23 | Daily Planning Agent | P5-AI | MEDIUM | D2 Morning |
 | 24 | Agent → Executive Overview | P5-AI | MEDIUM | D2 Morning |
+
+---
+
+## What to Cut if Running Behind
+
+If Day 1 evening ends and you're behind, drop these in order:
+1. **Task 22** — What-if planner screen (skip entirely, demo without it)
+2. **Task 15** — Central kitchen view (merge into prep plan as a summary row)
+3. **Tasks 28, 29** — Data onboarding agent (use seed data only for demo)
+4. **Task 27** — Manual adjustments (demo with fixed forecasts)
+5. **Task 21** — What-if scenario agent (explain the concept in pitch, don't build)
+
+The **minimum viable demo** needs only: Tasks 1, 2, 25, 5, 6, 7, 8, 9, 10, 12, 13, 14, 16, 17, 18, 20, 26, 30
 
 ---
 
