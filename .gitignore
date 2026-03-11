@@ -1,0 +1,68 @@
+# ── Environment variables ────────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+
+# ── Python (apps/api) ─────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+.venv/
+venv/
+env/
+.Python
+pip-log.txt
+pip-delete-this-directory.txt
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+coverage.xml
+*.coveragerc
+
+# SQLite databases
+*.db
+*.sqlite3
+
+# Alembic generated __pycache__
+alembic/__pycache__/
+
+# ── Next.js (apps/web) ────────────────────────────────────────────────────────
+apps/web/.next/
+apps/web/out/
+apps/web/node_modules/
+apps/web/npm-debug.log*
+apps/web/yarn-debug.log*
+apps/web/yarn-error.log*
+apps/web/.pnp/
+apps/web/.pnp.js
+apps/web/tsconfig.tsbuildinfo
+
+# ── Node (root / workspaces) ─────────────────────────────────────────────────
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnp/
+.pnp.js
+
+# ── OS / editor ───────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# ── TaskMaster AI ─────────────────────────────────────────────────────────────
+.taskmaster/
