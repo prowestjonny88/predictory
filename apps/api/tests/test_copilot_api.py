@@ -1,5 +1,7 @@
 from datetime import date
+import json
 import random
+import re
 
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -241,3 +243,212 @@ def test_run_scenario_handles_expected_inputs_without_db_writes():
     assert db.query(ReplenishmentPlan).count() == repl_plan_count_before
     db.close()
     app.dependency_overrides.clear()
+
+
+def test_daily_actions_returns_valid_schema_with_llm_rephrasing():
+    SessionLocal = _build_session_factory()
+    db = SessionLocal()
+    _seed_demo_data(db)
+    target_date = date.today()
+
+    run_forecast_for_date(target_date, db)
+    generate_prep_plan(target_date, db)
+    recommend_replenishment(target_date, db)
+    db.close()
+
+    def fake_llm(prompt, fallback=""):
+        if "Candidate actions JSON" in prompt:
+            action_ids = re.findall(r'"action_id":\s*"([^"]+)"', prompt)
+            return json.dumps(
+                [
+                    {
+                        "action_id": action_id,
+                        "action_text": f"Priority action for {action_id}",
+                        "estimated_impact": "Protect readiness while preserving deterministic plan values.",
+                    }
+                    for action_id in action_ids[:3]
+                ]
+            )
+        if "Top actions JSON" in prompt:
+            return (
+                "Operations are broadly ready for service.\n\n"
+                "Main risks are concentrated in the highest-ranked outlets and SKUs.\n\n"
+                "Act on the ranked prep and reorder actions first."
+            )
+        return fallback
+
+    original = copilot_router._call_llm
+    copilot_router._call_llm = fake_llm
+    try:
+        _override_app_db(SessionLocal)
+        with TestClient(app) as client:
+            resp = client.post(
+                "/api/v1/copilot/daily-actions",
+                json={"target_date": target_date.isoformat(), "top_n": 3},
+            )
+            assert resp.status_code == 200
+            payload = resp.json()
+            assert payload["date"] == target_date.isoformat()
+            assert payload["fallback_mode"] is False
+            assert len(payload["top_actions"]) <= 3
+            assert "brief" in payload
+            assert "prep_actions" in payload
+            assert "reorder_actions" in payload
+            assert "risk_warnings" in payload
+            assert "rebalance_suggestions" in payload
+            assert payload["top_actions"]
+            assert any(action["source_type"] == "llm_rephrased" for action in payload["top_actions"])
+    finally:
+        copilot_router._call_llm = original
+        app.dependency_overrides.clear()
+
+
+def test_daily_actions_fallback_mode_when_llm_unavailable():
+    SessionLocal = _build_session_factory()
+    db = SessionLocal()
+    _seed_demo_data(db)
+    target_date = date.today()
+
+    run_forecast_for_date(target_date, db)
+    generate_prep_plan(target_date, db)
+    recommend_replenishment(target_date, db)
+    db.close()
+
+    original = copilot_router._call_llm
+    copilot_router._call_llm = lambda prompt, fallback="": fallback
+    try:
+        _override_app_db(SessionLocal)
+        with TestClient(app) as client:
+            resp = client.post(
+                "/api/v1/copilot/daily-actions",
+                json={"target_date": target_date.isoformat(), "top_n": 5},
+            )
+            assert resp.status_code == 200
+            payload = resp.json()
+            assert payload["fallback_mode"] is True
+            assert payload["brief"].count("\n\n") == 2
+            assert len(payload["top_actions"]) <= 5
+            assert all(action["source_type"] == "deterministic" for action in payload["top_actions"])
+    finally:
+        copilot_router._call_llm = original
+        app.dependency_overrides.clear()
+
+
+def test_daily_actions_targets_reference_valid_entities():
+    SessionLocal = _build_session_factory()
+    db = SessionLocal()
+    _seed_demo_data(db)
+    target_date = date.today()
+
+    from db.models import Ingredient, Outlet, SKU
+
+    outlet_ids = {outlet.id for outlet in db.query(Outlet).all()}
+    sku_ids = {sku.id for sku in db.query(SKU).all()}
+    ingredient_ids = {ingredient.id for ingredient in db.query(Ingredient).all()}
+    db.close()
+
+    original = copilot_router._call_llm
+    copilot_router._call_llm = lambda prompt, fallback="": fallback
+    try:
+        _override_app_db(SessionLocal)
+        with TestClient(app) as client:
+            resp = client.post(
+                "/api/v1/copilot/daily-actions",
+                json={"target_date": target_date.isoformat(), "top_n": 5},
+            )
+            assert resp.status_code == 200
+            payload = resp.json()
+
+            all_actions = (
+                payload["top_actions"]
+                + payload["prep_actions"]
+                + payload["reorder_actions"]
+                + payload["risk_warnings"]
+                + payload["rebalance_suggestions"]
+            )
+            for action in all_actions:
+                target = action["target"]
+                if target["outlet_id"] is not None:
+                    assert target["outlet_id"] in outlet_ids
+                if target["sku_id"] is not None:
+                    assert target["sku_id"] in sku_ids
+                if target["ingredient_id"] is not None:
+                    assert target["ingredient_id"] in ingredient_ids
+    finally:
+        copilot_router._call_llm = original
+        app.dependency_overrides.clear()
+
+
+def test_daily_actions_caps_top_n_to_five():
+    SessionLocal = _build_session_factory()
+    db = SessionLocal()
+    _seed_demo_data(db)
+    target_date = date.today()
+    db.close()
+
+    original = copilot_router._call_llm
+    copilot_router._call_llm = lambda prompt, fallback="": fallback
+    try:
+        _override_app_db(SessionLocal)
+        with TestClient(app) as client:
+            resp = client.post(
+                "/api/v1/copilot/daily-actions",
+                json={"target_date": target_date.isoformat(), "top_n": 20},
+            )
+            assert resp.status_code == 200
+            assert len(resp.json()["top_actions"]) <= 5
+    finally:
+        copilot_router._call_llm = original
+        app.dependency_overrides.clear()
+
+
+def test_daily_actions_handles_low_signal_dataset():
+    SessionLocal = _build_session_factory()
+    db = SessionLocal()
+    seed_master_data(db)
+    target_date = date.today()
+    db.close()
+
+    original = copilot_router._call_llm
+    copilot_router._call_llm = lambda prompt, fallback="": fallback
+    try:
+        _override_app_db(SessionLocal)
+        with TestClient(app) as client:
+            resp = client.post(
+                "/api/v1/copilot/daily-actions",
+                json={"target_date": target_date.isoformat(), "top_n": 5},
+            )
+            assert resp.status_code == 200
+            payload = resp.json()
+            assert payload["date"] == target_date.isoformat()
+            assert payload["brief"]
+            assert isinstance(payload["top_actions"], list)
+            assert isinstance(payload["prep_actions"], list)
+            assert isinstance(payload["reorder_actions"], list)
+    finally:
+        copilot_router._call_llm = original
+        app.dependency_overrides.clear()
+
+
+def test_daily_actions_dedupes_duplicate_prep_actions():
+    SessionLocal = _build_session_factory()
+    db = SessionLocal()
+    _seed_demo_data(db)
+    target_date = date.today()
+    db.close()
+
+    original = copilot_router._call_llm
+    copilot_router._call_llm = lambda prompt, fallback="": fallback
+    try:
+        _override_app_db(SessionLocal)
+        with TestClient(app) as client:
+            resp = client.post(
+                "/api/v1/copilot/daily-actions",
+                json={"target_date": target_date.isoformat(), "top_n": 5},
+            )
+            assert resp.status_code == 200
+            prep_texts = [action["action_text"] for action in resp.json()["prep_actions"]]
+            assert len(prep_texts) == len(set(prep_texts))
+    finally:
+        copilot_router._call_llm = original
+        app.dependency_overrides.clear()

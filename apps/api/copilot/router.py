@@ -3,17 +3,19 @@ Copilot router - Task 18 + Task 21
 POST /copilot/explain-plan
 POST /copilot/daily-brief
 POST /copilot/run-scenario
+POST /copilot/daily-actions
 """
 import os
 from datetime import date as date_type
 from typing import Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from alerts.stockout import detect_stockout_risk
 from alerts.waste import detect_waste_risk
+from copilot.daily_agent import generate_daily_actions
 from copilot.prompts import (
     DAILY_BRIEF_PROMPT,
     FORECAST_EXPLANATION_PROMPT,
@@ -154,6 +156,41 @@ class ScenarioResponse(BaseModel):
     delta: dict
     recommendation: str
     interpretation: str
+
+
+class DailyActionsRequest(BaseModel):
+    target_date: date_type
+    top_n: int = 5
+
+
+class ActionTarget(BaseModel):
+    outlet_id: Optional[int] = None
+    outlet_name: Optional[str] = None
+    sku_id: Optional[int] = None
+    sku_name: Optional[str] = None
+    ingredient_id: Optional[int] = None
+    ingredient_name: Optional[str] = None
+
+
+class AgentAction(BaseModel):
+    action_type: Literal["prep", "reorder", "risk", "rebalance"]
+    action_text: str
+    urgency: Literal["critical", "high", "medium", "low"]
+    estimated_impact: str
+    target: ActionTarget
+    evidence: list[str] = Field(default_factory=list)
+    source_type: Literal["deterministic", "llm_rephrased"]
+
+
+class DailyActionsResponse(BaseModel):
+    date: str
+    brief: str
+    fallback_mode: bool
+    top_actions: list[AgentAction] = Field(default_factory=list)
+    prep_actions: list[AgentAction] = Field(default_factory=list)
+    reorder_actions: list[AgentAction] = Field(default_factory=list)
+    risk_warnings: list[AgentAction] = Field(default_factory=list)
+    rebalance_suggestions: list[AgentAction] = Field(default_factory=list)
 
 
 @router.post("/copilot/explain-plan", response_model=ExplainPlanResponse)
@@ -439,4 +476,19 @@ def run_scenario(body: ScenarioRequest, db: Session = Depends(get_db)):
         delta=payload["delta"],
         recommendation=payload["recommendation"],
         interpretation=payload["interpretation"],
+    )
+
+
+@router.post("/copilot/daily-actions", response_model=DailyActionsResponse)
+def daily_actions(body: DailyActionsRequest, db: Session = Depends(get_db)):
+    payload = generate_daily_actions(body.target_date, body.top_n, db, _call_llm)
+    return DailyActionsResponse(
+        date=payload["date"],
+        brief=payload["brief"],
+        fallback_mode=payload["fallback_mode"],
+        top_actions=payload["top_actions"],
+        prep_actions=payload["prep_actions"],
+        reorder_actions=payload["reorder_actions"],
+        risk_warnings=payload["risk_warnings"],
+        rebalance_suggestions=payload["rebalance_suggestions"],
     )

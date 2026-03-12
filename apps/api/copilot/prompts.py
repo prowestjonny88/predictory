@@ -91,3 +91,42 @@ Write exactly 3 paragraphs:
 
 Do not invent numbers beyond what is provided above.
 """
+
+DAILY_ACTIONS_RANKING_PROMPT = """\
+You are BakeWise. Rewrite and lightly reorder the candidate daily planning actions below.
+
+Rules:
+- Select at most {top_n} actions
+- Preserve every action_id exactly as given
+- Preserve all outlet names, SKU names, ingredient names, and numeric values
+- Improve wording only; do not invent new actions or entities
+- Return valid JSON only
+- Return an array of objects with exactly these keys:
+  - action_id
+  - action_text
+  - estimated_impact
+
+Candidate actions JSON:
+{candidate_actions_json}
+"""
+
+DAILY_ACTIONS_BRIEF_PROMPT = """\
+You are BakeWise. Write exactly 3 short paragraphs for the daily planning agent output.
+
+Date: {date} ({weekday})
+Total predicted sales: {total_predicted_sales} units
+High waste alerts: {high_waste_count}
+High stockout alerts: {high_stockout_count}
+Critical reorder items: {critical_reorder_count}
+Fallback mode: {fallback_mode}
+
+Top actions JSON:
+{top_actions_json}
+
+Write exactly 3 short paragraphs:
+1. Readiness summary
+2. Main risks to watch
+3. Top actions for the operations team
+
+Do not invent numbers or entities beyond what is provided above.
+"""
