@@ -251,7 +251,7 @@ export default function PrepPlanPage() {
         )}
       </Header>
 
-      <main className="space-y-5 p-6">
+      <main className="max-w-7xl space-y-5 p-6">
         {(dailyPlanQuery.error || prepPlanDetailQuery.error) && (
           <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             {dailyPlanQuery.error instanceof Error
@@ -313,7 +313,7 @@ export default function PrepPlanPage() {
                 {t("prep.centralKitchen", "Central Kitchen Summary")}
               </h2>
             </div>
-            <div className="overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm">
+            <div className="overflow-x-auto overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-neutral-200 bg-neutral-50 text-left text-xs font-semibold uppercase tracking-wide text-neutral-500">
@@ -348,7 +348,7 @@ export default function PrepPlanPage() {
           </section>
         )}
 
-        <div className="overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm">
+        <div className="overflow-x-auto overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-neutral-200 bg-neutral-50 text-left text-xs font-semibold uppercase tracking-wide text-neutral-500">

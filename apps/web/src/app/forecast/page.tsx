@@ -301,7 +301,7 @@ export default function ForecastPage() {
         </button>
       </Header>
 
-      <main className="space-y-6 p-6">
+      <main className="max-w-7xl space-y-6 p-6">
         {(forecastsQuery.error ||
           runMutation.error ||
           adjustMutation.error ||
@@ -404,7 +404,7 @@ export default function ForecastPage() {
           <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-neutral-500">
             {t("forecast.lines", "Forecast Lines")}
           </h2>
-          <div className="overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm">
+          <div className="overflow-x-auto overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-neutral-200 bg-neutral-50 text-left text-xs font-semibold uppercase tracking-wide text-neutral-500">

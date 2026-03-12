@@ -343,7 +343,7 @@ export default function RiskCenterPage() {
         />
       </Header>
 
-      <main className="space-y-6 p-6">
+      <main className="max-w-7xl space-y-6 p-6">
         {(wasteQuery.error || stockoutQuery.error) && (
           <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             {wasteQuery.error instanceof Error
