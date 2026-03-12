@@ -44,33 +44,66 @@ Notes:
 - For copilot LLMs, you can use `GEMINI_API_KEY` / `GOOGLE_API_KEY` for Google AI Studio, or `VERTEXAI_PROJECT` + `VERTEXAI_LOCATION` for Vertex AI.
 - Copilot endpoint examples and sample payloads are in [`apps/api/copilot/EXAMPLES.md`](./apps/api/copilot/EXAMPLES.md).
 
-### 2. Run the backend
+### 2. Run the backend (PowerShell)
 
-```bash
+```powershell
 cd apps/api
 
 python -m venv .venv
-.venv\Scripts\activate
-pip install -r requirements.txt
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
 
 alembic upgrade head
 python -m db.seed
 uvicorn main:app --reload --port 8000
 ```
 
-API docs: `http://localhost:8000/docs`
+Backend checks:
+- Health: `http://localhost:8000/health`
+- Swagger UI: `http://localhost:8000/docs`
 
-### 3. Run the frontend
+Important:
+- `http://localhost:8000/` may show `{\"detail\":\"Not Found\"}`. This is expected because no root `/` route is defined.
 
-```bash
+### 3. Run the frontend (PowerShell)
+
+```powershell
 cd apps/web
 
-npm install
-echo NEXT_PUBLIC_API_URL=http://localhost:8000 > .env.local
-npm run dev
+pnpm install
+Set-Content .env.local "NEXT_PUBLIC_API_URL=http://localhost:8000"
+
+# Start dev server (default Next.js port behavior)
+pnpm dev
 ```
 
-Frontend: `http://localhost:3000`
+Frontend URL:
+- Usually `http://localhost:3000`
+- If 3000 is already in use, Next.js will auto-pick another port (for example 3001 or 3002). Use the URL printed in terminal.
+
+Optional (force a specific frontend port):
+
+```powershell
+pnpm dev -- -p 3002
+```
+
+Then open: `http://localhost:3002/dashboard`
+
+### 4. Verify end-to-end quickly
+
+1. Backend terminal is running `uvicorn` on port 8000.
+2. Frontend terminal is running `pnpm dev` on the printed port.
+3. Open frontend dashboard (`/dashboard`) and confirm data loads.
+
+### 5. Common issues
+
+- **Backend shows `Not Found` at `/`**
+  - Use `/health` or `/docs` instead.
+- **Frontend does not open on 3000**
+  - Port 3000 may be occupied by another process (for example Postgres).
+  - Use terminal output URL or force a port with `pnpm dev -- -p 3002`.
+- **Frontend can load but API calls fail**
+  - Check `apps/web/.env.local` has `NEXT_PUBLIC_API_URL=http://localhost:8000`.
 
 ## Useful backend endpoints
 
