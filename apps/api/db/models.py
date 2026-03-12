@@ -19,6 +19,8 @@ class Outlet(Base):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     code: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
     address: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    latitude: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    longitude: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
@@ -162,6 +164,65 @@ class ForecastLine(Base):
     rationale_json: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
 
     run = relationship("ForecastRun", back_populates="lines")
+
+
+class HolidayCalendar(Base):
+    __tablename__ = "holiday_calendar"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    holiday_date: Mapped[date] = mapped_column(Date, nullable=False, index=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    country_code: Mapped[str] = mapped_column(String(10), default="MY")
+    region_code: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    holiday_type: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    demand_uplift_pct: Mapped[float] = mapped_column(Float, default=0.0)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    source: Mapped[str] = mapped_column(String(50), default="manual")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class WeatherSnapshot(Base):
+    __tablename__ = "weather_snapshots"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    outlet_id: Mapped[int] = mapped_column(Integer, ForeignKey("outlets.id"), nullable=False)
+    target_date: Mapped[date] = mapped_column(Date, nullable=False, index=True)
+    summary: Mapped[str] = mapped_column(String(255), default="Unavailable")
+    rain_mm: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    temp_max_c: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    adjustment_pct: Mapped[float] = mapped_column(Float, default=0.0)
+    status: Mapped[str] = mapped_column(String(20), default="unavailable")
+    source: Mapped[str] = mapped_column(String(50), default="fallback")
+    raw_json: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    outlet = relationship("Outlet")
+
+    __table_args__ = (
+        UniqueConstraint("outlet_id", "target_date", name="uq_weather_snapshot_outlet_date"),
+    )
+
+
+class ForecastOverride(Base):
+    __tablename__ = "forecast_overrides"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    target_date: Mapped[date] = mapped_column(Date, nullable=False, index=True)
+    outlet_id: Mapped[int] = mapped_column(Integer, ForeignKey("outlets.id"), nullable=False)
+    sku_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("skus.id"), nullable=True)
+    override_type: Mapped[str] = mapped_column(String(20), nullable=False)
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    adjustment_pct: Mapped[float] = mapped_column(Float, default=0.0)
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_by: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    outlet = relationship("Outlet")
+    sku = relationship("SKU")
 
 
 # ─── Planning ─────────────────────────────────────────────────────────────────

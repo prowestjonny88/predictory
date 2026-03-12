@@ -3,7 +3,7 @@ Ops data router — Task 11 (Acknowledgement API)
 PATCH /plans/prep/{id}/lines/{line_id}
 POST  /plans/prep/{id}/approve
 """
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -121,7 +121,7 @@ def approve_prep_plan(
 
     plan.status = "approved"
     plan.approved_by = body.approved_by
-    plan.approved_at = datetime.utcnow()
+    plan.approved_at = datetime.now(timezone.utc)
 
     audit = AuditEvent(
         event_type="prep_plan_approved",

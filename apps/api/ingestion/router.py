@@ -11,16 +11,17 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 
 from db.database import get_db
-from db.models import SalesFact, InventorySnapshot, SKU, Outlet
+from db.models import HolidayCalendar, InventorySnapshot, Outlet, SalesFact, SKU
 
 router = APIRouter()
 
-SUPPORTED_TYPES = ("sales", "inventory", "products")
+SUPPORTED_TYPES = ("sales", "inventory", "products", "holidays")
 
 REQUIRED_COLUMNS = {
     "sales": {"sale_date", "daypart", "units_sold", "outlet_code", "sku_code"},
     "inventory": {"snapshot_date", "snapshot_time", "units_on_hand", "outlet_code", "sku_code"},
     "products": {"sku_name", "category", "price"},
+    "holidays": {"holiday_date", "name"},
 }
 
 DAYPARTS = {"morning", "midday", "evening"}
@@ -88,6 +89,8 @@ def _detect_type(headers: set) -> str:
         return "inventory"
     if {"sku_name", "category", "price"}.issubset(headers):
         return "products"
+    if {"holiday_date", "name"}.issubset(headers):
+        return "holidays"
     return "unknown"
 
 
@@ -464,6 +467,61 @@ def _import_products(rows: list[dict], db: Session) -> tuple[int, list[str]]:
     return committed, errors
 
 
+def _import_holidays(rows: list[dict], db: Session) -> tuple[int, list[str]]:
+    committed = 0
+    errors = []
+
+    for i, row in enumerate(rows):
+        try:
+            holiday_date = date.fromisoformat(row["holiday_date"].strip())
+            name = row.get("name", "").strip()
+            if not name:
+                errors.append(f"Row {i+2}: name is required")
+                continue
+
+            country_code = (row.get("country_code", "") or "MY").strip().upper()
+            region_code = (row.get("region_code", "") or None)
+            holiday_type = (row.get("holiday_type", "") or None)
+            demand_uplift_pct = _to_float(row.get("demand_uplift_pct", ""), default=0.0)
+            is_active = _to_bool(row.get("is_active", ""), default=True)
+
+            holiday = (
+                db.query(HolidayCalendar)
+                .filter(
+                    HolidayCalendar.holiday_date == holiday_date,
+                    HolidayCalendar.name == name,
+                    HolidayCalendar.country_code == country_code,
+                )
+                .first()
+            )
+            if holiday:
+                holiday.region_code = region_code
+                holiday.holiday_type = holiday_type
+                holiday.demand_uplift_pct = demand_uplift_pct
+                holiday.is_active = is_active
+                holiday.source = "csv"
+            else:
+                db.add(
+                    HolidayCalendar(
+                        holiday_date=holiday_date,
+                        name=name,
+                        country_code=country_code,
+                        region_code=region_code,
+                        holiday_type=holiday_type,
+                        demand_uplift_pct=demand_uplift_pct,
+                        is_active=is_active,
+                        source="csv",
+                    )
+                )
+                db.flush()
+            committed += 1
+        except Exception as exc:
+            errors.append(f"Row {i+2}: {exc}")
+
+    db.commit()
+    return committed, errors
+
+
 @router.post("/imports/upload", response_model=UploadResult)
 async def upload_csv(
     file: UploadFile = File(...),
@@ -498,7 +556,7 @@ async def upload_csv(
     if detected == "unknown":
         raise HTTPException(
             status_code=422,
-            detail=f"Cannot detect data type. Expected columns for sales/inventory/products. Got: {list(headers)[:8]}",
+            detail=f"Cannot detect data type. Expected columns for sales/inventory/products/holidays. Got: {list(headers)[:8]}",
         )
 
     _require_columns(detected, headers)
@@ -512,6 +570,8 @@ async def upload_csv(
         )
     elif detected == "inventory":
         committed, errors = _import_inventory(rows, db)
+    elif detected == "holidays":
+        committed, errors = _import_holidays(rows, db)
     else:
         committed, errors = _import_products(rows, db)
 

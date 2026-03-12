@@ -227,6 +227,10 @@ def explain_plan(body: ExplainPlanRequest, db: Session = Depends(get_db)):
 
         rationale = line.rationale_json or {}
         trend_tags = rationale.get("reason_tags", [])
+        holiday_signal = rationale.get("holiday_signal") or {}
+        weather_signal = rationale.get("weather_signal") or {}
+        manual_overrides = rationale.get("manual_overrides") or []
+        stockout_censoring = rationale.get("stockout_censoring") or {}
         prompt = FORECAST_EXPLANATION_PROMPT.format(
             outlet_name=outlet.name,
             sku_name=sku.name,
@@ -237,6 +241,25 @@ def explain_plan(body: ExplainPlanRequest, db: Session = Depends(get_db)):
             evening=round(line.evening, 1),
             total=round(line.total, 1),
             method=line.method,
+            baseline_total=round(rationale.get("baseline_total", line.total), 1),
+            context_adjustment_pct=round(rationale.get("context_adjustment_pct", 0.0), 1),
+            holiday_context=holiday_signal.get("label", "None"),
+            weather_context=(
+                f"{weather_signal.get('label', 'None')} "
+                f"({weather_signal.get('adjustment_pct', 0.0):.1f}%)"
+            ),
+            manual_override_summary=(
+                ", ".join(
+                    f"{override.get('title', 'Override')} ({override.get('adjustment_pct', 0.0):.1f}%)"
+                    for override in manual_overrides
+                )
+                or "None"
+            ),
+            stockout_recovery_summary=(
+                f"{stockout_censoring.get('adjusted_history_days', 0)} day(s) adjusted"
+                if stockout_censoring.get("adjusted_history_days", 0) > 0
+                else stockout_censoring.get("note", "None")
+            ),
             reason_tags=", ".join(trend_tags) or "None",
             trend_summary=", ".join(trend_tags) or "Stable",
         )
@@ -244,7 +267,11 @@ def explain_plan(body: ExplainPlanRequest, db: Session = Depends(get_db)):
             f"Forecast for {sku.name} at {outlet.name} on {body.plan_date}: total "
             f"{round(line.total, 0)} units (morning {round(line.morning, 0)}, midday "
             f"{round(line.midday, 0)}, evening {round(line.evening, 0)}). Based on a "
-            f"weighted blend of recent sales and weekday pattern."
+            f"weighted blend of recent sales and weekday pattern"
+            f"{'; holiday flag active' if holiday_signal else ''}"
+            f"{'; weather adjustment applied' if weather_signal.get('adjustment_pct', 0.0) else ''}"
+            f"{'; manual override applied' if manual_overrides else ''}"
+            f"{'; stockout recovery adjusted history' if stockout_censoring.get('adjusted_history_days', 0) else ''}."
         )
 
     elif ctx == "prep":

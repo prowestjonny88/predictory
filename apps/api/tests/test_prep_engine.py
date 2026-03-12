@@ -130,3 +130,23 @@ def test_high_waste_history_reduces_prep_by_5pct():
     # 20 reduced by 5% = 19
     assert rec.morning == 19
 
+
+def test_zero_safety_buffer_does_not_fall_back_to_default():
+    db = _build_session()
+    outlet, sku = _seed_outlet_sku(db, "SKU-NOBUF", freshness_hours=12, safety_buffer_pct=0.0)
+    target = date(2026, 3, 12)
+
+    forecast = ForecastResult(
+        outlet_id=outlet.id,
+        sku_id=sku.id,
+        target_date=target,
+        morning=10,
+        midday=0,
+        evening=0,
+        total=10,
+    )
+    rec = recommend_prep(outlet.id, sku.id, target, db, forecast=forecast)
+
+    assert rec.morning == 10
+    assert rec.rationale["safety_buffer_pct"] == 0.0
+

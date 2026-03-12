@@ -1,143 +1,178 @@
-// ── Master data ─────────────────────────────────────────────────────────────
-
 export interface Outlet {
   id: number;
   code: string;
   name: string;
-  city: string;
+  address?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  city?: string | null;
   is_active: boolean;
 }
 
 export interface SKU {
   id: number;
-  sku_id: string;
+  code: string;
+  sku_id?: string;
   name: string;
   category: string;
   price: number;
-  shelf_life_hours: number;
+  freshness_hours: number;
+  shelf_life_hours?: number;
   is_bestseller: boolean;
+  safety_buffer_pct: number;
   is_active: boolean;
 }
 
 export interface Ingredient {
   id: number;
-  ingredient_id: string;
   name: string;
+  code: string;
+  ingredient_id?: string;
   unit: string;
+  stock_on_hand?: number;
+  reorder_point?: number;
+  supplier_lead_time_hours?: number;
+  lead_time_hours?: number;
   cost_per_unit: number;
-  lead_time_hours: number;
-  reorder_point: number;
 }
-
-// ── Forecasting ──────────────────────────────────────────────────────────────
 
 export interface ForecastLine {
   id: number;
-  forecast_run_id: number;
+  outlet_id: number;
   sku_id: number;
+  morning: number;
+  midday: number;
+  evening: number;
+  total: number;
+  method: string;
+  confidence: number;
+  manual_adjustment_pct: number | null;
+  rationale_json: Record<string, unknown> | null;
+  outlet_name?: string;
   sku_name?: string;
-  daypart: "morning" | "afternoon" | "evening";
-  predicted_qty: number;
-  adjusted_qty: number | null;
-  adjustment_pct: number | null;
 }
 
 export interface ForecastRun {
   id: number;
-  outlet_id: number;
-  outlet_name?: string;
   forecast_date: string;
-  method: string;
-  created_at: string;
+  status: string;
   lines: ForecastLine[];
 }
 
-// ── Prep Plan ────────────────────────────────────────────────────────────────
-
-export interface PrepPlanLine {
-  id: number;
-  prep_plan_id: number;
-  sku_id: number;
-  sku_name?: string;
-  daypart: string;
-  forecast_qty: number;
-  prep_qty: number;
-  edited_units: number | null;
-  buffer_pct: number | null;
-  status: "pending" | "accepted" | "edited";
+export interface ForecastSignal {
+  label: string;
+  source: string;
+  status: string;
+  adjustment_pct: number;
+  details: string[];
 }
 
-export interface PrepPlan {
+export interface StockoutCensoringSummary {
+  enabled: boolean;
+  adjusted_history_days: number;
+  adjusted_dates: string[];
+  note: string;
+}
+
+export interface ForecastOverride {
+  id: number;
+  target_date: string;
+  outlet_id: number;
+  sku_id: number | null;
+  sku_name?: string | null;
+  override_type: "event" | "promo";
+  title: string;
+  notes: string | null;
+  adjustment_pct: number;
+  enabled: boolean;
+  created_by: string | null;
+}
+
+export interface ForecastContext {
+  target_date: string;
+  outlet_id: number;
+  sku_id: number | null;
+  holiday: ForecastSignal | null;
+  weather: ForecastSignal;
+  stockout_censoring: StockoutCensoringSummary;
+  active_overrides: ForecastOverride[];
+  combined_adjustment_pct: number;
+}
+
+export interface ForecastOverridePayload {
+  target_date: string;
+  outlet_id: number;
+  sku_id?: number | null;
+  override_type: "event" | "promo";
+  title: string;
+  notes?: string | null;
+  adjustment_pct: number;
+  enabled: boolean;
+  created_by?: string;
+}
+
+export interface DailyPlanForecastLine {
+  outlet_id: number;
+  outlet_name: string;
+  sku_id: number;
+  sku_name: string;
+  morning: number;
+  midday: number;
+  evening: number;
+  total: number;
+  reason_tags: string[];
+}
+
+export interface DailyPlanPrepLine {
   id: number;
   outlet_id: number;
-  outlet_name?: string;
-  plan_date: string;
-  status: "draft" | "approved";
-  approved_at: string | null;
-  approved_by: string | null;
-  lines: PrepPlanLine[];
+  sku_id: number;
+  daypart: string;
+  recommended_units: number;
+  edited_units: number | null;
+  current_stock: number;
+  status: "pending" | "accepted" | "edited" | string;
 }
 
-// ── Replenishment ────────────────────────────────────────────────────────────
+export interface PrepPlanDetailLine {
+  id: number;
+  plan_id: number;
+  outlet_id: number;
+  sku_id: number;
+  daypart: string;
+  recommended_units: number;
+  edited_units: number | null;
+  current_stock: number;
+  status: "pending" | "accepted" | "edited" | string;
+}
+
+export interface PrepPlanDetail {
+  id: number;
+  plan_date: string;
+  status: "draft" | "approved" | string;
+  approved_by: string | null;
+  lines: PrepPlanDetailLine[];
+}
 
 export type UrgencyLevel = "critical" | "high" | "medium" | "low";
-
-export interface ReplenishmentPlanLine {
-  id: number;
-  replenishment_plan_id: number;
-  ingredient_id: number;
-  ingredient_name?: string;
-  outlet_id: number;
-  outlet_name?: string;
-  current_stock: number | null;
-  required_qty: number;
-  order_qty: number;
-  urgency: UrgencyLevel;
-  is_ordered: boolean;
-}
-
-export interface ReplenishmentPlan {
-  id: number;
-  plan_date: string;
-  created_at: string;
-  lines: ReplenishmentPlanLine[];
-}
-
-// ── Alerts ───────────────────────────────────────────────────────────────────
-
 export type RiskLevel = "critical" | "high" | "medium" | "low";
 
-export interface WasteAlert {
-  sku_id: number;
-  sku_name?: string;
-  outlet_id: number;
-  outlet_name?: string;
-  risk_level: RiskLevel;
-  reason: string;
-  waste_rate_pct?: number;
-  triggers?: string[];
-  days_below_threshold?: number;
+export interface DailyPlanReplenishmentLine {
+  ingredient_id: number;
+  ingredient_name: string;
+  need_qty: number;
+  stock_on_hand: number;
+  reorder_qty: number;
+  urgency: UrgencyLevel;
+  driving_skus: string[];
 }
 
-export interface StockoutAlert {
-  sku_id: number;
-  sku_name?: string;
-  outlet_id: number;
-  outlet_name?: string;
+export interface DailyPlanAlert {
+  outlet_name: string;
+  sku_name: string;
+  daypart: string;
   risk_level: RiskLevel;
   reason: string;
-  coverage_pct?: number;
-  message?: string;
-}
-
-// ── Daily plan ────────────────────────────────────────────────────────────────
-
-export interface AtRiskOutlet {
-  outlet_id: number;
-  outlet_name?: string;
-  risk_level: RiskLevel;
-  message?: string;
-  reason?: string;
 }
 
 export interface DailyPlanSummary {
@@ -145,35 +180,118 @@ export interface DailyPlanSummary {
   waste_risk_score: number;
   stockout_risk_score: number;
   top_actions: string[];
-  at_risk_outlets: AtRiskOutlet[];
+  at_risk_outlets: string[];
 }
 
 export interface DailyPlan {
-  plan_date: string;
-  prep_plan: PrepPlan | null;
-  replenishment_plan: ReplenishmentPlan | null;
-  waste_alerts: WasteAlert[];
-  stockout_alerts: StockoutAlert[];
+  date: string;
+  prep_plan_id: number | null;
+  replenishment_plan_id: number | null;
+  forecasts: DailyPlanForecastLine[];
+  prep_plan: DailyPlanPrepLine[];
+  replenishment_plan: DailyPlanReplenishmentLine[];
+  waste_alerts: DailyPlanAlert[];
+  stockout_alerts: DailyPlanAlert[];
   summary: DailyPlanSummary;
 }
 
-// ── Copilot ────────────────────────────────────────────────────────────────────
+export interface WasteAlert {
+  outlet_id: number;
+  outlet_name: string;
+  sku_id: number;
+  sku_name: string;
+  daypart: string;
+  risk_level: RiskLevel;
+  triggers: string[];
+  reason: string;
+  waste_rate: number;
+  excess_prep_units: number;
+}
+
+export interface StockoutAlert {
+  outlet_id: number;
+  outlet_name: string;
+  sku_id: number;
+  sku_name: string;
+  affected_daypart: string;
+  risk_level: RiskLevel;
+  shortage_qty: number;
+  reason: string;
+  coverage_pct: number;
+}
+
+export interface ExplainPlanRequest {
+  context_type: "forecast" | "prep" | "waste" | "stockout" | "replenishment";
+  outlet_id: number;
+  sku_id: number;
+  plan_date: string;
+}
+
+export interface ExplainPlanResponse {
+  explanation: string;
+  context_type: string;
+  outlet_name: string;
+  sku_name: string;
+}
+
+export interface DailyBriefResponse {
+  brief: string;
+  date: string;
+}
+
+export interface ActionTarget {
+  outlet_id: number | null;
+  outlet_name: string | null;
+  sku_id: number | null;
+  sku_name: string | null;
+  ingredient_id: number | null;
+  ingredient_name: string | null;
+}
+
+export interface AgentAction {
+  action_type: "prep" | "reorder" | "risk" | "rebalance";
+  action_text: string;
+  urgency: UrgencyLevel;
+  estimated_impact: string;
+  target: ActionTarget;
+  evidence: string[];
+  source_type: "deterministic" | "llm_rephrased";
+}
+
+export interface DailyActionsResponse {
+  date: string;
+  brief: string;
+  fallback_mode: boolean;
+  top_actions: AgentAction[];
+  prep_actions: AgentAction[];
+  reorder_actions: AgentAction[];
+  risk_warnings: AgentAction[];
+  rebalance_suggestions: AgentAction[];
+}
 
 export interface ScenarioResult {
-  scenario_text: string;
-  target_date: string;
-  baseline_waste_alerts: number;
-  baseline_stockout_alerts: number;
-  projected_waste_alerts: number;
-  projected_stockout_alerts: number;
-  explanation: string;
-  affected_skus: string[];
+  scenario: string;
+  baseline: Record<string, number | string>;
+  modified: Record<string, number | string>;
+  delta: Record<string, number | string>;
+  recommendation: string;
+  interpretation: string;
+}
+
+export interface PlanRunResult {
+  plan_id: number;
+  plan_date: string;
+  status: string;
+  lines_count: number;
 }
 
 export interface ImportResult {
-  detected_type: string;
+  detected_type?: string;
+  data_type?: string;
   rows_inserted?: number;
   rows_processed?: number;
+  rows_parsed?: number;
+  rows_committed?: number;
   errors: string[];
 }
 

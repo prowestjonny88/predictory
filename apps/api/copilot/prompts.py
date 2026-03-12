@@ -11,6 +11,12 @@ SKU: {sku_name}
 Date: {date} ({weekday})
 Forecast: Morning={morning}, Midday={midday}, Evening={evening}, Total={total}
 Method: {method}
+Baseline total before context adjustments: {baseline_total}
+Net context adjustment: {context_adjustment_pct}%
+Holiday context: {holiday_context}
+Weather context: {weather_context}
+Manual overrides: {manual_override_summary}
+Stockout recovery: {stockout_recovery_summary}
 Reason tags: {reason_tags}
 7-day trend: {trend_summary}
 

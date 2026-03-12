@@ -42,6 +42,7 @@ Notes:
 - `DATABASE_URL` supports Neon/Postgres or the local SQLite fallback shown in the example file.
 - The backend loads environment variables from the repo root.
 - For copilot LLMs, you can use `GEMINI_API_KEY` / `GOOGLE_API_KEY` for Google AI Studio, or `VERTEXAI_PROJECT` + `VERTEXAI_LOCATION` for Vertex AI.
+- Weather demand drivers are off by default. Set `WEATHER_FETCH_ENABLED=true` to allow live Open-Meteo weather snapshots when outlet coordinates are present.
 - Copilot endpoint examples and sample payloads are in [`apps/api/copilot/EXAMPLES.md`](./apps/api/copilot/EXAMPLES.md).
 
 ### 2. Run the backend (PowerShell)
@@ -110,6 +111,9 @@ Then open: `http://localhost:3002/dashboard`
 - `GET /health`
 - `GET /api/v1/outlets`
 - `GET /api/v1/skus`
+- `GET /api/v1/forecast-context`
+- `GET /api/v1/forecast-overrides`
+- `POST /api/v1/forecast-overrides`
 - `GET /api/v1/api/daily-plan/{date}`
 - `POST /api/v1/plans/prep/run`
 - `POST /api/v1/plans/replenishment/run`
@@ -128,7 +132,7 @@ pytest -q
 | Route | Purpose |
 |---|---|
 | `/dashboard` | KPI overview, top actions, risk summary |
-| `/forecast` | Outlet and daypart demand forecast |
+| `/forecast` | Demand forecast plus holiday/weather/override controls |
 | `/prep-plan` | Prep recommendations and approval flow |
 | `/replenishment` | Ingredient reorder recommendations |
 | `/risk-center` | Waste and stockout alerts |

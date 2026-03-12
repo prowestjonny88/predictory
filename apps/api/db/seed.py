@@ -18,7 +18,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from db.database import SessionLocal, engine
 from db.models import (
     Base, Outlet, SKU, Ingredient, RecipeBOM,
-    SalesFact, InventorySnapshot, WasteLog
+    SalesFact, InventorySnapshot, WasteLog, HolidayCalendar
 )
 
 random.seed(42)
@@ -26,11 +26,11 @@ random.seed(42)
 # ─── Master Data ──────────────────────────────────────────────────────────────
 
 OUTLETS = [
-    {"name": "Roti Lane KLCC",        "code": "RL-KLCC",  "address": "Suria KLCC, Kuala Lumpur"},
-    {"name": "Roti Lane Bangsar",      "code": "RL-BGS",   "address": "Bangsar Village II, KL"},
-    {"name": "Roti Lane Mid Valley",   "code": "RL-MV",    "address": "Mid Valley Megamall, KL"},
-    {"name": "Roti Lane Bukit Bintang","code": "RL-BB",    "address": "Pavilion, Bukit Bintang, KL"},
-    {"name": "Roti Lane Damansara",    "code": "RL-DMR",   "address": "Damansara Utama, PJ"},
+    {"name": "Roti Lane KLCC",         "code": "RL-KLCC", "address": "Suria KLCC, Kuala Lumpur", "latitude": 3.1579, "longitude": 101.7116},
+    {"name": "Roti Lane Bangsar",      "code": "RL-BGS",  "address": "Bangsar Village II, KL", "latitude": 3.1291, "longitude": 101.6738},
+    {"name": "Roti Lane Mid Valley",   "code": "RL-MV",   "address": "Mid Valley Megamall, KL", "latitude": 3.1174, "longitude": 101.6770},
+    {"name": "Roti Lane Bukit Bintang","code": "RL-BB",   "address": "Pavilion, Bukit Bintang, KL", "latitude": 3.1490, "longitude": 101.7131},
+    {"name": "Roti Lane Damansara",    "code": "RL-DMR",  "address": "Damansara Utama, PJ", "latitude": 3.1374, "longitude": 101.6220},
 ]
 
 SKUS = [
@@ -97,6 +97,35 @@ WEEKEND_MULTIPLIER = 1.25
 DAYPARTS = ["morning", "midday", "evening"]
 
 
+def _seed_demo_holidays(db):
+    if db.query(HolidayCalendar).count() > 0:
+        return
+
+    today = date.today()
+    holidays = [
+        HolidayCalendar(
+            holiday_date=today + timedelta(days=1),
+            name="Demo Public Holiday",
+            country_code="MY",
+            holiday_type="Public holiday",
+            demand_uplift_pct=0.0,
+            is_active=True,
+            source="seeded_demo",
+        ),
+        HolidayCalendar(
+            holiday_date=today + timedelta(days=3),
+            name="Demo Festival Day",
+            country_code="MY",
+            holiday_type="Festival",
+            demand_uplift_pct=5.0,
+            is_active=True,
+            source="seeded_demo",
+        ),
+    ]
+    db.add_all(holidays)
+    db.commit()
+
+
 def get_sales_base(sku_code: str, outlet_idx: int, sale_date: date) -> int:
     base = BASE_DAILY_SALES[sku_code][outlet_idx]
     # Weekend boost
@@ -115,9 +144,18 @@ def clear_tables(db):
 
 
 def seed_master_data(db):
-    # Idempotent: skip if already seeded
     if db.query(Outlet).count() > 0:
-        print("  Master data already seeded. Skipping.")
+        print("  Master data already seeded. Ensuring coordinates and demo holidays are present.")
+        for data in OUTLETS:
+            outlet = db.query(Outlet).filter(Outlet.code == data["code"]).first()
+            if outlet:
+                outlet.address = outlet.address or data["address"]
+                if outlet.latitude is None:
+                    outlet.latitude = data["latitude"]
+                if outlet.longitude is None:
+                    outlet.longitude = data["longitude"]
+        db.commit()
+        _seed_demo_holidays(db)
         return
 
     print("  Seeding outlets...")
@@ -156,6 +194,7 @@ def seed_master_data(db):
             db.add(bom)
 
     db.commit()
+    _seed_demo_holidays(db)
     print("  Master data committed.")
 
 

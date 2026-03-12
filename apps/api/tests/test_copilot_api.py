@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 import json
 import random
 import re
@@ -165,6 +165,100 @@ def test_explain_plan_missing_data_returns_graceful_fallback():
             )
             assert resp.status_code == 200
             assert "No forecast data found" in resp.json()["explanation"]
+    finally:
+        copilot_router._call_llm = original
+        app.dependency_overrides.clear()
+
+
+def test_explain_plan_forecast_mentions_contextual_drivers_when_present():
+    SessionLocal = _build_session_factory()
+    db = SessionLocal()
+
+    from db.models import ForecastOverride, HolidayCalendar, Outlet, SKU, SalesFact, WeatherSnapshot
+
+    outlet = Outlet(name="Test Outlet", code="OUT-T", latitude=3.1, longitude=101.6)
+    sku = SKU(
+        name="Test SKU",
+        code="SKU-T",
+        category="Pastry",
+        freshness_hours=8,
+        is_bestseller=False,
+        safety_buffer_pct=0.1,
+        price=8.0,
+    )
+    db.add_all([outlet, sku])
+    db.flush()
+
+    target_date = date(2026, 4, 10)
+    db.add(
+        HolidayCalendar(
+            holiday_date=target_date,
+            name="Demo Festival Day",
+            country_code="MY",
+            holiday_type="Festival",
+            demand_uplift_pct=5.0,
+            source="test",
+        )
+    )
+    db.add(
+        WeatherSnapshot(
+            outlet_id=outlet.id,
+            target_date=target_date,
+            summary="Light rain",
+            rain_mm=3.4,
+            temp_max_c=31.2,
+            adjustment_pct=-2.0,
+            status="applied",
+            source="live",
+            raw_json={"test": True},
+        )
+    )
+    db.add(
+        ForecastOverride(
+            target_date=target_date,
+            outlet_id=outlet.id,
+            sku_id=sku.id,
+            override_type="promo",
+            title="Morning push",
+            adjustment_pct=10.0,
+            enabled=True,
+            created_by="tester",
+        )
+    )
+    for i in range(1, 15):
+        sales_day = target_date - timedelta(days=i)
+        db.add_all(
+            [
+                SalesFact(outlet_id=outlet.id, sku_id=sku.id, sale_date=sales_day, daypart="morning", units_sold=10, revenue=1),
+                SalesFact(outlet_id=outlet.id, sku_id=sku.id, sale_date=sales_day, daypart="midday", units_sold=8, revenue=1),
+                SalesFact(outlet_id=outlet.id, sku_id=sku.id, sale_date=sales_day, daypart="evening", units_sold=6, revenue=1),
+            ]
+        )
+    db.commit()
+    run_forecast_for_date(target_date, db)
+    outlet_id = outlet.id
+    sku_id = sku.id
+    db.close()
+
+    original = copilot_router._call_llm
+    copilot_router._call_llm = lambda prompt, fallback="": fallback
+    try:
+        _override_app_db(SessionLocal)
+        with TestClient(app) as client:
+            resp = client.post(
+                "/api/v1/copilot/explain-plan",
+                json={
+                    "outlet_id": outlet_id,
+                    "sku_id": sku_id,
+                    "plan_date": target_date.isoformat(),
+                    "context_type": "forecast",
+                },
+            )
+            assert resp.status_code == 200
+            explanation = resp.json()["explanation"].lower()
+            assert "holiday" in explanation
+            assert "weather adjustment" in explanation
+            assert "manual override" in explanation
     finally:
         copilot_router._call_llm = original
         app.dependency_overrides.clear()
@@ -449,6 +543,38 @@ def test_daily_actions_dedupes_duplicate_prep_actions():
             assert resp.status_code == 200
             prep_texts = [action["action_text"] for action in resp.json()["prep_actions"]]
             assert len(prep_texts) == len(set(prep_texts))
+    finally:
+        copilot_router._call_llm = original
+        app.dependency_overrides.clear()
+
+
+def test_daily_plan_and_daily_actions_can_be_requested_for_same_date():
+    SessionLocal = _build_session_factory()
+    db = SessionLocal()
+    _seed_demo_data(db)
+    target_date = date.today()
+    db.close()
+
+    original = copilot_router._call_llm
+    copilot_router._call_llm = lambda prompt, fallback="": fallback
+    try:
+        _override_app_db(SessionLocal)
+        with TestClient(app) as client:
+            daily_plan_resp = client.get(f"/api/v1/api/daily-plan/{target_date.isoformat()}")
+            assert daily_plan_resp.status_code == 200
+            daily_plan_payload = daily_plan_resp.json()
+            assert "summary" in daily_plan_payload
+            assert "top_actions" in daily_plan_payload["summary"]
+
+            daily_actions_resp = client.post(
+                "/api/v1/copilot/daily-actions",
+                json={"target_date": target_date.isoformat(), "top_n": 5},
+            )
+            assert daily_actions_resp.status_code == 200
+            daily_actions_payload = daily_actions_resp.json()
+            assert daily_actions_payload["date"] == target_date.isoformat()
+            assert "top_actions" in daily_actions_payload
+            assert "prep_actions" in daily_actions_payload
     finally:
         copilot_router._call_llm = original
         app.dependency_overrides.clear()

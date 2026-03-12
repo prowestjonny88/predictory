@@ -10,11 +10,13 @@ from alerts.stockout import detect_stockout_risk
 from alerts.waste import detect_waste_risk
 from db.database import Base, get_db
 from db.models import (
+    ForecastRun,
     Ingredient,
     InventorySnapshot,
     Outlet,
     PrepPlan,
     PrepPlanLine,
+    ReplenishmentPlan,
     RecipeBOM,
     SKU,
     SalesFact,
@@ -93,8 +95,27 @@ def test_daily_plan_api_returns_required_sections_and_plan_triggers():
             assert resp.status_code == 200
             payload = resp.json()
 
-            for key in ["forecasts", "prep_plan", "replenishment_plan", "waste_alerts", "stockout_alerts", "summary"]:
+            for key in [
+                "date",
+                "prep_plan_id",
+                "replenishment_plan_id",
+                "forecasts",
+                "prep_plan",
+                "replenishment_plan",
+                "waste_alerts",
+                "stockout_alerts",
+                "summary",
+            ]:
                 assert key in payload
+
+            assert payload["date"] == target_date
+            assert isinstance(payload["prep_plan_id"], int)
+            assert isinstance(payload["replenishment_plan_id"], int)
+            assert isinstance(payload["forecasts"], list)
+            assert isinstance(payload["prep_plan"], list)
+            assert isinstance(payload["replenishment_plan"], list)
+            assert isinstance(payload["waste_alerts"], list)
+            assert isinstance(payload["stockout_alerts"], list)
 
             summary = payload["summary"]
             assert 0 <= summary["waste_risk_score"] <= 100
@@ -109,6 +130,48 @@ def test_daily_plan_api_returns_required_sections_and_plan_triggers():
             repl_resp = client.post(f"/api/v1/plans/replenishment/run?target_date={target_date}")
             assert repl_resp.status_code == 200
             assert "plan_id" in repl_resp.json()
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_daily_plan_reuses_existing_runs_and_plans_after_first_generation():
+    SessionLocal = _build_session_factory()
+    db = SessionLocal()
+    _seed_demo_data(db)
+    target_date = date.today().isoformat()
+    db.close()
+
+    def override_get_db():
+        session = SessionLocal()
+        try:
+            yield session
+        finally:
+            session.close()
+
+    app.dependency_overrides[get_db] = override_get_db
+    try:
+        with TestClient(app) as client:
+            first_resp = client.get(f"/api/v1/api/daily-plan/{target_date}")
+            assert first_resp.status_code == 200
+
+            db = SessionLocal()
+            run_count = db.query(ForecastRun).count()
+            prep_count = db.query(PrepPlan).count()
+            repl_count = db.query(ReplenishmentPlan).count()
+            db.close()
+
+            assert run_count == 1
+            assert prep_count == 1
+            assert repl_count == 1
+
+            second_resp = client.get(f"/api/v1/api/daily-plan/{target_date}")
+            assert second_resp.status_code == 200
+
+            db = SessionLocal()
+            assert db.query(ForecastRun).count() == run_count
+            assert db.query(PrepPlan).count() == prep_count
+            assert db.query(ReplenishmentPlan).count() == repl_count
+            db.close()
     finally:
         app.dependency_overrides.clear()
 

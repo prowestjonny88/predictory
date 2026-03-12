@@ -1,10 +1,22 @@
 from datetime import date, timedelta
 
+from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
 
-from db.database import Base
-from db.models import Outlet, SKU, SalesFact, ForecastLine
+from db.database import Base, get_db
+from db.models import (
+    AuditEvent,
+    ForecastLine,
+    ForecastOverride,
+    HolidayCalendar,
+    InventorySnapshot,
+    Outlet,
+    SKU,
+    SalesFact,
+    WeatherSnapshot,
+)
 from forecasting.engine import (
     _weighted_recent_total,
     _weekday_pattern_total,
@@ -13,12 +25,27 @@ from forecasting.engine import (
     forecast_demand,
     run_forecast_for_date,
 )
+from main import app
 
 
 def _build_session():
-    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
+    engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
     Base.metadata.create_all(bind=engine)
     return sessionmaker(bind=engine, autocommit=False, autoflush=False)()
+
+
+def _build_session_factory():
+    engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(bind=engine)
+    return sessionmaker(bind=engine, autocommit=False, autoflush=False)
 
 
 def test_forecast_components_math():
@@ -132,3 +159,260 @@ def test_run_forecast_persists_forecast_lines():
     assert run.id is not None
     assert len(run.lines) == len(outlets) * len(skus)
     assert db.query(ForecastLine).count() == len(outlets) * len(skus)
+
+
+def test_adjust_forecast_line_rejects_below_negative_100_percent():
+    SessionLocal = _build_session_factory()
+    db = SessionLocal()
+    outlet = Outlet(name="Outlet A", code="OUT-A")
+    sku = SKU(name="SKU A", code="SKU-A", category="Pastry", freshness_hours=8, is_bestseller=False, safety_buffer_pct=0.1, price=8)
+    db.add_all([outlet, sku])
+    db.flush()
+
+    target = date(2026, 3, 1)
+    for i in range(1, 15):
+        day = target - timedelta(days=i)
+        db.add_all(
+            [
+                SalesFact(outlet_id=outlet.id, sku_id=sku.id, sale_date=day, daypart="morning", units_sold=10, revenue=1),
+                SalesFact(outlet_id=outlet.id, sku_id=sku.id, sale_date=day, daypart="midday", units_sold=8, revenue=1),
+                SalesFact(outlet_id=outlet.id, sku_id=sku.id, sale_date=day, daypart="evening", units_sold=6, revenue=1),
+            ]
+        )
+    db.commit()
+
+    run = run_forecast_for_date(target, db)
+    line = run.lines[0]
+    db.close()
+
+    def override_get_db():
+        session = SessionLocal()
+        try:
+            yield session
+        finally:
+            session.close()
+
+    app.dependency_overrides[get_db] = override_get_db
+    try:
+        with TestClient(app) as client:
+            resp = client.patch(
+                f"/api/v1/forecasts/{run.id}/lines/{line.id}",
+                json={"manual_adjustment_pct": -101},
+            )
+            assert resp.status_code == 422
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_adjust_forecast_line_persists_audit_event():
+    SessionLocal = _build_session_factory()
+    db = SessionLocal()
+    outlet = Outlet(name="Outlet A", code="OUT-A")
+    sku = SKU(name="SKU A", code="SKU-A", category="Pastry", freshness_hours=8, is_bestseller=False, safety_buffer_pct=0.1, price=8)
+    db.add_all([outlet, sku])
+    db.flush()
+
+    target = date(2026, 3, 1)
+    for i in range(1, 15):
+        day = target - timedelta(days=i)
+        db.add_all(
+            [
+                SalesFact(outlet_id=outlet.id, sku_id=sku.id, sale_date=day, daypart="morning", units_sold=10, revenue=1),
+                SalesFact(outlet_id=outlet.id, sku_id=sku.id, sale_date=day, daypart="midday", units_sold=8, revenue=1),
+                SalesFact(outlet_id=outlet.id, sku_id=sku.id, sale_date=day, daypart="evening", units_sold=6, revenue=1),
+            ]
+        )
+    db.commit()
+
+    run = run_forecast_for_date(target, db)
+    line = run.lines[0]
+    before_total = line.total
+    db.close()
+
+    def override_get_db():
+        session = SessionLocal()
+        try:
+            yield session
+        finally:
+            session.close()
+
+    app.dependency_overrides[get_db] = override_get_db
+    try:
+        with TestClient(app) as client:
+            resp = client.patch(
+                f"/api/v1/forecasts/{run.id}/lines/{line.id}",
+                json={"manual_adjustment_pct": 10, "user_id": "planner"},
+            )
+            assert resp.status_code == 200
+            payload = resp.json()
+            assert payload["manual_adjustment_pct"] == 10
+            assert payload["total"] > before_total
+
+        db = SessionLocal()
+        audit = db.query(AuditEvent).filter(AuditEvent.entity_id == line.id).one()
+        assert audit.event_type == "forecast_line_adjusted"
+        assert audit.entity_type == "ForecastLine"
+        assert audit.user_id == "planner"
+        assert audit.before_value["manual_adjustment_pct"] is None
+        assert audit.after_value["manual_adjustment_pct"] == 10
+        assert audit.after_value["total"] > audit.before_value["total"]
+        db.close()
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_forecast_holiday_flag_without_uplift_does_not_change_total_but_is_recorded():
+    db = _build_session()
+    outlet = Outlet(name="Test Outlet", code="TEST-OUT")
+    sku = SKU(
+        name="Test Croissant",
+        code="TEST-SKU",
+        category="Pastry",
+        freshness_hours=8,
+        is_bestseller=True,
+        safety_buffer_pct=0.10,
+        price=8.5,
+    )
+    db.add_all([outlet, sku])
+    db.flush()
+
+    target = date(2026, 4, 10)
+    db.add(
+        HolidayCalendar(
+            holiday_date=target,
+            name="Demo Public Holiday",
+            country_code="MY",
+            holiday_type="Public holiday",
+            demand_uplift_pct=0.0,
+            source="test",
+        )
+    )
+
+    start = target - timedelta(days=35)
+    day = start
+    while day < target:
+        db.add_all(
+            [
+                SalesFact(outlet_id=outlet.id, sku_id=sku.id, sale_date=day, daypart="morning", units_sold=50, revenue=425),
+                SalesFact(outlet_id=outlet.id, sku_id=sku.id, sale_date=day, daypart="midday", units_sold=30, revenue=255),
+                SalesFact(outlet_id=outlet.id, sku_id=sku.id, sale_date=day, daypart="evening", units_sold=20, revenue=170),
+            ]
+        )
+        day += timedelta(days=1)
+    db.commit()
+
+    result = forecast_demand(outlet.id, sku.id, target, db)
+
+    assert abs(result.total - 100.0) <= 0.1
+    assert result.rationale["holiday_signal"]["label"] == "Demo Public Holiday"
+    assert result.rationale["holiday_signal"]["adjustment_pct"] == 0.0
+    assert result.rationale["context_adjustment_pct"] == 0.0
+
+
+def test_forecast_applies_live_weather_snapshot_adjustment():
+    db = _build_session()
+    outlet = Outlet(name="Test Outlet", code="TEST-OUT", latitude=3.1, longitude=101.6)
+    sku = SKU(
+        name="Test Croissant",
+        code="TEST-SKU",
+        category="Pastry",
+        freshness_hours=8,
+        is_bestseller=True,
+        safety_buffer_pct=0.10,
+        price=8.5,
+    )
+    db.add_all([outlet, sku])
+    db.flush()
+
+    target = date(2026, 4, 10)
+    db.add(
+        WeatherSnapshot(
+            outlet_id=outlet.id,
+            target_date=target,
+            summary="Light rain",
+            rain_mm=3.4,
+            temp_max_c=31.2,
+            adjustment_pct=-2.0,
+            status="applied",
+            source="live",
+            raw_json={"test": True},
+        )
+    )
+
+    start = target - timedelta(days=35)
+    day = start
+    while day < target:
+        db.add_all(
+            [
+                SalesFact(outlet_id=outlet.id, sku_id=sku.id, sale_date=day, daypart="morning", units_sold=50, revenue=425),
+                SalesFact(outlet_id=outlet.id, sku_id=sku.id, sale_date=day, daypart="midday", units_sold=30, revenue=255),
+                SalesFact(outlet_id=outlet.id, sku_id=sku.id, sale_date=day, daypart="evening", units_sold=20, revenue=170),
+            ]
+        )
+        day += timedelta(days=1)
+    db.commit()
+
+    result = forecast_demand(outlet.id, sku.id, target, db)
+
+    assert round(result.total, 1) == 98.0
+    assert result.rationale["weather_signal"]["label"] == "Light rain"
+    assert result.rationale["weather_signal"]["adjustment_pct"] == -2.0
+    assert result.rationale["context_adjustment_pct"] == -2.0
+
+
+def test_forecast_manual_override_and_stockout_censoring_are_recorded():
+    db = _build_session()
+    outlet = Outlet(name="Test Outlet", code="TEST-OUT")
+    sku = SKU(
+        name="Test Croissant",
+        code="TEST-SKU",
+        category="Pastry",
+        freshness_hours=8,
+        is_bestseller=True,
+        safety_buffer_pct=0.10,
+        price=8.5,
+    )
+    db.add_all([outlet, sku])
+    db.flush()
+
+    target = date(2026, 4, 10)
+    db.add(
+        ForecastOverride(
+            target_date=target,
+            outlet_id=outlet.id,
+            sku_id=sku.id,
+            override_type="promo",
+            title="Instagram push",
+            adjustment_pct=10.0,
+            enabled=True,
+            created_by="tester",
+        )
+    )
+
+    for i in range(1, 36):
+        day = target - timedelta(days=i)
+        db.add_all(
+            [
+                SalesFact(outlet_id=outlet.id, sku_id=sku.id, sale_date=day, daypart="morning", units_sold=50, revenue=425),
+                SalesFact(outlet_id=outlet.id, sku_id=sku.id, sale_date=day, daypart="midday", units_sold=30, revenue=255),
+                SalesFact(outlet_id=outlet.id, sku_id=sku.id, sale_date=day, daypart="evening", units_sold=20, revenue=170),
+            ]
+        )
+        eod_stock = 0 if i in (3, 9) else 6
+        db.add(
+            InventorySnapshot(
+                outlet_id=outlet.id,
+                sku_id=sku.id,
+                snapshot_date=day,
+                snapshot_time="eod",
+                units_on_hand=eod_stock,
+            )
+        )
+    db.commit()
+
+    result = forecast_demand(outlet.id, sku.id, target, db)
+
+    assert result.total > 110.0
+    assert result.rationale["manual_overrides"][0]["title"] == "Instagram push"
+    assert result.rationale["stockout_censoring"]["adjusted_history_days"] >= 1
+    assert result.rationale["context_adjustment_pct"] == 10.0
