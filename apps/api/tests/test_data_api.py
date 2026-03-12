@@ -7,7 +7,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from db.database import Base, get_db
-from db.models import AuditEvent, Outlet, PrepPlan, PrepPlanLine, SKU
+from db.models import AuditEvent, Outlet, PrepPlan, PrepPlanLine, SKU, SalesFact
 from db.seed import seed_master_data, seed_sales_and_waste
 from main import app
 
@@ -120,6 +120,131 @@ def test_upload_sales_and_inventory_accept_valid_rows():
             )
             assert inv_resp.status_code == 200
             assert inv_resp.json()["rows_committed"] == 1
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_upload_sales_supports_common_bakery_transaction_headers():
+    SessionLocal = _build_session_factory()
+    db = SessionLocal()
+    _seed_demo_data(db)
+    db.close()
+
+    _override_app_db(SessionLocal)
+    try:
+        tx_csv = "\n".join(
+            [
+                "transactionno,items,datetime,daytype,daypart",
+                "T-1001,Butter Croissant,2026-03-10 08:15:00,Weekday,morning",
+                "T-1002,Butter Croissant,2026-03-10 12:10:00,Weekday,midday",
+            ]
+        )
+
+        with TestClient(app) as client:
+            resp = client.post(
+                "/api/v1/imports/upload",
+                params={"data_type": "sales", "default_outlet_code": "RL-KLCC"},
+                files={"file": ("bakery_tx.csv", tx_csv.encode("utf-8"), "text/csv")},
+            )
+            assert resp.status_code == 200
+            payload = resp.json()
+            assert payload["rows_parsed"] == 2
+            assert payload["rows_committed"] == 2
+            assert payload["errors"] == []
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_upload_sales_can_auto_create_skus_and_map_daypart_aliases():
+    SessionLocal = _build_session_factory()
+    db = SessionLocal()
+    _seed_demo_data(db)
+    db.close()
+
+    _override_app_db(SessionLocal)
+    try:
+        tx_csv = "\n".join(
+            [
+                "transactionno,items,datetime,daypart,daytype",
+                "TX-1,Scandinavian,2016-10-30 13:05:00,Afternoon,Weekend",
+                "TX-2,Hot chocolate,2016-10-30 20:15:00,Night,Weekend",
+            ]
+        )
+
+        with TestClient(app) as client:
+            resp = client.post(
+                "/api/v1/imports/upload",
+                params={
+                    "data_type": "sales",
+                    "default_outlet_code": "RL-KLCC",
+                    "auto_create_skus": True,
+                },
+                files={"file": ("bakery_tx.csv", tx_csv.encode("utf-8"), "text/csv")},
+            )
+            assert resp.status_code == 200
+            payload = resp.json()
+            assert payload["rows_parsed"] == 2
+            assert payload["rows_committed"] == 2
+            assert payload["errors"] == []
+
+        db = SessionLocal()
+        created = db.query(SKU).filter(SKU.name == "Scandinavian").first()
+        assert created is not None
+        db.close()
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_upload_sales_aggregates_duplicate_transaction_rows_for_same_key():
+    SessionLocal = _build_session_factory()
+    db = SessionLocal()
+    _seed_demo_data(db)
+    db.close()
+
+    _override_app_db(SessionLocal)
+    try:
+        tx_csv = "\n".join(
+            [
+                "transactionno,items,datetime,daypart,daytype",
+                "T-1,Bread,2016-10-30 09:58:11,Morning,Weekend",
+                "T-2,Bread,2016-10-30 09:59:11,Morning,Weekend",
+            ]
+        )
+
+        with TestClient(app) as client:
+            resp = client.post(
+                "/api/v1/imports/upload",
+                params={
+                    "data_type": "sales",
+                    "default_outlet_code": "RL-KLCC",
+                    "auto_create_skus": True,
+                },
+                files={"file": ("bakery_tx.csv", tx_csv.encode("utf-8"), "text/csv")},
+            )
+            assert resp.status_code == 200
+            payload = resp.json()
+            assert payload["rows_parsed"] == 2
+            assert payload["rows_committed"] == 2
+            assert payload["errors"] == []
+
+        db = SessionLocal()
+        bread_sku = db.query(SKU).filter(SKU.name == "Bread").first()
+        assert bread_sku is not None
+
+        sales = (
+            db.query(SalesFact)
+            .join(Outlet, SalesFact.outlet_id == Outlet.id)
+            .filter(
+                Outlet.code == "RL-KLCC",
+                SalesFact.sku_id == bread_sku.id,
+                SalesFact.sale_date == date(2016, 10, 30),
+                SalesFact.daypart == "morning",
+            )
+            .all()
+        )
+        assert len(sales) == 1
+        assert sales[0].units_sold == 2
+        db.close()
     finally:
         app.dependency_overrides.clear()
 
