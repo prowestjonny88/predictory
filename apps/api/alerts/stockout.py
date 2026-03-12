@@ -44,6 +44,29 @@ def _get_stock(db: Session, outlet_id: int, sku_id: int) -> int:
     return snap.units_on_hand if snap else 0
 
 
+def _get_recent_daypart_peak(
+    db: Session,
+    outlet_id: int,
+    sku_id: int,
+    daypart: str,
+    target_date: date,
+    lookback_days: int = 7,
+) -> int:
+    start = target_date - timedelta(days=lookback_days)
+    rows = (
+        db.query(SalesFact)
+        .filter(
+            SalesFact.outlet_id == outlet_id,
+            SalesFact.sku_id == sku_id,
+            SalesFact.daypart == daypart,
+            SalesFact.sale_date >= start,
+            SalesFact.sale_date < target_date,
+        )
+        .all()
+    )
+    return max((row.units_sold for row in rows), default=0)
+
+
 def _get_ingredient_coverage(db: Session, target_date: date) -> float:
     """Returns fraction of total ingredient need that is covered by current stock."""
     # Get latest prep plan
@@ -115,6 +138,7 @@ def detect_stockout_risk(target_date: date, db: Session) -> list[StockoutAlert]:
             total_morning_available = current_stock + morning_prep
             morning_demand = fc.morning
 
+            morning_alert_added = False
             if morning_demand > 0:
                 morning_coverage = total_morning_available / morning_demand
                 if morning_coverage < threshold:
@@ -133,6 +157,32 @@ def detect_stockout_risk(target_date: date, db: Session) -> list[StockoutAlert]:
                             f"{morning_coverage:.0%} of forecast ({morning_demand:.0f})"
                         ),
                         coverage_pct=round(morning_coverage * 100, 1),
+                    ))
+                    morning_alert_added = True
+
+            recent_morning_peak = _get_recent_daypart_peak(db, outlet.id, sku.id, "morning", target_date)
+            if (
+                not morning_alert_added
+                and recent_morning_peak > morning_demand
+                and recent_morning_peak > 0
+            ):
+                peak_coverage = total_morning_available / recent_morning_peak
+                if peak_coverage < threshold:
+                    shortage = recent_morning_peak - total_morning_available
+                    risk = "high" if sku.is_bestseller else "medium"
+                    alerts.append(StockoutAlert(
+                        outlet_id=outlet.id,
+                        outlet_name=outlet.name,
+                        sku_id=sku.id,
+                        sku_name=sku.name,
+                        affected_daypart="morning",
+                        risk_level=risk,
+                        shortage_qty=round(shortage, 1),
+                        reason=(
+                            f"Recent morning peak demand ({recent_morning_peak}) exceeds planned "
+                            f"availability ({total_morning_available})"
+                        ),
+                        coverage_pct=round(peak_coverage * 100, 1),
                     ))
 
             # Check ingredient coverage for production

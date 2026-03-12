@@ -1,18 +1,18 @@
 """
-What-if scenario agent — Task 21
+What-if scenario agent - Task 21
 POST /copilot/run-scenario
 """
 from datetime import date
-import json
 import re
-from typing import Optional
+
 from sqlalchemy.orm import Session
 
-from db.models import PrepPlan, ReplenishmentPlan, SKU, Outlet
-from planning.prep import generate_prep_plan
-from planning.replenishment import recommend_replenishment
-from alerts.waste import detect_waste_risk
 from alerts.stockout import detect_stockout_risk
+from alerts.waste import detect_waste_risk
+from db.models import Outlet, SKU
+
+DEFAULT_SCENARIO_PCT = 10
+DEFAULT_PROMO_PCT = 25
 
 
 class ScenarioResult:
@@ -57,42 +57,61 @@ class ScenarioResult:
 def _parse_scenario(text: str) -> dict:
     """
     Extract intent from natural language scenario.
-    Supports: "cut X by Y%", "increase X by Y%", "add promo at OUTLET"
+    Supports: "cut X by Y%", "increase X by Y%", "promo at OUTLET"
     Returns: {type, sku_hint, outlet_hint, pct_change}
     """
     text_lower = text.lower()
     result = {"type": "unknown", "sku_hint": None, "outlet_hint": None, "pct_change": 0}
 
-    # look for percentage
     pct_match = re.search(r"(\d+)\s*%", text_lower)
     if pct_match:
         result["pct_change"] = int(pct_match.group(1))
 
-    if any(word in text_lower for word in ["cut", "reduce", "decrease", "lower"]):
-        result["type"] = "reduce_prep"
-        result["pct_change"] = -abs(result["pct_change"])
-    elif any(word in text_lower for word in ["increase", "boost", "add", "more"]):
-        result["type"] = "increase_prep"
-        result["pct_change"] = abs(result["pct_change"])
-    elif "promo" in text_lower or "event" in text_lower:
+    if "promo" in text_lower or "event" in text_lower:
         result["type"] = "promo_event"
-        result["pct_change"] = 25  # default promo boost
+        result["pct_change"] = result["pct_change"] or DEFAULT_PROMO_PCT
+    elif any(word in text_lower for word in ["cut", "reduce", "decrease", "lower"]):
+        result["type"] = "reduce_prep"
+        result["pct_change"] = -abs(result["pct_change"] or DEFAULT_SCENARIO_PCT)
+    elif any(word in text_lower for word in ["increase", "boost", "raise", "more"]):
+        result["type"] = "increase_prep"
+        result["pct_change"] = abs(result["pct_change"] or DEFAULT_SCENARIO_PCT)
 
-    # extract SKU hint
     sku_keywords = ["croissant", "muffin", "bread", "danish", "cinnamon", "sourdough", "almond", "matcha"]
-    for kw in sku_keywords:
-        if kw in text_lower:
-            result["sku_hint"] = kw
+    for keyword in sku_keywords:
+        if keyword in text_lower:
+            result["sku_hint"] = keyword
             break
 
-    # extract outlet hint
     outlet_keywords = ["klcc", "bangsar", "mid valley", "midvalley", "bukit bintang", "damansara"]
-    for kw in outlet_keywords:
-        if kw in text_lower:
-            result["outlet_hint"] = kw.replace("midvalley", "mid valley")
+    for keyword in outlet_keywords:
+        if keyword in text_lower:
+            result["outlet_hint"] = keyword.replace("midvalley", "mid valley")
             break
 
     return result
+
+
+def _build_scope_label(target_sku, target_outlet) -> str:
+    if target_sku and target_outlet:
+        return f"{target_sku.name} at {target_outlet.name}"
+    if target_sku:
+        return target_sku.name
+    if target_outlet:
+        return target_outlet.name
+    return "the selected plan"
+
+
+def _matching_count(alerts, target_sku, target_outlet) -> int:
+    matches = 0
+    for alert in alerts:
+        if target_sku and alert.sku_id != target_sku.id:
+            continue
+        if target_outlet and alert.outlet_id != target_outlet.id:
+            continue
+        if target_sku or target_outlet:
+            matches += 1
+    return matches
 
 
 def run_scenario_simulation(
@@ -101,24 +120,12 @@ def run_scenario_simulation(
     db: Session,
 ) -> ScenarioResult:
     """
-    Simulate a what-if scenario. This is advisory only — does not modify actual plans.
+    Simulate a what-if scenario. This is advisory only - it does not modify plans.
     """
-    # Get baseline alerts
-    baseline_prep_plan = (
-        db.query(PrepPlan)
-        .filter(PrepPlan.plan_date == target_date)
-        .order_by(PrepPlan.created_at.desc())
-        .first()
-    )
-    if not baseline_prep_plan:
-        baseline_prep_plan = generate_prep_plan(target_date, db)
-
     baseline_waste = detect_waste_risk(target_date, db)
     baseline_stockouts = detect_stockout_risk(target_date, db)
 
     intent = _parse_scenario(scenario_text)
-
-    # Build interpretation
     if intent["type"] == "unknown":
         return ScenarioResult(
             scenario_text=scenario_text,
@@ -130,10 +137,9 @@ def run_scenario_simulation(
             interpretation="Scenario could not be parsed. No changes simulated.",
         )
 
-    # Simulate the change
-    pct = intent["pct_change"] / 100.0
-    sku_names = {s.name.lower(): s for s in db.query(SKU).all()}
-    outlet_names = {o.name.lower(): o for o in db.query(Outlet).all()}
+    pct = abs(intent["pct_change"]) / 100.0
+    sku_names = {sku.name.lower(): sku for sku in db.query(SKU).all()}
+    outlet_names = {outlet.name.lower(): outlet for outlet in db.query(Outlet).all()}
 
     target_sku = None
     target_outlet = None
@@ -146,66 +152,53 @@ def run_scenario_simulation(
 
     if intent["outlet_hint"]:
         for name, outlet in outlet_names.items():
-            if intent["outlet_hint"] in name.lower():
+            if intent["outlet_hint"] in name:
                 target_outlet = outlet
                 break
 
-    # Estimate impact on alerts
-    # Simple heuristic: reducing prep reduces waste alerts for that SKU/outlet,
-    # but may increase stockout alerts, and vice versa.
-    modified_waste = list(baseline_waste)
-    modified_stockout = list(baseline_stockouts)
+    scope_label = _build_scope_label(target_sku, target_outlet)
+    baseline_waste_count = len(baseline_waste)
+    baseline_stockout_count = len(baseline_stockouts)
+    scoped_waste_count = _matching_count(baseline_waste, target_sku, target_outlet)
+    scoped_stockout_count = _matching_count(baseline_stockouts, target_sku, target_outlet)
+
+    modified_waste_count = baseline_waste_count
+    modified_stockout_count = baseline_stockout_count
 
     if intent["type"] == "reduce_prep":
-        # Fewer waste alerts for targeted SKU/outlet
-        modified_waste = [
-            a for a in baseline_waste
-            if not (
-                (target_sku is None or a.sku_name.lower() == target_sku.name.lower()) and
-                (target_outlet is None or a.outlet_name.lower() == target_outlet.name.lower())
-            )
-        ]
-        # Some stockout risk introduced
-        extra_stockouts = max(0, round(abs(pct) * 3))
+        resolved_waste = scoped_waste_count or (1 if baseline_waste_count > 0 else 0)
+        extra_stockouts = max(0, round(pct * 3))
+        modified_waste_count = max(0, baseline_waste_count - resolved_waste)
+        modified_stockout_count = baseline_stockout_count + extra_stockouts
         interpretation = (
-            f"Reducing prep by {abs(intent['pct_change'])}% could eliminate "
-            f"{len(baseline_waste) - len(modified_waste)} waste alert(s) but may introduce "
-            f"~{extra_stockouts} additional stockout risk(s)."
+            f"Reducing prep for {scope_label} by {abs(intent['pct_change'])}% could remove "
+            f"{resolved_waste} waste alert(s) but may introduce about {extra_stockouts} "
+            f"additional stockout risk(s)."
         )
         recommendation = (
-            f"Proceed with caution. Recommended reduction: "
+            f"Proceed with caution for {scope_label}. Recommended reduction: "
             f"{min(abs(intent['pct_change']), 10)}% to balance waste and availability."
         )
-
-    elif intent["type"] in ("increase_prep", "promo_event"):
-        # Fewer stockout alerts, possible more waste
-        modified_stockout = [
-            a for a in baseline_stockouts
-            if not (
-                (target_sku is None or a.sku_name.lower() == target_sku.name.lower()) and
-                (target_outlet is None or a.outlet_name.lower() == target_outlet.name.lower())
-            )
-        ]
+    else:
+        resolved_stockouts = scoped_stockout_count or (1 if baseline_stockout_count > 0 else 0)
         extra_waste = max(0, round(pct * 2))
+        modified_stockout_count = max(0, baseline_stockout_count - resolved_stockouts)
+        modified_waste_count = baseline_waste_count + extra_waste
         interpretation = (
-            f"Increasing prep by {intent['pct_change']}% could resolve "
-            f"{len(baseline_stockouts) - len(modified_stockout)} stockout risk(s) but may add "
-            f"~{extra_waste} waste alert(s)."
+            f"Increasing prep for {scope_label} by {abs(intent['pct_change'])}% could remove "
+            f"{resolved_stockouts} stockout risk(s) but may add about {extra_waste} waste alert(s)."
         )
         recommendation = (
-            f"Consider increasing prep by {min(intent['pct_change'], 20)}% with close "
-            f"end-of-day monitoring to prevent overproduction."
+            f"Consider increasing prep for {scope_label} by {min(abs(intent['pct_change']), 20)}% "
+            f"with close end-of-day monitoring to prevent overproduction."
         )
-    else:
-        interpretation = "Scenario simulated with default assumptions."
-        recommendation = "Review baseline alerts before making changes."
 
     return ScenarioResult(
         scenario_text=scenario_text,
-        baseline_waste_alerts=len(baseline_waste),
-        modified_waste_alerts=len(modified_waste),
-        baseline_stockouts=len(baseline_stockouts),
-        modified_stockouts=len(modified_stockout),
+        baseline_waste_alerts=baseline_waste_count,
+        modified_waste_alerts=modified_waste_count,
+        baseline_stockouts=baseline_stockout_count,
+        modified_stockouts=modified_stockout_count,
         recommendation=recommendation,
         interpretation=interpretation,
     )

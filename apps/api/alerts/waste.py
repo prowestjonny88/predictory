@@ -12,6 +12,7 @@ from forecasting.engine import forecast_demand
 
 PREP_OVER_FORECAST_THRESHOLD = 0.15  # alert if prep > forecast * (1 + 0.15)
 WASTE_RATE_3D_THRESHOLD = 0.10       # alert if 3-day waste rate > 10%
+HIGH_WASTE_RATE_THRESHOLD = 0.15     # high risk if 3-day waste rate >= 15%
 CONSECUTIVE_DECLINE_DAYS = 3
 
 DAYPARTS = ["morning", "midday", "evening"]
@@ -123,7 +124,7 @@ def detect_waste_risk(target_date: date, db: Session) -> list[WasteAlert]:
                 if not triggers:
                     continue
 
-                risk_level = "high" if len(triggers) >= 2 else "medium"
+                risk_level = "high" if len(triggers) >= 2 or waste_rate >= HIGH_WASTE_RATE_THRESHOLD else "medium"
                 reason = "; ".join(triggers)
 
                 alerts.append(WasteAlert(

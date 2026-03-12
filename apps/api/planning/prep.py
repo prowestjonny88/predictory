@@ -109,7 +109,7 @@ def recommend_prep(
 
     current_stock = _get_current_stock(db, outlet_id, sku_id)
     waste_rate = _get_waste_rate_7d(db, outlet_id, sku_id, target_date)
-    buffer = sku.safety_buffer_pct or DEFAULT_SAFETY_BUFFER
+    buffer = sku.safety_buffer_pct if sku.safety_buffer_pct is not None else DEFAULT_SAFETY_BUFFER
 
     adjustments = []
 

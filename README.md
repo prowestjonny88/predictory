@@ -41,6 +41,8 @@ Copy the root [`.env.example`](./.env.example) to `.env` and fill in the values 
 Notes:
 - `DATABASE_URL` supports Neon/Postgres or the local SQLite fallback shown in the example file.
 - The backend loads environment variables from the repo root.
+- For copilot LLMs, you can use `GEMINI_API_KEY` / `GOOGLE_API_KEY` for Google AI Studio, or `VERTEXAI_PROJECT` + `VERTEXAI_LOCATION` for Vertex AI.
+- Copilot endpoint examples and sample payloads are in [`apps/api/copilot/EXAMPLES.md`](./apps/api/copilot/EXAMPLES.md).
 
 ### 2. Run the backend
 

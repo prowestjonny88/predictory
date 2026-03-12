@@ -1,5 +1,5 @@
 """
-LLM prompt templates — Task 18
+LLM prompt templates - Task 18
 All prompts receive deterministic data; the LLM adds plain-language explanation only.
 """
 
@@ -39,8 +39,9 @@ Daypart: {daypart}
 Risk level: {risk_level}
 Triggers: {triggers}
 3-day waste rate: {waste_rate_pct}%
+Excess prep vs forecast: {excess_prep_units} units
 
-Write 2-3 sentences. Be specific and actionable. Do not invent numbers.
+Write 1-2 sentences. Be specific and actionable. Do not invent numbers.
 """
 
 STOCKOUT_ALERT_EXPLANATION_PROMPT = """\
@@ -65,6 +66,7 @@ Projected need: {need_qty} {unit}
 Reorder quantity: {reorder_qty} {unit}
 Urgency: {urgency}
 Driving SKUs: {driving_skus}
+Target SKU being explained: {sku_name}
 
 Write 1-2 sentences explaining why this reorder is needed and what happens if delayed.
 """
