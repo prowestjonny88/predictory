@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 
+import { useLanguage } from "@/components/i18n/LanguageProvider";
 import type { ForecastOverride, ForecastOverridePayload, SKU } from "@/types";
 
 interface Props {
@@ -38,6 +39,7 @@ export default function OverrideEditor({
   onSubmit,
   isBusy,
 }: Props) {
+  const { t } = useLanguage();
   const [scope, setScope] = useState<"outlet" | "sku">(DEFAULT_FORM.scope);
   const [skuId, setSkuId] = useState(DEFAULT_FORM.skuId);
   const [overrideType, setOverrideType] = useState<"promo" | "event">(DEFAULT_FORM.overrideType);
@@ -104,10 +106,12 @@ export default function OverrideEditor({
       <div className="flex items-center justify-between gap-3">
         <div>
           <h3 className="text-sm font-semibold text-neutral-800">
-            {editingOverride ? "Edit Override" : "Add Event / Promo Override"}
+            {editingOverride
+              ? t("override.editTitle", "Edit Override")
+              : t("override.addTitle", "Add Event / Promo Override")}
           </h3>
           <p className="mt-1 text-xs text-neutral-500">
-            Overrides adjust the forecast before prep and replenishment planning.
+            {t("override.help", "Overrides adjust the forecast before prep and replenishment planning.")}
           </p>
         </div>
         {editingOverride && (
@@ -115,48 +119,48 @@ export default function OverrideEditor({
             onClick={onCancelEdit}
             className="text-xs font-medium text-neutral-500 hover:text-neutral-700"
           >
-            Cancel edit
+            {t("override.cancelEdit", "Cancel edit")}
           </button>
         )}
       </div>
 
       <div className="mt-4 grid gap-3 md:grid-cols-2">
         <label className="flex flex-col gap-1 text-xs font-medium text-neutral-600">
-          Scope
+          {t("override.scope", "Scope")}
           <select
             value={scope}
             onChange={(event) => setScope(event.target.value as "outlet" | "sku")}
             disabled={isBusy || Boolean(editingOverride?.sku_id)}
             className="rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-400"
           >
-            <option value="outlet">Outlet-wide</option>
-            <option value="sku">Specific SKU</option>
+            <option value="outlet">{t("override.scopeOutlet", "Outlet-wide")}</option>
+            <option value="sku">{t("override.scopeSku", "Specific SKU")}</option>
           </select>
         </label>
 
         <label className="flex flex-col gap-1 text-xs font-medium text-neutral-600">
-          Type
+          {t("override.type", "Type")}
           <select
             value={overrideType}
             onChange={(event) => setOverrideType(event.target.value as "promo" | "event")}
             disabled={isBusy || Boolean(editingOverride)}
             className="rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-400"
           >
-            <option value="promo">Promo</option>
-            <option value="event">Event</option>
+            <option value="promo">{t("common.override.promo", "Promo")}</option>
+            <option value="event">{t("common.override.event", "Event")}</option>
           </select>
         </label>
 
         {scope === "sku" && (
           <label className="flex flex-col gap-1 text-xs font-medium text-neutral-600">
-            SKU
+            {t("override.sku", "SKU")}
             <select
               value={skuId}
               onChange={(event) => setSkuId(event.target.value)}
               disabled={isBusy || Boolean(editingOverride?.sku_id)}
               className="rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-400"
             >
-              <option value="">Choose SKU</option>
+              <option value="">{t("override.chooseSku", "Choose SKU")}</option>
               {skus.map((sku) => (
                 <option key={sku.id} value={String(sku.id)}>
                   {sku.name}
@@ -167,7 +171,7 @@ export default function OverrideEditor({
         )}
 
         <label className="flex flex-col gap-1 text-xs font-medium text-neutral-600">
-          Adjustment %
+          {t("override.adjustmentPct", "Adjustment %")}
           <input
             type="number"
             min={-50}
@@ -181,26 +185,26 @@ export default function OverrideEditor({
         </label>
 
         <label className="flex flex-col gap-1 text-xs font-medium text-neutral-600 md:col-span-2">
-          Title
+          {t("override.titleField", "Title")}
           <input
             type="text"
             value={title}
             onChange={(event) => setTitle(event.target.value)}
             disabled={isBusy}
-            placeholder="e.g. Morning pastry push"
+            placeholder={t("override.titlePlaceholder", "e.g. Morning pastry push")}
             className="rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-400"
           />
         </label>
 
         <label className="flex flex-col gap-1 text-xs font-medium text-neutral-600 md:col-span-2">
-          Notes
+          {t("override.notes", "Notes")}
           <textarea
             rows={2}
             value={notes}
             onChange={(event) => setNotes(event.target.value)}
             disabled={isBusy}
-            placeholder="Optional operational note"
-            className="rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-400 resize-none"
+            placeholder={t("override.notesPlaceholder", "Optional operational note")}
+            className="resize-none rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-400"
           />
         </label>
       </div>
@@ -212,7 +216,7 @@ export default function OverrideEditor({
           onChange={(event) => setEnabled(event.target.checked)}
           disabled={isBusy}
         />
-        Override enabled
+        {t("override.enabled", "Override enabled")}
       </label>
 
       <div className="mt-4 flex items-center justify-end gap-3">
@@ -221,7 +225,7 @@ export default function OverrideEditor({
             onClick={onCancelEdit}
             className="rounded-md border border-neutral-200 px-3 py-2 text-sm font-medium text-neutral-600 hover:bg-neutral-50"
           >
-            Cancel
+            {t("common.cancel", "Cancel")}
           </button>
         )}
         <button
@@ -229,7 +233,11 @@ export default function OverrideEditor({
           disabled={isBusy || !title.trim() || (scope === "sku" && !skuId)}
           className="rounded-md bg-amber-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-amber-600 disabled:opacity-50"
         >
-          {isBusy ? "Saving..." : editingOverride ? "Update override" : "Save override"}
+          {isBusy
+            ? t("common.saving", "Saving...")
+            : editingOverride
+              ? t("override.update", "Update override")
+              : t("override.save", "Save override")}
         </button>
       </div>
     </div>

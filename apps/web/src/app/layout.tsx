@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
-import "./globals.css";
-import Providers from "./providers";
+
 import Sidebar from "@/components/Sidebar";
 
+import "./globals.css";
+import Providers from "./providers";
+
 export const metadata: Metadata = {
-  title: "BakeWise – Bakery Intelligence",
+  title: "BakeWise - Bakery Intelligence",
   description: "AI-powered daily planning for bakery operations",
 };
 

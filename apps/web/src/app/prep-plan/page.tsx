@@ -5,7 +5,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Factory, HelpCircle, X } from "lucide-react";
 
 import Header from "@/components/Header";
+import { useLanguage } from "@/components/i18n/LanguageProvider";
 import { api } from "@/lib/api";
+import { translateDaypart, translateStatus } from "@/lib/i18n";
 import { cn, todayISO } from "@/lib/utils";
 import type { DailyPlan, Outlet, SKU } from "@/types";
 
@@ -22,6 +24,7 @@ export default function PrepPlanPage() {
   const [explanations, setExplanations] = useState<
     Record<number, { text: string; loading: boolean; error: boolean }>
   >({});
+  const { language, t } = useLanguage();
   const queryClient = useQueryClient();
 
   const dailyPlanQuery = useQuery<DailyPlan>({
@@ -165,6 +168,7 @@ export default function PrepPlanPage() {
         outlet_id: outletId,
         sku_id: skuId,
         plan_date: date,
+        language,
       });
       setExplanations((current) => ({
         ...current,
@@ -218,7 +222,7 @@ export default function PrepPlanPage() {
 
   return (
     <div className="min-h-screen">
-      <Header title="Prep Plan" date={date}>
+      <Header title={t("prep.title", "Prep Plan")} date={date}>
         <input
           type="date"
           value={date}
@@ -230,7 +234,9 @@ export default function PrepPlanPage() {
           disabled={runMutation.isPending}
           className="rounded-md bg-neutral-100 px-4 py-1.5 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-200 disabled:opacity-60"
         >
-          {runMutation.isPending ? "Running..." : "Generate Plan"}
+          {runMutation.isPending
+            ? t("common.running", "Running...")
+            : t("prep.generatePlan", "Generate Plan")}
         </button>
         {prepPlanId != null && prepStatus !== "approved" && (
           <button
@@ -238,7 +244,9 @@ export default function PrepPlanPage() {
             disabled={approveMutation.isPending}
             className="rounded-md bg-green-600 px-4 py-1.5 text-sm font-medium text-white transition-colors hover:bg-green-700 disabled:opacity-60"
           >
-            {approveMutation.isPending ? "Approving..." : "Approve All"}
+            {approveMutation.isPending
+              ? t("common.generating", "Generating...")
+              : t("prep.approveAll", "Approve All")}
           </button>
         )}
       </Header>
@@ -250,7 +258,7 @@ export default function PrepPlanPage() {
               ? dailyPlanQuery.error.message
               : prepPlanDetailQuery.error instanceof Error
                 ? prepPlanDetailQuery.error.message
-                : "Failed to load prep plan"}
+                : t("prep.failed", "Failed to load prep plan")}
           </div>
         )}
 
@@ -264,27 +272,33 @@ export default function PrepPlanPage() {
                   : "bg-yellow-100 text-yellow-700 ring-1 ring-yellow-200"
               )}
             >
-              {prepStatus === "approved" ? "Approved" : "Draft"}
+              {translateStatus(language, prepStatus === "approved" ? "approved" : "draft")}
             </span>
           )}
           {prepPlanDetailQuery.data?.approved_by && (
             <span className="text-xs text-neutral-400">
-              Approved by {prepPlanDetailQuery.data.approved_by}
+              {t("prep.approvedBy", "Approved by {{name}}", {
+                name: prepPlanDetailQuery.data.approved_by,
+              })}
             </span>
           )}
           {lines.length > 0 && (
             <>
               <span className="text-sm text-neutral-500">
-                <span className="font-semibold text-neutral-800">{totalPrepUnits}</span> total prep
-                units
+                {t("prep.totalPrepUnits", "{{count}} total prep units", {
+                  count: totalPrepUnits,
+                })}
               </span>
               <span className="text-sm text-neutral-500">
-                <span className="font-semibold text-neutral-800">{lines.length}</span> SKU/daypart
-                lines
+                {t("prep.linesCount", "{{count}} SKU/daypart lines", {
+                  count: lines.length,
+                })}
               </span>
               {editedCount > 0 && (
                 <span className="text-sm font-medium text-blue-600">
-                  {editedCount} override{editedCount !== 1 && "s"} applied
+                  {t("prep.overridesApplied", "{{count}} override(s) applied", {
+                    count: editedCount,
+                  })}
                 </span>
               )}
             </>
@@ -296,18 +310,18 @@ export default function PrepPlanPage() {
             <div className="mb-3 flex items-center gap-2">
               <Factory className="h-4 w-4 text-neutral-500" />
               <h2 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
-                Central Kitchen Summary
+                {t("prep.centralKitchen", "Central Kitchen Summary")}
               </h2>
             </div>
             <div className="overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-neutral-200 bg-neutral-50 text-left text-xs font-semibold uppercase tracking-wide text-neutral-500">
-                    <th className="px-4 py-2.5">SKU</th>
-                    <th className="px-4 py-2.5 text-right">Morning</th>
-                    <th className="px-4 py-2.5 text-right">Midday</th>
-                    <th className="px-4 py-2.5 text-right">Evening</th>
-                    <th className="px-4 py-2.5 text-right text-neutral-700">Total</th>
+                    <th className="px-4 py-2.5">{t("forecast.sku", "SKU")}</th>
+                    <th className="px-4 py-2.5 text-right">{t("common.daypart.morning", "Morning")}</th>
+                    <th className="px-4 py-2.5 text-right">{t("common.daypart.midday", "Midday")}</th>
+                    <th className="px-4 py-2.5 text-right">{t("common.daypart.evening", "Evening")}</th>
+                    <th className="px-4 py-2.5 text-right text-neutral-700">{t("forecast.total", "Total")}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-neutral-100">
@@ -338,13 +352,13 @@ export default function PrepPlanPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-neutral-200 bg-neutral-50 text-left text-xs font-semibold uppercase tracking-wide text-neutral-500">
-                <th className="px-4 py-3">SKU</th>
-                <th className="px-4 py-3">Outlet</th>
-                <th className="px-4 py-3">Daypart</th>
-                <th className="px-4 py-3 text-right">Forecast</th>
-                <th className="px-4 py-3 text-right">Recommended</th>
-                <th className="px-4 py-3 text-right">Override</th>
-                <th className="px-4 py-3">Status</th>
+                <th className="px-4 py-3">{t("forecast.sku", "SKU")}</th>
+                <th className="px-4 py-3">{t("forecast.outlet", "Outlet")}</th>
+                <th className="px-4 py-3">{t("common.daypart", "Daypart")}</th>
+                <th className="px-4 py-3 text-right">{t("prep.forecast", "Forecast")}</th>
+                <th className="px-4 py-3 text-right">{t("prep.recommended", "Recommended")}</th>
+                <th className="px-4 py-3 text-right">{t("prep.override", "Override")}</th>
+                <th className="px-4 py-3">{t("prep.status", "Status")}</th>
                 <th className="px-4 py-3 w-12" />
               </tr>
             </thead>
@@ -362,14 +376,14 @@ export default function PrepPlanPage() {
               ) : lines.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="px-4 py-12 text-center text-sm text-neutral-400">
-                    No prep plan yet. Click{" "}
+                    {t("prep.noPlan", "No prep plan yet. Click")}{" "}
                     <button
                       onClick={() => runMutation.mutate()}
                       className="font-medium text-amber-600 hover:text-amber-700"
                     >
-                      Generate Plan
+                      {t("prep.generatePlan", "Generate Plan")}
                     </button>{" "}
-                    to create one.
+                    {t("prep.toCreate", "to create one.")}
                   </td>
                 </tr>
               ) : (
@@ -390,7 +404,9 @@ export default function PrepPlanPage() {
                       >
                         <td className="px-4 py-3 font-medium text-neutral-800">{skuName}</td>
                         <td className="px-4 py-3 text-xs text-neutral-500">{outletName}</td>
-                        <td className="px-4 py-3 capitalize text-neutral-600">{line.daypart}</td>
+                        <td className="px-4 py-3 capitalize text-neutral-600">
+                          {translateDaypart(language, line.daypart)}
+                        </td>
                         <td className="px-4 py-3 text-right tabular-nums text-neutral-500">
                           {forecastQty.toFixed(1)}
                         </td>
@@ -417,7 +433,7 @@ export default function PrepPlanPage() {
                               STATUS_STYLES[line.status] ?? "bg-neutral-100 text-neutral-600"
                             )}
                           >
-                            {line.status}
+                            {translateStatus(language, line.status)}
                           </span>
                         </td>
                         <td className="px-4 py-3">
@@ -428,7 +444,7 @@ export default function PrepPlanPage() {
                                 disabled={editMutation.isPending}
                                 className="text-xs font-medium text-amber-600 hover:text-amber-800 disabled:opacity-50"
                               >
-                                Save
+                                {t("common.save", "Save")}
                               </button>
                             )}
                             <button
@@ -438,7 +454,7 @@ export default function PrepPlanPage() {
                                   ? "text-amber-700"
                                   : "text-neutral-400 hover:text-amber-600"
                               }`}
-                              title="AI rationale"
+                              title={t("prep.generatingRationale", "Generating rationale...")}
                             >
                               {expandedLines.has(line.id) ? (
                                 <X className="h-3 w-3" />
@@ -455,10 +471,12 @@ export default function PrepPlanPage() {
                             {explanations[line.id]?.loading ? (
                               <div className="flex items-center gap-2 text-sm text-neutral-500">
                                 <div className="h-3 w-3 animate-pulse rounded-full bg-amber-300" />
-                                Generating rationale...
+                                {t("prep.generatingRationale", "Generating rationale...")}
                               </div>
                             ) : explanations[line.id]?.error ? (
-                              <p className="text-xs italic text-neutral-400">Rationale unavailable.</p>
+                              <p className="text-xs italic text-neutral-400">
+                                {t("prep.rationaleUnavailable", "Rationale unavailable.")}
+                              </p>
                             ) : explanations[line.id]?.text ? (
                               <p className="text-sm leading-relaxed text-neutral-700">
                                 {explanations[line.id]?.text}

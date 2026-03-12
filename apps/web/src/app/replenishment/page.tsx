@@ -4,6 +4,8 @@ import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import Header from "@/components/Header";
+import { useLanguage } from "@/components/i18n/LanguageProvider";
+import { translateRiskLevel } from "@/lib/i18n";
 import { api } from "@/lib/api";
 import { cn, todayISO } from "@/lib/utils";
 import type { DailyPlan, UrgencyLevel } from "@/types";
@@ -18,6 +20,7 @@ const URGENCY_STYLES: Record<UrgencyLevel, string> = {
 export default function ReplenishmentPage() {
   const [date, setDate] = useState(todayISO);
   const queryClient = useQueryClient();
+  const { language, t } = useLanguage();
 
   const dailyPlanQuery = useQuery<DailyPlan>({
     queryKey: ["dailyPlan", date],
@@ -46,14 +49,11 @@ export default function ReplenishmentPage() {
       ),
     [lines]
   );
-  const totalReorderQty = useMemo(
-    () => lines.reduce((sum, line) => sum + line.reorder_qty, 0),
-    [lines]
-  );
+  const totalReorderQty = useMemo(() => lines.reduce((sum, line) => sum + line.reorder_qty, 0), [lines]);
 
   return (
     <div className="min-h-screen">
-      <Header title="Replenishment" date={date}>
+      <Header title={t("replenishment.title", "Replenishment")} date={date}>
         <input
           type="date"
           value={date}
@@ -65,7 +65,9 @@ export default function ReplenishmentPage() {
           disabled={runMutation.isPending}
           className="rounded-md bg-amber-500 px-4 py-1.5 text-sm font-medium text-white transition-colors hover:bg-amber-600 disabled:opacity-60"
         >
-          {runMutation.isPending ? "Running..." : "Run Replenishment"}
+          {runMutation.isPending
+            ? t("common.running", "Running...")
+            : t("replenishment.run", "Run Replenishment")}
         </button>
       </Header>
 
@@ -74,33 +76,26 @@ export default function ReplenishmentPage() {
           <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             {dailyPlanQuery.error instanceof Error
               ? dailyPlanQuery.error.message
-              : "Failed to load replenishment plan"}
+              : t("replenishment.failed", "Failed to load replenishment plan")}
           </div>
         )}
 
         {lines.length > 0 && (
           <div className="flex flex-wrap items-center gap-3">
-            {([
-              { key: "critical" as UrgencyLevel, label: "Critical" },
-              { key: "high" as UrgencyLevel, label: "High" },
-              { key: "medium" as UrgencyLevel, label: "Medium" },
-              { key: "low" as UrgencyLevel, label: "Low" },
-            ] as const).map(({ key, label }) =>
+            {(["critical", "high", "medium", "low"] as UrgencyLevel[]).map((key) =>
               urgencyCounts[key] ? (
                 <span
                   key={key}
-                  className={cn(
-                    "rounded-full px-3 py-0.5 text-xs font-semibold",
-                    URGENCY_STYLES[key]
-                  )}
+                  className={cn("rounded-full px-3 py-0.5 text-xs font-semibold", URGENCY_STYLES[key])}
                 >
-                  {urgencyCounts[key]} {label}
+                  {urgencyCounts[key]} {translateRiskLevel(language, key)}
                 </span>
               ) : null
             )}
             <span className="ml-1 text-sm text-neutral-500">
-              <span className="font-semibold text-neutral-800">{totalReorderQty.toFixed(1)}</span>{" "}
-              total reorder quantity
+              {t("replenishment.totalQty", "{{count}} total reorder quantity", {
+                count: totalReorderQty.toFixed(1),
+              })}
             </span>
           </div>
         )}
@@ -109,12 +104,12 @@ export default function ReplenishmentPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-neutral-200 bg-neutral-50 text-left text-xs font-semibold uppercase tracking-wide text-neutral-500">
-                <th className="px-4 py-3">Ingredient</th>
-                <th className="px-4 py-3 text-right">Stock On Hand</th>
-                <th className="px-4 py-3 text-right">Need Qty</th>
-                <th className="px-4 py-3 text-right">Reorder Qty</th>
-                <th className="px-4 py-3">Urgency</th>
-                <th className="px-4 py-3">Driving SKUs</th>
+                <th className="px-4 py-3">{t("replenishment.ingredient", "Ingredient")}</th>
+                <th className="px-4 py-3 text-right">{t("replenishment.stockOnHand", "Stock On Hand")}</th>
+                <th className="px-4 py-3 text-right">{t("replenishment.needQty", "Need Qty")}</th>
+                <th className="px-4 py-3 text-right">{t("replenishment.reorderQty", "Reorder Qty")}</th>
+                <th className="px-4 py-3">{t("replenishment.urgency", "Urgency")}</th>
+                <th className="px-4 py-3">{t("replenishment.drivingSkus", "Driving SKUs")}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-100">
@@ -131,14 +126,14 @@ export default function ReplenishmentPage() {
               ) : lines.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="px-4 py-12 text-center text-sm text-neutral-400">
-                    No replenishment data.{" "}
+                    {t("replenishment.noData", "No replenishment data.")}{" "}
                     <button
                       onClick={() => runMutation.mutate()}
                       className="font-medium text-amber-600 hover:text-amber-700"
                     >
-                      Run Replenishment
+                      {t("replenishment.run", "Run Replenishment")}
                     </button>{" "}
-                    to generate one.
+                    {t("replenishment.toGenerate", "to generate one.")}
                   </td>
                 </tr>
               ) : (
@@ -167,11 +162,11 @@ export default function ReplenishmentPage() {
                           URGENCY_STYLES[line.urgency]
                         )}
                       >
-                        {line.urgency}
+                        {translateRiskLevel(language, line.urgency)}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-xs text-neutral-500">
-                      {line.driving_skus.length > 0 ? line.driving_skus.join(", ") : "None"}
+                      {line.driving_skus.length > 0 ? line.driving_skus.join(", ") : t("common.none", "None")}
                     </td>
                   </tr>
                 ))

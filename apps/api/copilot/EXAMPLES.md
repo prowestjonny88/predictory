@@ -2,6 +2,13 @@
 
 These examples are for frontend integration and local testing.
 
+Supported optional copilot languages:
+- `en`
+- `ms`
+- `zh-CN`
+
+If `language` is omitted, the backend defaults to `en`.
+
 ## Provider config
 
 LiteLLM provider selection is environment-driven:
@@ -25,7 +32,8 @@ Request:
   "outlet_id": 1,
   "sku_id": 1,
   "plan_date": "2026-03-12",
-  "context_type": "forecast"
+  "context_type": "forecast",
+  "language": "ms"
 }
 ```
 
@@ -46,7 +54,8 @@ Request:
 
 ```json
 {
-  "brief_date": "2026-03-12"
+  "brief_date": "2026-03-12",
+  "language": "zh-CN"
 }
 ```
 
@@ -66,7 +75,8 @@ Request:
 ```json
 {
   "scenario_text": "cut croissant prep at Bangsar by 15%",
-  "target_date": "2026-03-12"
+  "target_date": "2026-03-12",
+  "language": "en"
 }
 ```
 
@@ -77,7 +87,8 @@ Request:
 ```json
 {
   "target_date": "2026-03-12",
-  "top_n": 5
+  "top_n": 5,
+  "language": "ms"
 }
 ```
 

@@ -6,6 +6,8 @@ Notes:
 - All backend routers are mounted under `/api/v1`.
 - The planning router currently exposes daily plan at `/api/v1/api/daily-plan/{date}`.
 - Copilot `daily-actions` remains a separate endpoint from `daily-plan`.
+- Copilot prose endpoints accept an optional `language` field: `en`, `ms`, or `zh-CN`.
+- Business-data endpoints remain language-neutral. Only copilot-generated prose is localized by the backend.
 
 ## P2 Contracts
 
@@ -531,7 +533,8 @@ Request:
   "outlet_id": 1,
   "sku_id": 1,
   "plan_date": "2026-03-12",
-  "context_type": "forecast"
+  "context_type": "forecast",
+  "language": "ms"
 }
 ```
 
@@ -552,7 +555,8 @@ Request:
 
 ```json
 {
-  "brief_date": "2026-03-12"
+  "brief_date": "2026-03-12",
+  "language": "zh-CN"
 }
 ```
 
@@ -572,7 +576,8 @@ Request:
 ```json
 {
   "scenario_text": "cut croissant prep at Bangsar by 15%",
-  "target_date": "2026-03-12"
+  "target_date": "2026-03-12",
+  "language": "en"
 }
 ```
 
@@ -596,7 +601,8 @@ Request:
 ```json
 {
   "target_date": "2026-03-12",
-  "top_n": 5
+  "top_n": 5,
+  "language": "ms"
 }
 ```
 

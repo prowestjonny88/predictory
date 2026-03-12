@@ -1,5 +1,7 @@
 import type {
+  DailyActionsRequest,
   DailyActionsResponse,
+  DailyBriefRequest,
   DailyBriefResponse,
   DailyPlan,
   ExplainPlanRequest,
@@ -11,9 +13,11 @@ import type {
   HealthResponse,
   ImportResult,
   Ingredient,
+  LanguageCode,
   Outlet,
   PlanRunResult,
   PrepPlanDetail,
+  ScenarioRequest,
   ScenarioResult,
   SKU,
   StockoutAlert,
@@ -124,20 +128,36 @@ export const api = {
       method: "POST",
       body: JSON.stringify(body),
     }),
-  dailyBrief: (date: string): Promise<DailyBriefResponse> =>
+  dailyBrief: (date: string, language: LanguageCode = "en"): Promise<DailyBriefResponse> =>
     apiFetch<DailyBriefResponse>(`${V1}/copilot/daily-brief`, {
       method: "POST",
-      body: JSON.stringify({ brief_date: date }),
+      body: JSON.stringify({ brief_date: date, language } satisfies DailyBriefRequest),
     }),
-  dailyActions: (date: string, topN = 5): Promise<DailyActionsResponse> =>
+  dailyActions: (
+    date: string,
+    topN = 5,
+    language: LanguageCode = "en"
+  ): Promise<DailyActionsResponse> =>
     apiFetch<DailyActionsResponse>(`${V1}/copilot/daily-actions`, {
       method: "POST",
-      body: JSON.stringify({ target_date: date, top_n: topN }),
+      body: JSON.stringify({
+        target_date: date,
+        top_n: topN,
+        language,
+      } satisfies DailyActionsRequest),
     }),
-  runScenario: (text: string, date: string): Promise<ScenarioResult> =>
+  runScenario: (
+    text: string,
+    date: string,
+    language: LanguageCode = "en"
+  ): Promise<ScenarioResult> =>
     apiFetch<ScenarioResult>(`${V1}/copilot/run-scenario`, {
       method: "POST",
-      body: JSON.stringify({ scenario_text: text, target_date: date }),
+      body: JSON.stringify({
+        scenario_text: text,
+        target_date: date,
+        language,
+      } satisfies ScenarioRequest),
     }),
 
   uploadCSV: (file: File, dataType = "auto"): Promise<ImportResult> => {

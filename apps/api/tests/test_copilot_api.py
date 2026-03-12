@@ -578,3 +578,122 @@ def test_daily_plan_and_daily_actions_can_be_requested_for_same_date():
     finally:
         copilot_router._call_llm = original
         app.dependency_overrides.clear()
+
+
+def test_daily_brief_localizes_fallback_output():
+    SessionLocal = _build_session_factory()
+    db = SessionLocal()
+    _seed_demo_data(db)
+    target_date = date.today()
+    run_forecast_for_date(target_date, db)
+    generate_prep_plan(target_date, db)
+    recommend_replenishment(target_date, db)
+    db.close()
+
+    original = copilot_router._call_llm
+    copilot_router._call_llm = lambda prompt, fallback="": fallback
+    try:
+        _override_app_db(SessionLocal)
+        with TestClient(app) as client:
+            ms_resp = client.post(
+                "/api/v1/copilot/daily-brief",
+                json={"brief_date": target_date.isoformat(), "language": "ms"},
+            )
+            zh_resp = client.post(
+                "/api/v1/copilot/daily-brief",
+                json={"brief_date": target_date.isoformat(), "language": "zh-CN"},
+            )
+            assert ms_resp.status_code == 200
+            assert zh_resp.status_code == 200
+            assert "Ringkasan harian" in ms_resp.json()["brief"]
+            assert "每日简报" in zh_resp.json()["brief"]
+    finally:
+        copilot_router._call_llm = original
+        app.dependency_overrides.clear()
+
+
+def test_daily_actions_localize_fallback_output():
+    SessionLocal = _build_session_factory()
+    db = SessionLocal()
+    _seed_demo_data(db)
+    target_date = date.today()
+    db.close()
+
+    original = copilot_router._call_llm
+    copilot_router._call_llm = lambda prompt, fallback="": fallback
+    try:
+        _override_app_db(SessionLocal)
+        with TestClient(app) as client:
+            ms_resp = client.post(
+                "/api/v1/copilot/daily-actions",
+                json={"target_date": target_date.isoformat(), "top_n": 5, "language": "ms"},
+            )
+            zh_resp = client.post(
+                "/api/v1/copilot/daily-actions",
+                json={"target_date": target_date.isoformat(), "top_n": 5, "language": "zh-CN"},
+            )
+            assert ms_resp.status_code == 200
+            assert zh_resp.status_code == 200
+            assert "Tindakan harian" in ms_resp.json()["brief"]
+            assert any(
+                "Kurangkan" in action["action_text"] or "Pantau" in action["action_text"]
+                for action in ms_resp.json()["top_actions"]
+            )
+            assert "每日行动" in zh_resp.json()["brief"]
+            assert any(
+                "减少" in action["action_text"]
+                or "关注" in action["action_text"]
+                or "提高" in action["action_text"]
+                for action in zh_resp.json()["top_actions"]
+            )
+    finally:
+        copilot_router._call_llm = original
+        app.dependency_overrides.clear()
+
+
+def test_scenario_supports_non_english_inputs():
+    SessionLocal = _build_session_factory()
+    db = SessionLocal()
+    _seed_demo_data(db)
+    target_date = date.today()
+    db.close()
+
+    _override_app_db(SessionLocal)
+    with TestClient(app) as client:
+        resp = client.post(
+            "/api/v1/copilot/run-scenario",
+            json={
+                "scenario_text": "Kurangkan prep croissant di Bangsar sebanyak 15%",
+                "target_date": target_date.isoformat(),
+                "language": "ms",
+            },
+        )
+        assert resp.status_code == 200
+        payload = resp.json()
+        assert "Kurangkan prep" in payload["interpretation"] or "Teruskan" in payload["recommendation"]
+
+
+def test_invalid_language_falls_back_to_english():
+    SessionLocal = _build_session_factory()
+    db = SessionLocal()
+    _seed_demo_data(db)
+    target_date = date.today()
+    run_forecast_for_date(target_date, db)
+    generate_prep_plan(target_date, db)
+    recommend_replenishment(target_date, db)
+    db.close()
+
+    original = copilot_router._call_llm
+    copilot_router._call_llm = lambda prompt, fallback="": fallback
+    try:
+        _override_app_db(SessionLocal)
+        with TestClient(app) as client:
+            resp = client.post(
+                "/api/v1/copilot/daily-brief",
+                json={"brief_date": target_date.isoformat(), "language": "de"},
+            )
+            assert resp.status_code == 200
+            assert "Daily brief for" in resp.json()["brief"]
+    finally:
+        copilot_router._call_llm = original
+        app.dependency_overrides.clear()

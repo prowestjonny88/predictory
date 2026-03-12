@@ -7,7 +7,9 @@ import { HelpCircle, X } from "lucide-react";
 import DemandDriversPanel from "@/components/forecast/DemandDriversPanel";
 import OverrideEditor from "@/components/forecast/OverrideEditor";
 import Header from "@/components/Header";
+import { useLanguage } from "@/components/i18n/LanguageProvider";
 import { api } from "@/lib/api";
+import { translateDaypart } from "@/lib/i18n";
 import { todayISO } from "@/lib/utils";
 import type {
   ForecastLine,
@@ -30,6 +32,7 @@ export default function ForecastPage() {
   const [explanations, setExplanations] = useState<
     Record<number, { text: string; loading: boolean; error: boolean }>
   >({});
+  const { language, t } = useLanguage();
   const queryClient = useQueryClient();
 
   const outletsQuery = useQuery<Outlet[]>({
@@ -214,6 +217,7 @@ export default function ForecastPage() {
         outlet_id: line.outlet_id,
         sku_id: line.sku_id,
         plan_date: date,
+        language,
       });
       setExplanations((current) => ({
         ...current,
@@ -267,13 +271,13 @@ export default function ForecastPage() {
 
   return (
     <div className="min-h-screen">
-      <Header title="Demand Forecast" date={date}>
+      <Header title={t("forecast.title", "Demand Forecast")} date={date}>
         <select
           value={outletId}
           onChange={(event) => setOutletId(event.target.value)}
           className="rounded-md border border-neutral-300 bg-white px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
         >
-          <option value="all">All Outlets</option>
+          <option value="all">{t("forecast.allOutlets", "All Outlets")}</option>
           {outlets.map((outlet) => (
             <option key={outlet.id} value={String(outlet.id)}>
               {outlet.name}
@@ -291,7 +295,9 @@ export default function ForecastPage() {
           disabled={runMutation.isPending}
           className="rounded-md bg-amber-500 px-4 py-1.5 text-sm font-medium text-white transition-colors hover:bg-amber-600 disabled:opacity-60"
         >
-          {runMutation.isPending ? "Running..." : "Run Forecast"}
+          {runMutation.isPending
+            ? t("common.running", "Running...")
+            : t("forecast.runForecast", "Run Forecast")}
         </button>
       </Header>
 
@@ -315,31 +321,31 @@ export default function ForecastPage() {
                       ? updateOverrideMutation.error.message
                       : deleteOverrideMutation.error instanceof Error
                         ? deleteOverrideMutation.error.message
-                        : "Failed to load forecast"}
+                        : t("dashboard.failedDailyPlan", "Failed to load daily plan")}
           </div>
         )}
 
         <section>
           <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-neutral-500">
-            Predicted Demand by Daypart
+            {t("forecast.predictedByDaypart", "Predicted Demand by Daypart")}
           </h2>
           <div className="grid gap-4 md:grid-cols-3">
             {[
               {
                 key: "morning",
-                label: "Morning",
+                label: t("common.daypart.morning", "Morning"),
                 value: daypartTotals.morning,
                 tone: "border-amber-200 bg-amber-50 text-amber-700",
               },
               {
                 key: "midday",
-                label: "Midday",
+                label: t("common.daypart.midday", "Midday"),
                 value: daypartTotals.midday,
                 tone: "border-sky-200 bg-sky-50 text-sky-700",
               },
               {
                 key: "evening",
-                label: "Evening",
+                label: t("common.daypart.evening", "Evening"),
                 value: daypartTotals.evening,
                 tone: "border-violet-200 bg-violet-50 text-violet-700",
               },
@@ -351,7 +357,9 @@ export default function ForecastPage() {
                 ) : (
                   <p className="mt-3 text-3xl font-bold">
                     {card.value.toFixed(1)}
-                    <span className="ml-1 text-sm font-normal opacity-60">units</span>
+                    <span className="ml-1 text-sm font-normal opacity-60">
+                      {t("common.units", "units")}
+                    </span>
                   </p>
                 )}
               </div>
@@ -385,25 +393,28 @@ export default function ForecastPage() {
           </div>
         ) : (
           <div className="rounded-xl border border-neutral-200 bg-neutral-50 px-5 py-4 text-sm text-neutral-600">
-            Choose one outlet to inspect demand drivers and manage event or promo overrides.
+            {t(
+              "forecast.demandDriversPrompt",
+              "Choose one outlet to inspect demand drivers and manage event or promo overrides."
+            )}
           </div>
         )}
 
         <section>
           <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-neutral-500">
-            Forecast Lines
+            {t("forecast.lines", "Forecast Lines")}
           </h2>
           <div className="overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-neutral-200 bg-neutral-50 text-left text-xs font-semibold uppercase tracking-wide text-neutral-500">
-                  <th className="px-4 py-3">SKU</th>
-                  <th className="px-4 py-3">Outlet</th>
-                  <th className="px-4 py-3 text-right">Morning</th>
-                  <th className="px-4 py-3 text-right">Midday</th>
-                  <th className="px-4 py-3 text-right">Evening</th>
-                  <th className="px-4 py-3 text-right">Total</th>
-                  <th className="px-4 py-3 text-right">Manual Adj.</th>
+                  <th className="px-4 py-3">{t("forecast.sku", "SKU")}</th>
+                  <th className="px-4 py-3">{t("forecast.outlet", "Outlet")}</th>
+                  <th className="px-4 py-3 text-right">{t("common.daypart.morning", "Morning")}</th>
+                  <th className="px-4 py-3 text-right">{t("common.daypart.midday", "Midday")}</th>
+                  <th className="px-4 py-3 text-right">{t("common.daypart.evening", "Evening")}</th>
+                  <th className="px-4 py-3 text-right">{t("forecast.total", "Total")}</th>
+                  <th className="px-4 py-3 text-right">{t("forecast.manualAdj", "Manual Adj.")}</th>
                   <th className="px-4 py-3 w-16" />
                 </tr>
               </thead>
@@ -422,7 +433,10 @@ export default function ForecastPage() {
                     ? (
                       <tr>
                         <td colSpan={8} className="px-4 py-12 text-center text-sm text-neutral-400">
-                          No forecast data available. Run a forecast to generate line items for this date.
+                          {t(
+                            "forecast.noData",
+                            "No forecast data available. Run a forecast to generate line items for this date."
+                          )}
                         </td>
                       </tr>
                     )
@@ -450,10 +464,10 @@ export default function ForecastPage() {
                             <td className="px-4 py-3 text-right">
                               <div className="space-y-2">
                                 <div className="text-xs text-neutral-500">
-                                  Current:{" "}
+                                  {t("forecast.current", "Current")}:{" "}
                                   {line.manual_adjustment_pct != null
                                     ? `${line.manual_adjustment_pct.toFixed(1)}%`
-                                    : "none"}
+                                    : t("forecast.noCurrentAdjustment", "none")}
                                 </div>
                                 <div className="flex justify-end gap-2">
                                   <input
@@ -478,7 +492,7 @@ export default function ForecastPage() {
                                     }
                                     className="rounded-md border border-neutral-200 px-2 py-1 text-xs font-medium text-neutral-700 hover:bg-neutral-50 disabled:opacity-50"
                                   >
-                                    Save
+                                    {t("common.save", "Save")}
                                   </button>
                                 </div>
                               </div>
@@ -497,7 +511,9 @@ export default function ForecastPage() {
                                 ) : (
                                   <HelpCircle className="h-3 w-3" />
                                 )}
-                                {expandedLines.has(line.id) ? "Close" : "Why?"}
+                                {expandedLines.has(line.id)
+                                  ? t("forecast.closeWhy", "Close")
+                                  : t("forecast.why", "Why?")}
                               </button>
                             </td>
                           </tr>
@@ -507,11 +523,14 @@ export default function ForecastPage() {
                                 {explanations[line.id]?.loading ? (
                                   <div className="flex items-center gap-2 text-sm text-neutral-500">
                                     <div className="h-3 w-3 animate-pulse rounded-full bg-amber-300" />
-                                    Generating explanation...
+                                    {t("forecast.generatingExplanation", "Generating explanation...")}
                                   </div>
                                 ) : explanations[line.id]?.error ? (
                                   <p className="text-xs italic text-neutral-400">
-                                    Explanation unavailable. Try again later.
+                                    {t(
+                                      "forecast.explanationUnavailable",
+                                      "Explanation unavailable. Try again later."
+                                    )}
                                   </p>
                                 ) : explanations[line.id]?.text ? (
                                   <p className="text-sm leading-relaxed text-neutral-700">

@@ -24,6 +24,11 @@ LLMFn = Callable[[str, str], str]
 
 MAX_TOP_ACTIONS = 5
 DAY_LABELS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+DAY_LABELS_BY_LANGUAGE = {
+    "en": DAY_LABELS,
+    "ms": ["Isnin", "Selasa", "Rabu", "Khamis", "Jumaat", "Sabtu", "Ahad"],
+    "zh-CN": ["星期一", "星期二", "星期三", "星期四", "星期五", "星期六", "星期日"],
+}
 URGENCY_RANK = {"critical": 0, "high": 1, "medium": 2, "low": 3}
 SOURCE_RANK = {
     "stockout": 0,
@@ -32,6 +37,115 @@ SOURCE_RANK = {
     "reorder": 3,
     "risk": 4,
 }
+
+
+def _local_daypart(language: str, daypart: str) -> str:
+    if language == "ms":
+        return {"morning": "pagi", "midday": "tengah hari", "evening": "petang"}.get(daypart, daypart)
+    if language == "zh-CN":
+        return {"morning": "早上", "midday": "中午", "evening": "傍晚"}.get(daypart, daypart)
+    return daypart
+
+
+def _msg(language: str, key: str, **kwargs) -> str:
+    if language == "ms":
+        templates = {
+            "brief_intro": (
+                "Tindakan harian untuk {target_date} ({weekday}). Jumlah jualan diramal ialah "
+                "{total_predicted_sales} unit, dengan {high_waste_count} amaran pembaziran tinggi, "
+                "{high_stockout_count} amaran kehabisan stok tinggi, dan {critical_reorder_count} item pesanan kritikal."
+            ),
+            "brief_risks": "Risiko utama tertumpu di {outlets}.",
+            "brief_none": "Tiada tindakan persediaan, pesanan semula atau penyeimbangan semula yang mendesak pada masa ini.",
+            "brief_top": "Tindakan utama: {actions}",
+            "brief_monitor": "Tindakan utama: Teruskan pemantauan pelan langsung dan muat semula ringkasan harian apabila data baharu tiba.",
+            "risk_waste_watch": "Pantau risiko pembaziran {sku_name} di {outlet_name} pada sesi {daypart}",
+            "risk_waste_impact": "Boleh menyebabkan pembaziran hujung hari jika prep tidak dilaras.",
+            "prep_reduce": "Kurangkan prep {sku_name} di {outlet_name} sebanyak {pct}%",
+            "prep_reduce_impact": "Kurangkan tekanan pembaziran; kadar pembaziran 3 hari terkini ialah {waste_rate}.",
+            "affected_dayparts": "Sesi terjejas: {dayparts}",
+            "risk_stockout_watch": "Pantau risiko kehabisan stok {sku_name} di {outlet_name} pada sesi {daypart}",
+            "risk_stockout_impact": "Boleh menjejaskan ketersediaan jualan jika permintaan pagi meningkat.",
+            "prep_increase": "Tingkatkan liputan {sku_name} untuk sesi {daypart} di {outlet_name} sebanyak {pct}%",
+            "prep_increase_impact": "Kurangkan kira-kira {shortage} unit risiko kekurangan dan tingkatkan liputan {coverage}.",
+            "coverage": "Liputan {coverage}",
+            "shortage": "Kekurangan {shortage} unit",
+            "reorder": "Buat pesanan semula {ingredient_name} sekarang ({urgency} keutamaan)",
+            "reorder_impact": "Lindungi pengeluaran terancang untuk {count} SKU dan elakkan risiko kehabisan stok bahan.",
+            "need": "Perlu {value} {unit}",
+            "stock_on_hand": "Stok sedia ada {value} {unit}",
+            "driving_skus": "SKU pemacu: {value}",
+            "rebalance": "Semak alokasi antara cawangan untuk {sku_name} antara {waste_outlet} dan {stockout_outlet}",
+            "rebalance_impact": "Boleh mengurangkan pembaziran di satu cawangan sambil melindungi ketersediaan di cawangan lain.",
+            "waste_risk_at": "Risiko pembaziran di {outlet_name}",
+            "stockout_risk_at": "Risiko kehabisan stok di {outlet_name}",
+        }
+    elif language == "zh-CN":
+        templates = {
+            "brief_intro": (
+                "{target_date}（{weekday}）每日行动。预测总销量为 {total_predicted_sales} 单位，"
+                "当前有 {high_waste_count} 条高浪费预警、{high_stockout_count} 条高缺货预警，以及 "
+                "{critical_reorder_count} 个关键补货事项。"
+            ),
+            "brief_risks": "主要风险集中在 {outlets}。",
+            "brief_none": "目前没有紧急的备货、补货或再平衡行动。",
+            "brief_top": "重点行动：{actions}",
+            "brief_monitor": "重点行动：继续监控实时计划，并在新数据到达后刷新每日简报。",
+            "risk_waste_watch": "关注 {outlet_name} 在{daypart}的 {sku_name} 浪费风险",
+            "risk_waste_impact": "如果不调整备货，可能导致当日结束时的可避免浪费。",
+            "prep_reduce": "将 {outlet_name} 的 {sku_name} 备货减少 {pct}%",
+            "prep_reduce_impact": "降低浪费压力；最近 3 天浪费率为 {waste_rate}。",
+            "affected_dayparts": "受影响时段：{dayparts}",
+            "risk_stockout_watch": "关注 {outlet_name} 在{daypart}的 {sku_name} 缺货风险",
+            "risk_stockout_impact": "若早间需求上升，可能影响可售性。",
+            "prep_increase": "将 {outlet_name} 在{daypart}的 {sku_name} 供应提高 {pct}%",
+            "prep_increase_impact": "可减少约 {shortage} 单位短缺风险，并把覆盖率提高到 {coverage}。",
+            "coverage": "覆盖率 {coverage}",
+            "shortage": "短缺 {shortage} 单位",
+            "reorder": "立即补货 {ingredient_name}（{urgency}）",
+            "reorder_impact": "保护 {count} 个 SKU 的计划生产，并降低原料导致的缺货风险。",
+            "need": "需求 {value} {unit}",
+            "stock_on_hand": "现有库存 {value} {unit}",
+            "driving_skus": "驱动 SKU：{value}",
+            "rebalance": "检查 {waste_outlet} 与 {stockout_outlet} 之间 {sku_name} 的跨门店分配",
+            "rebalance_impact": "可减少一个门店的浪费，同时保障另一个门店的供应。",
+            "waste_risk_at": "{outlet_name} 存在浪费风险",
+            "stockout_risk_at": "{outlet_name} 存在缺货风险",
+        }
+    else:
+        templates = {
+            "brief_intro": (
+                "Daily actions for {target_date} ({weekday}). Total predicted sales are "
+                "{total_predicted_sales} units, with {high_waste_count} high waste alerts, "
+                "{high_stockout_count} high stockout alerts, and {critical_reorder_count} critical reorder items."
+            ),
+            "brief_risks": "Key risks are concentrated in {outlets}.",
+            "brief_none": "No urgent prep, reorder, or rebalance actions are currently required.",
+            "brief_top": "Top actions: {actions}",
+            "brief_monitor": "Top actions: Keep monitoring the live plan and refresh the daily brief after new data arrives.",
+            "risk_waste_watch": "Watch {sku_name} at {outlet_name} for {daypart} waste risk",
+            "risk_waste_impact": "Could lead to avoidable end-of-day waste if prep is not adjusted.",
+            "prep_reduce": "Reduce {sku_name} prep at {outlet_name} by {pct}%",
+            "prep_reduce_impact": "Reduce waste pressure; recent 3-day waste rate is {waste_rate}.",
+            "affected_dayparts": "Affected dayparts: {dayparts}",
+            "risk_stockout_watch": "Watch {sku_name} at {outlet_name} for {daypart} stockout risk",
+            "risk_stockout_impact": "Could reduce service availability if morning demand spikes.",
+            "prep_increase": "Increase {sku_name} {daypart} coverage at {outlet_name} by {pct}%",
+            "prep_increase_impact": "Recover about {shortage} units of shortage risk and improve {coverage} coverage.",
+            "coverage": "Coverage {coverage}",
+            "shortage": "Shortage {shortage} units",
+            "reorder": "Reorder {ingredient_name} now ({urgency} urgency)",
+            "reorder_impact": "Protect planned production for {count} SKU(s) and prevent ingredient-driven stockout risk.",
+            "need": "Need {value} {unit}",
+            "stock_on_hand": "Stock on hand {value} {unit}",
+            "driving_skus": "Driving SKUs: {value}",
+            "rebalance": "Review cross-outlet allocation for {sku_name} between {waste_outlet} and {stockout_outlet}",
+            "rebalance_impact": "May reduce waste at one outlet while protecting availability at another.",
+            "waste_risk_at": "Waste risk at {outlet_name}",
+            "stockout_risk_at": "Stockout risk at {outlet_name}",
+        }
+
+    return templates[key].format(**kwargs)
 
 
 class DailyAgentState(TypedDict, total=False):
@@ -227,37 +341,46 @@ def _extract_json_array(raw: str) -> list[dict[str, Any]] | None:
     return [item for item in payload if isinstance(item, dict)]
 
 
-def _deterministic_brief(state: DailyAgentState, top_actions: list[ActionDict]) -> str:
+def _deterministic_brief(
+    state: DailyAgentState, top_actions: list[ActionDict], language: str
+) -> str:
     target_date = state["target_date"]
-    weekday = DAY_LABELS[target_date.weekday()]
-    intro = (
-        f"Daily actions for {target_date} ({weekday}). Total predicted sales are "
-        f"{state['total_predicted_sales']} units, with {state['high_waste_count']} high waste alerts, "
-        f"{state['high_stockout_count']} high stockout alerts, and "
-        f"{state['critical_reorder_count']} critical reorder items."
+    weekday = DAY_LABELS_BY_LANGUAGE.get(language, DAY_LABELS)[target_date.weekday()]
+    intro = _msg(
+        language,
+        "brief_intro",
+        target_date=target_date,
+        weekday=weekday,
+        total_predicted_sales=state["total_predicted_sales"],
+        high_waste_count=state["high_waste_count"],
+        high_stockout_count=state["high_stockout_count"],
+        critical_reorder_count=state["critical_reorder_count"],
     )
     if top_actions:
-        main_risks = (
-            "Key risks are concentrated in "
-            + ", ".join(
-                _dedupe_strings(
-                    [
-                        action["target"].get("outlet_name")
-                        for action in top_actions
-                        if action["target"].get("outlet_name")
-                    ]
-                )[:3]
-            )
-            + "."
+        outlets = ", ".join(
+            _dedupe_strings(
+                [
+                    action["target"].get("outlet_name")
+                    for action in top_actions
+                    if action["target"].get("outlet_name")
+                ]
+            )[:3]
         )
-        action_summary = "Top actions: " + "; ".join(action["action_text"] for action in top_actions[:3])
+        main_risks = _msg(language, "brief_risks", outlets=outlets)
+        action_summary = _msg(
+            language,
+            "brief_top",
+            actions="; ".join(action["action_text"] for action in top_actions[:3]),
+        )
     else:
-        main_risks = "No urgent prep, reorder, or rebalance actions are currently required."
-        action_summary = "Top actions: Keep monitoring the live plan and refresh the daily brief after new data arrives."
+        main_risks = _msg(language, "brief_none")
+        action_summary = _msg(language, "brief_monitor")
     return f"{intro}\n\n{main_risks}\n\n{action_summary}"
 
 
-def generate_daily_actions(target_date: date, top_n: int, db: Session, llm_fn: LLMFn) -> dict[str, Any]:
+def generate_daily_actions(
+    target_date: date, top_n: int, db: Session, llm_fn: LLMFn, language: str = "en"
+) -> dict[str, Any]:
     top_n = _clamp_top_n(top_n)
 
     def load_context(state: DailyAgentState) -> DailyAgentState:
@@ -326,9 +449,15 @@ def generate_daily_actions(target_date: date, top_n: int, db: Session, llm_fn: L
                 _make_action(
                     action_id=f"risk-waste-{alert.outlet_id}-{alert.sku_id}-{alert.daypart}",
                     action_type="risk",
-                    action_text=f"Watch {alert.sku_name} at {alert.outlet_name} for {alert.daypart} waste risk",
+                    action_text=_msg(
+                        language,
+                        "risk_waste_watch",
+                        sku_name=alert.sku_name,
+                        outlet_name=alert.outlet_name,
+                        daypart=_local_daypart(language, alert.daypart),
+                    ),
                     urgency=alert.risk_level,
-                    estimated_impact="Could lead to avoidable end-of-day waste if prep is not adjusted.",
+                    estimated_impact=_msg(language, "risk_waste_impact"),
                     target_data=_target(
                         outlet_id=alert.outlet_id,
                         outlet_name=alert.outlet_name,
@@ -351,12 +480,19 @@ def generate_daily_actions(target_date: date, top_n: int, db: Session, llm_fn: L
                     action_id=f"prep-waste-{group['outlet_id']}-{group['sku_id']}",
                     action_type="prep",
                     action_text=(
-                        f"Reduce {group['sku_name']} prep at {group['outlet_name']} by {reduction_pct}%"
+                        _msg(
+                            language,
+                            "prep_reduce",
+                            sku_name=group["sku_name"],
+                            outlet_name=group["outlet_name"],
+                            pct=reduction_pct,
+                        )
                     ),
                     urgency=group["risk_level"],
-                    estimated_impact=(
-                        f"Reduce waste pressure; recent 3-day waste rate is "
-                        f"{_format_pct(group['waste_rate'] * 100)}."
+                    estimated_impact=_msg(
+                        language,
+                        "prep_reduce_impact",
+                        waste_rate=_format_pct(group["waste_rate"] * 100),
                     ),
                     target_data=_target(
                         outlet_id=group["outlet_id"],
@@ -366,7 +502,11 @@ def generate_daily_actions(target_date: date, top_n: int, db: Session, llm_fn: L
                     ),
                     evidence=[
                         f"3-day waste rate {_format_pct(group['waste_rate'] * 100)}",
-                        "Affected dayparts: " + ", ".join(sorted(set(group["dayparts"]))),
+                        _msg(
+                            language,
+                            "affected_dayparts",
+                            dayparts=", ".join(_local_daypart(language, value) for value in sorted(set(group["dayparts"]))),
+                        ),
                     ]
                     + group["evidence"][:2],
                     priority=80 if group["risk_level"] == "high" else 50,
@@ -405,11 +545,16 @@ def generate_daily_actions(target_date: date, top_n: int, db: Session, llm_fn: L
                     action_id=f"risk-stockout-{alert.outlet_id}-{alert.sku_id}-{alert.affected_daypart}",
                     action_type="risk",
                     action_text=(
-                        f"Watch {alert.sku_name} at {alert.outlet_name} for "
-                        f"{alert.affected_daypart} stockout risk"
+                        _msg(
+                            language,
+                            "risk_stockout_watch",
+                            sku_name=alert.sku_name,
+                            outlet_name=alert.outlet_name,
+                            daypart=_local_daypart(language, alert.affected_daypart),
+                        )
                     ),
                     urgency=alert.risk_level,
-                    estimated_impact="Could reduce service availability if morning demand spikes.",
+                    estimated_impact=_msg(language, "risk_stockout_impact"),
                     target_data=_target(
                         outlet_id=alert.outlet_id,
                         outlet_name=alert.outlet_name,
@@ -417,8 +562,8 @@ def generate_daily_actions(target_date: date, top_n: int, db: Session, llm_fn: L
                         sku_name=alert.sku_name,
                     ),
                     evidence=[
-                        f"Coverage {_format_pct(alert.coverage_pct)}",
-                        f"Shortage {alert.shortage_qty:.1f} units",
+                        _msg(language, "coverage", coverage=_format_pct(alert.coverage_pct)),
+                        _msg(language, "shortage", shortage=f"{alert.shortage_qty:.1f}"),
                         alert.reason,
                     ],
                     priority=90 if alert.risk_level == "high" else 60,
@@ -434,13 +579,21 @@ def generate_daily_actions(target_date: date, top_n: int, db: Session, llm_fn: L
                     action_id=f"prep-stockout-{group['outlet_id']}-{group['sku_id']}",
                     action_type="prep",
                     action_text=(
-                        f"Increase {group['sku_name']} {primary_daypart} coverage at "
-                        f"{group['outlet_name']} by {increase_pct}%"
+                        _msg(
+                            language,
+                            "prep_increase",
+                            sku_name=group["sku_name"],
+                            daypart=_local_daypart(language, primary_daypart),
+                            outlet_name=group["outlet_name"],
+                            pct=increase_pct,
+                        )
                     ),
                     urgency=group["risk_level"],
-                    estimated_impact=(
-                        f"Recover about {group['shortage_qty']:.1f} units of shortage risk and "
-                        f"improve {group['coverage_pct']:.1f}% coverage."
+                    estimated_impact=_msg(
+                        language,
+                        "prep_increase_impact",
+                        shortage=f"{group['shortage_qty']:.1f}",
+                        coverage=_format_pct(group["coverage_pct"]),
                     ),
                     target_data=_target(
                         outlet_id=group["outlet_id"],
@@ -449,9 +602,15 @@ def generate_daily_actions(target_date: date, top_n: int, db: Session, llm_fn: L
                         sku_name=group["sku_name"],
                     ),
                     evidence=[
-                        f"Coverage {_format_pct(group['coverage_pct'])}",
-                        f"Shortage {group['shortage_qty']:.1f} units",
-                        "Affected dayparts: " + ", ".join(sorted(set(group["dayparts"]))),
+                        _msg(language, "coverage", coverage=_format_pct(group["coverage_pct"])),
+                        _msg(language, "shortage", shortage=f"{group['shortage_qty']:.1f}"),
+                        _msg(
+                            language,
+                            "affected_dayparts",
+                            dayparts=", ".join(
+                                _local_daypart(language, value) for value in sorted(set(group["dayparts"]))
+                            ),
+                        ),
                     ]
                     + group["evidence"][:2],
                     priority=90 if group["risk_level"] == "high" else 60,
@@ -470,22 +629,31 @@ def generate_daily_actions(target_date: date, top_n: int, db: Session, llm_fn: L
                     action_id=f"reorder-{line.ingredient_id}",
                     action_type="reorder",
                     action_text=(
-                        f"Reorder {ingredient.name if ingredient else 'ingredient'} now "
-                        f"({line.urgency} urgency)"
+                        _msg(
+                            language,
+                            "reorder",
+                            ingredient_name=ingredient.name if ingredient else "ingredient",
+                            urgency=line.urgency,
+                        )
                     ),
                     urgency=line.urgency,
-                    estimated_impact=(
-                        f"Protect planned production for {len(driving_skus)} SKU(s) and prevent "
-                        f"ingredient-driven stockout risk."
+                    estimated_impact=_msg(
+                        language,
+                        "reorder_impact",
+                        count=len(driving_skus),
                     ),
                     target_data=_target(
                         ingredient_id=line.ingredient_id,
                         ingredient_name=ingredient.name if ingredient else None,
                     ),
                     evidence=[
-                        f"Need {line.need_qty:.1f} {unit}",
-                        f"Stock on hand {line.stock_on_hand:.1f} {unit}",
-                        "Driving SKUs: " + ", ".join(driving_skus[:3]) if driving_skus else "Driving SKUs: none",
+                        _msg(language, "need", value=f"{line.need_qty:.1f}", unit=unit),
+                        _msg(language, "stock_on_hand", value=f"{line.stock_on_hand:.1f}", unit=unit),
+                        _msg(
+                            language,
+                            "driving_skus",
+                            value=", ".join(driving_skus[:3]) if driving_skus else "none",
+                        ),
                     ],
                     priority=100 if line.urgency == "critical" else 40,
                     source_family="reorder",
@@ -515,20 +683,23 @@ def generate_daily_actions(target_date: date, top_n: int, db: Session, llm_fn: L
                     action_id=f"rebalance-{sku_id}",
                     action_type="rebalance",
                     action_text=(
-                        f"Review cross-outlet allocation for {waste_alert.sku_name} between "
-                        f"{waste_alert.outlet_name} and {stockout_alert.outlet_name}"
+                        _msg(
+                            language,
+                            "rebalance",
+                            sku_name=waste_alert.sku_name,
+                            waste_outlet=waste_alert.outlet_name,
+                            stockout_outlet=stockout_alert.outlet_name,
+                        )
                     ),
                     urgency=urgency,
-                    estimated_impact=(
-                        "May reduce waste at one outlet while protecting availability at another."
-                    ),
+                    estimated_impact=_msg(language, "rebalance_impact"),
                     target_data=_target(
                         sku_id=sku_id,
                         sku_name=waste_alert.sku_name,
                     ),
                     evidence=[
-                        f"Waste risk at {waste_alert.outlet_name}",
-                        f"Stockout risk at {stockout_alert.outlet_name}",
+                        _msg(language, "waste_risk_at", outlet_name=waste_alert.outlet_name),
+                        _msg(language, "stockout_risk_at", outlet_name=stockout_alert.outlet_name),
                     ],
                     priority=70,
                     source_family="rebalance",
@@ -602,10 +773,10 @@ def generate_daily_actions(target_date: date, top_n: int, db: Session, llm_fn: L
             else:
                 fallback_mode = True
 
-        brief_fallback = _deterministic_brief(state, top_actions)
+        brief_fallback = _deterministic_brief(state, top_actions, language)
         brief_prompt = DAILY_ACTIONS_BRIEF_PROMPT.format(
             date=str(state["target_date"]),
-            weekday=DAY_LABELS[state["target_date"].weekday()],
+            weekday=DAY_LABELS_BY_LANGUAGE.get(language, DAY_LABELS)[state["target_date"].weekday()],
             total_predicted_sales=state["total_predicted_sales"],
             high_waste_count=state["high_waste_count"],
             high_stockout_count=state["high_stockout_count"],

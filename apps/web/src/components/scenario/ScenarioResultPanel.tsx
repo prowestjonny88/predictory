@@ -1,5 +1,6 @@
 "use client";
 
+import { useLanguage } from "@/components/i18n/LanguageProvider";
 import type { ScenarioResult } from "@/types";
 
 interface Props {
@@ -12,8 +13,10 @@ function readNumber(record: Record<string, number | string>, key: string): numbe
 }
 
 function DeltaBadge({ value }: { value: number }) {
+  const { t } = useLanguage();
+
   if (value === 0) {
-    return <span className="text-xs text-neutral-400">No change</span>;
+    return <span className="text-xs text-neutral-400">{t("scenarioPanel.noChange", "No change")}</span>;
   }
 
   return (
@@ -25,6 +28,7 @@ function DeltaBadge({ value }: { value: number }) {
 }
 
 export default function ScenarioResultPanel({ result }: Props) {
+  const { t } = useLanguage();
   const baselineWaste = readNumber(result.baseline, "waste_alerts");
   const baselineStockout = readNumber(result.baseline, "stockout_alerts");
   const modifiedWaste = readNumber(result.modified, "waste_alerts");
@@ -46,7 +50,9 @@ export default function ScenarioResultPanel({ result }: Props) {
 
       <div className="grid gap-4 md:grid-cols-2">
         <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Waste Alerts</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
+            {t("scenarioPanel.wasteAlerts", "Waste Alerts")}
+          </p>
           <p className="mt-2 text-2xl font-bold text-neutral-900">
             {baselineWaste}
             <span className="mx-2 text-neutral-300">-&gt;</span>
@@ -55,7 +61,9 @@ export default function ScenarioResultPanel({ result }: Props) {
           <DeltaBadge value={wasteDelta} />
         </div>
         <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Stockout Alerts</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
+            {t("scenarioPanel.stockoutAlerts", "Stockout Alerts")}
+          </p>
           <p className="mt-2 text-2xl font-bold text-neutral-900">
             {baselineStockout}
             <span className="mx-2 text-neutral-300">-&gt;</span>
@@ -66,12 +74,16 @@ export default function ScenarioResultPanel({ result }: Props) {
       </div>
 
       <div className="rounded-lg border border-neutral-200 bg-white px-4 py-4">
-        <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Recommendation</p>
+        <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
+          {t("scenarioPanel.recommendation", "Recommendation")}
+        </p>
         <p className="mt-2 text-sm leading-relaxed text-neutral-800">{result.recommendation}</p>
       </div>
 
       <div className="rounded-lg border border-neutral-200 bg-white px-4 py-4">
-        <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Interpretation</p>
+        <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
+          {t("scenarioPanel.interpretation", "Interpretation")}
+        </p>
         <p className="mt-2 text-sm leading-relaxed text-neutral-800">{result.interpretation}</p>
       </div>
     </div>

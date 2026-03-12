@@ -21,7 +21,9 @@ import {
 } from "lucide-react";
 
 import Header from "@/components/Header";
+import { useLanguage } from "@/components/i18n/LanguageProvider";
 import { api } from "@/lib/api";
+import { translateDaypart, translateRiskLevel } from "@/lib/i18n";
 import { todayISO } from "@/lib/utils";
 import type { StockoutAlert, WasteAlert } from "@/types";
 
@@ -56,16 +58,19 @@ function barFill(rate: number): string {
 }
 
 function RiskBadge({ risk }: { risk: string }) {
+  const { language } = useLanguage();
+
   return (
     <span
       className={`inline-flex rounded-full px-2 py-0.5 text-xs font-semibold capitalize ${riskBadgeClass(risk)}`}
     >
-      {risk}
+      {translateRiskLevel(language, risk)}
     </span>
   );
 }
 
 function WasteCard({ alert }: { alert: WasteAlert }) {
+  const { language, t } = useLanguage();
   const wasteRatePct = alert.waste_rate * 100;
 
   return (
@@ -104,7 +109,8 @@ function WasteCard({ alert }: { alert: WasteAlert }) {
       </div>
       <p className="text-xs italic leading-snug text-neutral-500">{alert.reason}</p>
       <p className="text-xs text-neutral-400">
-        Daypart: {alert.daypart} | Excess prep: {alert.excess_prep_units.toFixed(1)}
+        {t("common.daypart", "Daypart")}: {translateDaypart(language, alert.daypart)} |{" "}
+        {t("risk.excessPrep", "Excess prep")}: {alert.excess_prep_units.toFixed(1)}
       </p>
       {alert.triggers.length > 0 && (
         <div className="flex flex-wrap gap-1 pt-0.5">
@@ -123,6 +129,8 @@ function WasteCard({ alert }: { alert: WasteAlert }) {
 }
 
 function StockoutCard({ alert }: { alert: StockoutAlert }) {
+  const { language, t } = useLanguage();
+
   return (
     <div
       className={`space-y-2 rounded-lg border p-4 ${
@@ -141,11 +149,13 @@ function StockoutCard({ alert }: { alert: StockoutAlert }) {
         <RiskBadge risk={alert.risk_level} />
       </div>
       <p className="text-xs font-medium text-neutral-500">
-        Coverage: <span className="tabular-nums">{alert.coverage_pct.toFixed(0)}%</span>
+        {t("risk.coverage", "Coverage")}:{" "}
+        <span className="tabular-nums">{alert.coverage_pct.toFixed(0)}%</span>
       </p>
       <p className="text-xs italic leading-snug text-neutral-500">{alert.reason}</p>
       <p className="text-xs text-neutral-400">
-        Daypart: {alert.affected_daypart} | Shortage: {alert.shortage_qty.toFixed(1)}
+        {t("common.daypart", "Daypart")}: {translateDaypart(language, alert.affected_daypart)} |{" "}
+        {t("risk.shortage", "Shortage")}: {alert.shortage_qty.toFixed(1)}
       </p>
     </div>
   );
@@ -188,6 +198,7 @@ function SummaryPill({
 export default function RiskCenterPage() {
   const [date, setDate] = useState(todayISO);
   const [mounted, setMounted] = useState(false);
+  const { language, t } = useLanguage();
 
   useEffect(() => {
     setMounted(true);
@@ -268,13 +279,23 @@ export default function RiskCenterPage() {
       if (alert.risk_level === "critical") {
         actions.push({
           id: `waste-critical-${alert.outlet_id}-${alert.sku_id}`,
-          text: `Reduce ${alert.sku_name} prep at ${alert.outlet_name} immediately`,
+          text:
+            language === "ms"
+              ? `Kurangkan prep ${alert.sku_name} di ${alert.outlet_name} dengan segera`
+              : language === "zh-CN"
+                ? `立即减少 ${alert.outlet_name} 的 ${alert.sku_name} 备货`
+                : `Reduce ${alert.sku_name} prep at ${alert.outlet_name} immediately`,
           priority: "urgent",
         });
       } else if (alert.risk_level === "high") {
         actions.push({
           id: `waste-high-${alert.outlet_id}-${alert.sku_id}`,
-          text: `Review ${alert.sku_name} at ${alert.outlet_name} - ${(alert.waste_rate * 100).toFixed(0)}% waste rate`,
+          text:
+            language === "ms"
+              ? `Semak ${alert.sku_name} di ${alert.outlet_name} - ${(alert.waste_rate * 100).toFixed(0)}% kadar pembaziran`
+              : language === "zh-CN"
+                ? `检查 ${alert.outlet_name} 的 ${alert.sku_name} - 浪费率 ${(alert.waste_rate * 100).toFixed(0)}%`
+                : `Review ${alert.sku_name} at ${alert.outlet_name} - ${(alert.waste_rate * 100).toFixed(0)}% waste rate`,
           priority: "normal",
         });
       }
@@ -284,26 +305,36 @@ export default function RiskCenterPage() {
       if (alert.risk_level === "critical") {
         actions.push({
           id: `stockout-critical-${alert.outlet_id}-${alert.sku_id}`,
-          text: `Increase ${alert.sku_name} allocation at ${alert.outlet_name} for ${alert.affected_daypart}`,
+          text:
+            language === "ms"
+              ? `Tingkatkan alokasi ${alert.sku_name} di ${alert.outlet_name} untuk ${translateDaypart(language, alert.affected_daypart)}`
+              : language === "zh-CN"
+                ? `提高 ${alert.outlet_name} 在${translateDaypart(language, alert.affected_daypart)}的 ${alert.sku_name} 配置`
+                : `Increase ${alert.sku_name} allocation at ${alert.outlet_name} for ${alert.affected_daypart}`,
           priority: "urgent",
         });
       } else if (alert.risk_level === "high") {
         actions.push({
           id: `stockout-high-${alert.outlet_id}-${alert.sku_id}`,
-          text: `Monitor ${alert.sku_name} stock at ${alert.outlet_name} for ${alert.affected_daypart}`,
+          text:
+            language === "ms"
+              ? `Pantau stok ${alert.sku_name} di ${alert.outlet_name} untuk ${translateDaypart(language, alert.affected_daypart)}`
+              : language === "zh-CN"
+                ? `监控 ${alert.outlet_name} 在${translateDaypart(language, alert.affected_daypart)}的 ${alert.sku_name} 库存`
+                : `Monitor ${alert.sku_name} stock at ${alert.outlet_name} for ${alert.affected_daypart}`,
           priority: "normal",
         });
       }
     }
 
     return actions.slice(0, 6);
-  }, [sortedStockout, sortedWaste]);
+  }, [language, sortedStockout, sortedWaste]);
 
   const chartHeight = Math.max(outletImbalanceData.length * 44, 100);
 
   return (
     <div className="min-h-screen">
-      <Header title="Risk & Waste Centre" date={date}>
+      <Header title={t("risk.title", "Risk & Waste Centre")} date={date}>
         <input
           type="date"
           value={date}
@@ -319,35 +350,35 @@ export default function RiskCenterPage() {
               ? wasteQuery.error.message
               : stockoutQuery.error instanceof Error
                 ? stockoutQuery.error.message
-                : "Failed to load risk alerts"}
+                : t("risk.failed", "Failed to load risk alerts")}
           </div>
         )}
 
         <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
           <SummaryPill
             icon={<Flame className="h-4 w-4 text-red-500" />}
-            label="Critical Waste"
+            label={t("risk.criticalWaste", "Critical Waste")}
             value={wasteCounts.critical}
             color="red"
             loading={loading}
           />
           <SummaryPill
             icon={<Flame className="h-4 w-4 text-orange-400" />}
-            label="High Waste"
+            label={t("risk.highWaste", "High Waste")}
             value={wasteCounts.high}
             color="orange"
             loading={loading}
           />
           <SummaryPill
             icon={<ShoppingCart className="h-4 w-4 text-red-500" />}
-            label="Critical Stockout"
+            label={t("risk.criticalStockout", "Critical Stockout")}
             value={stockoutCounts.critical}
             color="red"
             loading={loading}
           />
           <SummaryPill
             icon={<ShoppingCart className="h-4 w-4 text-orange-400" />}
-            label="High Stockout"
+            label={t("risk.highStockout", "High Stockout")}
             value={stockoutCounts.high}
             color="orange"
             loading={loading}
@@ -359,11 +390,12 @@ export default function RiskCenterPage() {
             <div className="mb-3 flex items-center gap-2">
               <Flame className="h-4 w-4 text-orange-500" />
               <h2 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
-                Waste Hotspots
+                {t("risk.wasteHotspots", "Waste Hotspots")}
               </h2>
               {wasteCounts.total > 0 && (
                 <span className="ml-auto text-xs text-neutral-400">
-                  {wasteCounts.total} alert{wasteCounts.total !== 1 && "s"}
+                  {wasteCounts.total}{" "}
+                  {wasteCounts.total === 1 ? t("common.item", "item") : t("common.items", "items")}
                 </span>
               )}
             </div>
@@ -373,7 +405,9 @@ export default function RiskCenterPage() {
                   <div key={index} className="h-24 animate-pulse rounded-lg bg-neutral-100" />
                 ))
               ) : sortedWaste.length === 0 ? (
-                <p className="py-8 text-center text-sm text-neutral-400">No waste alerts today.</p>
+                <p className="py-8 text-center text-sm text-neutral-400">
+                  {t("risk.noWasteToday", "No waste alerts today.")}
+                </p>
               ) : (
                 sortedWaste.map((alert) => (
                   <WasteCard key={`${alert.outlet_id}-${alert.sku_id}-${alert.daypart}`} alert={alert} />
@@ -386,11 +420,12 @@ export default function RiskCenterPage() {
             <div className="mb-3 flex items-center gap-2">
               <ShoppingCart className="h-4 w-4 text-sky-500" />
               <h2 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
-                Stockout Alerts
+                {t("risk.stockoutAlerts", "Stockout Alerts")}
               </h2>
               {stockoutCounts.total > 0 && (
                 <span className="ml-auto text-xs text-neutral-400">
-                  {stockoutCounts.total} alert{stockoutCounts.total !== 1 && "s"}
+                  {stockoutCounts.total}{" "}
+                  {stockoutCounts.total === 1 ? t("common.item", "item") : t("common.items", "items")}
                 </span>
               )}
             </div>
@@ -400,7 +435,9 @@ export default function RiskCenterPage() {
                   <div key={index} className="h-24 animate-pulse rounded-lg bg-neutral-100" />
                 ))
               ) : sortedStockout.length === 0 ? (
-                <p className="py-8 text-center text-sm text-neutral-400">No stockout alerts today.</p>
+                <p className="py-8 text-center text-sm text-neutral-400">
+                  {t("risk.noStockoutToday", "No stockout alerts today.")}
+                </p>
               ) : (
                 sortedStockout.map((alert) => (
                   <StockoutCard
@@ -418,14 +455,18 @@ export default function RiskCenterPage() {
             <div className="mb-4 flex items-center gap-2">
               <TrendingDown className="h-4 w-4 text-neutral-500" />
               <h2 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
-                Outlet Waste Imbalance
+                {t("risk.outletImbalance", "Outlet Waste Imbalance")}
               </h2>
-              <span className="ml-auto text-xs text-neutral-400">Avg waste rate %</span>
+              <span className="ml-auto text-xs text-neutral-400">
+                {t("risk.avgWasteRate", "Avg waste rate %")}
+              </span>
             </div>
             {loading ? (
               <div className="h-40 animate-pulse rounded bg-neutral-100" />
             ) : outletImbalanceData.length === 0 ? (
-              <p className="py-10 text-center text-sm text-neutral-400">No outlet data available.</p>
+              <p className="py-10 text-center text-sm text-neutral-400">
+                {t("risk.noOutletData", "No outlet data available.")}
+              </p>
             ) : mounted ? (
               <ResponsiveContainer width="100%" height={chartHeight}>
                 <BarChart
@@ -450,7 +491,7 @@ export default function RiskCenterPage() {
                     tickLine={false}
                   />
                   <RechartsTooltip
-                    formatter={(value) => [`${value}%`, "Avg Waste Rate"]}
+                    formatter={(value) => [`${value}%`, t("risk.avgWasteRateTooltip", "Avg Waste Rate")]}
                     contentStyle={{
                       fontSize: 12,
                       borderRadius: 8,
@@ -472,11 +513,13 @@ export default function RiskCenterPage() {
             <div className="mb-4 flex items-center gap-2">
               <Lightbulb className="h-4 w-4 text-amber-500" />
               <h2 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
-                Suggested Actions
+                {t("risk.suggestedActions", "Suggested Actions")}
               </h2>
             </div>
             {suggestedActions.length === 0 ? (
-              <p className="py-8 text-center text-sm text-neutral-400">All clear. No actions needed.</p>
+              <p className="py-8 text-center text-sm text-neutral-400">
+                {t("risk.allClear", "All clear. No actions needed.")}
+              </p>
             ) : (
               <ul className="space-y-3">
                 {suggestedActions.map((action) => (

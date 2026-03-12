@@ -1,3 +1,7 @@
+"use client";
+
+import { useLanguage } from "@/components/i18n/LanguageProvider";
+import { translateRiskLevel } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import type { RiskLevel } from "@/types";
 
@@ -24,6 +28,8 @@ const badgeColors: Record<RiskLevel, string> = {
 };
 
 export default function AlertCard({ riskLevel, title, subtitle, meta, children }: Props) {
+  const { language } = useLanguage();
+
   return (
     <div
       className={cn(
@@ -45,7 +51,7 @@ export default function AlertCard({ riskLevel, title, subtitle, meta, children }
             badgeColors[riskLevel]
           )}
         >
-          {riskLevel}
+          {translateRiskLevel(language, riskLevel)}
         </span>
       </div>
       {children && <div className="mt-2">{children}</div>}

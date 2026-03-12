@@ -1,3 +1,5 @@
+export type LanguageCode = "en" | "ms" | "zh-CN";
+
 export interface Outlet {
   id: number;
   code: string;
@@ -225,6 +227,7 @@ export interface ExplainPlanRequest {
   outlet_id: number;
   sku_id: number;
   plan_date: string;
+  language?: LanguageCode;
 }
 
 export interface ExplainPlanResponse {
@@ -237,6 +240,11 @@ export interface ExplainPlanResponse {
 export interface DailyBriefResponse {
   brief: string;
   date: string;
+}
+
+export interface DailyBriefRequest {
+  brief_date: string;
+  language?: LanguageCode;
 }
 
 export interface ActionTarget {
@@ -269,6 +277,12 @@ export interface DailyActionsResponse {
   rebalance_suggestions: AgentAction[];
 }
 
+export interface DailyActionsRequest {
+  target_date: string;
+  top_n?: number;
+  language?: LanguageCode;
+}
+
 export interface ScenarioResult {
   scenario: string;
   baseline: Record<string, number | string>;
@@ -276,6 +290,12 @@ export interface ScenarioResult {
   delta: Record<string, number | string>;
   recommendation: string;
   interpretation: string;
+}
+
+export interface ScenarioRequest {
+  scenario_text: string;
+  target_date?: string;
+  language?: LanguageCode;
 }
 
 export interface PlanRunResult {

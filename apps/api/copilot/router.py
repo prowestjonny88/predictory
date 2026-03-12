@@ -34,6 +34,12 @@ DEFAULT_OPENAI_MODEL = "gpt-4o-mini"
 DEFAULT_GEMINI_MODEL = "gemini/gemini-2.5-flash"
 DEFAULT_VERTEX_GEMINI_MODEL = "vertex_ai/gemini-1.5-pro"
 GEMINI_API_BASE = "https://generativelanguage.googleapis.com"
+SupportedLanguage = Literal["en", "ms", "zh-CN"]
+WEEKDAY_LABELS = {
+    "en": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
+    "ms": ["Isnin", "Selasa", "Rabu", "Khamis", "Jumaat", "Sabtu", "Ahad"],
+    "zh-CN": ["星期一", "星期二", "星期三", "星期四", "星期五", "星期六", "星期日"],
+}
 
 
 def _get_env(*names: str) -> Optional[str]:
@@ -98,6 +104,120 @@ def _call_llm(prompt: str, fallback: str = "") -> str:
         return fallback or f"Explanation unavailable: {exc}"
 
 
+def _normalize_language(language: str | None) -> SupportedLanguage:
+    if language in {"en", "ms", "zh-CN"}:
+        return language
+    return "en"
+
+
+def _language_prompt_prefix(language: SupportedLanguage) -> str:
+    if language == "ms":
+        return (
+            "Respond in clear operational Bahasa Melayu. Keep all numbers, outlet names, SKU names, "
+            "and ingredient names exactly as provided."
+        )
+    if language == "zh-CN":
+        return (
+            "Respond in clear operational Simplified Chinese. Keep all numbers, outlet names, SKU "
+            "names, and ingredient names exactly as provided."
+        )
+    return (
+        "Respond in clear operational English. Keep all numbers, outlet names, SKU names, and "
+        "ingredient names exactly as provided."
+    )
+
+
+def _weekday_label(value: date_type, language: SupportedLanguage) -> str:
+    return WEEKDAY_LABELS[language][value.weekday()]
+
+
+def _localize_fallback_text(key: str, language: SupportedLanguage, **kwargs) -> str:
+    if language == "ms":
+        templates = {
+            "missing_forecast": "Tiada data ramalan untuk cawangan/SKU/tarikh ini.",
+            "missing_prep": "Tiada data pelan persediaan untuk cawangan/SKU/tarikh ini.",
+            "missing_waste": "Tiada data amaran pembaziran untuk cawangan/SKU/tarikh ini.",
+            "missing_stockout": "Tiada data amaran kehabisan stok untuk cawangan/SKU/tarikh ini.",
+            "missing_replenishment": "Tiada cadangan pengisian semula untuk SKU ini pada tarikh ini.",
+            "forecast": (
+                "Ramalan untuk {sku_name} di {outlet_name} pada {plan_date}: jumlah {total} unit "
+                "(pagi {morning}, tengah hari {midday}, petang {evening}). Berdasarkan gabungan "
+                "jualan terkini dan corak hari yang sama{holiday}{weather}{override}{stockout}."
+            ),
+            "prep": "Jumlah cadangan persediaan untuk {sku_name} di {outlet_name}: {total_prep} unit merentas semua sesi.",
+            "waste": "{sku_name} di {outlet_name} mempunyai risiko pembaziran {risk_level} pada sesi {daypart}. {reason}.",
+            "stockout": "{sku_name} di {outlet_name} mempunyai risiko kehabisan stok {risk_level} pada sesi {daypart}. {reason}.",
+            "replenishment": (
+                "{sku_name} mendorong cadangan pesanan semula {urgency} untuk "
+                "{ingredient_name}: perlu {need_qty} {unit}, stok {stock_on_hand} {unit}, "
+                "pesan semula {reorder_qty} {unit}."
+            ),
+            "daily_brief": (
+                "Ringkasan harian untuk {brief_date} ({weekday}). Jumlah jualan diramal ialah "
+                "{total_sales} unit, dengan risiko pembaziran {waste_risk_score}/100 dan risiko "
+                "kehabisan stok {stockout_risk_score}/100.\n\nRisiko utama: {high_waste_count} "
+                "amaran pembaziran tinggi, {high_stock_count} amaran kehabisan stok tinggi, dan "
+                "{critical_count} pesanan semula bahan kritikal. {at_risk_sentence}\n\nTindakan "
+                "utama: {top_actions}"
+            ),
+        }
+    elif language == "zh-CN":
+        templates = {
+            "missing_forecast": "该门店、SKU 和日期没有预测数据。",
+            "missing_prep": "该门店、SKU 和日期没有备货计划数据。",
+            "missing_waste": "该门店、SKU 和日期没有浪费预警数据。",
+            "missing_stockout": "该门店、SKU 和日期没有缺货预警数据。",
+            "missing_replenishment": "该 SKU 在该日期没有补货建议。",
+            "forecast": (
+                "{plan_date} {outlet_name} 的 {sku_name} 预测总量为 {total} 单位（早上 {morning}，"
+                "中午 {midday}，傍晚 {evening}）。该预测基于近期销量与同星期模式的加权组合"
+                "{holiday}{weather}{override}{stockout}。"
+            ),
+            "prep": "{outlet_name} 的 {sku_name} 总备货建议为 {total_prep} 单位，覆盖所有时段。",
+            "waste": "{outlet_name} 的 {sku_name} 在 {daypart} 存在 {risk_level} 浪费风险。{reason}。",
+            "stockout": "{outlet_name} 的 {sku_name} 在 {daypart} 存在 {risk_level} 缺货风险。{reason}。",
+            "replenishment": (
+                "{sku_name} 正在推动 {ingredient_name} 的 {urgency} 补货建议：需求 {need_qty} {unit}，"
+                "现有库存 {stock_on_hand} {unit}，建议补货 {reorder_qty} {unit}。"
+            ),
+            "daily_brief": (
+                "{brief_date}（{weekday}）每日简报。预测总销量为 {total_sales} 单位，浪费风险为 "
+                "{waste_risk_score}/100，缺货风险为 {stockout_risk_score}/100。\n\n主要风险："
+                "{high_waste_count} 条高浪费预警，{high_stock_count} 条高缺货预警，以及 "
+                "{critical_count} 个关键原料补货事项。{at_risk_sentence}\n\n重点行动：{top_actions}"
+            ),
+        }
+    else:
+        templates = {
+            "missing_forecast": "No forecast data found for this outlet/SKU/date.",
+            "missing_prep": "No prep plan data found for this outlet/SKU/date.",
+            "missing_waste": "No waste alert data found for this outlet/SKU/date.",
+            "missing_stockout": "No stockout alert data found for this outlet/SKU/date.",
+            "missing_replenishment": "No replenishment recommendation found for this SKU on this date.",
+            "forecast": (
+                "Forecast for {sku_name} at {outlet_name} on {plan_date}: total {total} units "
+                "(morning {morning}, midday {midday}, evening {evening}). Based on a weighted "
+                "blend of recent sales and weekday pattern{holiday}{weather}{override}{stockout}."
+            ),
+            "prep": "Total prep recommendation for {sku_name} at {outlet_name}: {total_prep} units across all dayparts.",
+            "waste": "{sku_name} at {outlet_name} has a {risk_level} waste risk in the {daypart}. {reason}.",
+            "stockout": "{sku_name} at {outlet_name} has a {risk_level} stockout risk in the {daypart}. {reason}.",
+            "replenishment": (
+                "{sku_name} is driving a {urgency} reorder recommendation for {ingredient_name}: "
+                "need {need_qty} {unit}, stock {stock_on_hand} {unit}, reorder {reorder_qty} {unit}."
+            ),
+            "daily_brief": (
+                "Daily brief for {brief_date} ({weekday}). Total predicted sales are {total_sales} "
+                "units, with waste risk at {waste_risk_score}/100 and stockout risk at "
+                "{stockout_risk_score}/100.\n\nKey risks: {high_waste_count} high waste alerts, "
+                "{high_stock_count} high stockout alerts, and {critical_count} critical ingredient "
+                "reorders. {at_risk_sentence}\n\nTop actions: {top_actions}"
+            ),
+        }
+
+    return templates[key].format(**kwargs)
+
+
 def _score_alerts(alerts: list) -> int:
     score = 0
     for alert in alerts:
@@ -126,6 +246,7 @@ class ExplainPlanRequest(BaseModel):
     sku_id: int
     plan_date: date_type
     context_type: Literal["forecast", "prep", "waste", "stockout", "replenishment"] = "forecast"
+    language: str = "en"
 
 
 class ExplainPlanResponse(BaseModel):
@@ -137,6 +258,7 @@ class ExplainPlanResponse(BaseModel):
 
 class DailyBriefRequest(BaseModel):
     brief_date: date_type
+    language: str = "en"
 
 
 class DailyBriefResponse(BaseModel):
@@ -147,6 +269,7 @@ class DailyBriefResponse(BaseModel):
 class ScenarioRequest(BaseModel):
     scenario_text: str
     target_date: Optional[date_type] = None
+    language: str = "en"
 
 
 class ScenarioResponse(BaseModel):
@@ -161,6 +284,7 @@ class ScenarioResponse(BaseModel):
 class DailyActionsRequest(BaseModel):
     target_date: date_type
     top_n: int = 5
+    language: str = "en"
 
 
 class ActionTarget(BaseModel):
@@ -195,6 +319,7 @@ class DailyActionsResponse(BaseModel):
 
 @router.post("/copilot/explain-plan", response_model=ExplainPlanResponse)
 def explain_plan(body: ExplainPlanRequest, db: Session = Depends(get_db)):
+    language = _normalize_language(body.language)
     outlet = db.query(Outlet).filter(Outlet.id == body.outlet_id).first()
     sku = db.query(SKU).filter(SKU.id == body.sku_id).first()
     if not outlet or not sku:
@@ -219,7 +344,7 @@ def explain_plan(body: ExplainPlanRequest, db: Session = Depends(get_db)):
         )
         if not line:
             return ExplainPlanResponse(
-                explanation="No forecast data found for this outlet/SKU/date.",
+                explanation=_localize_fallback_text("missing_forecast", language),
                 context_type=ctx,
                 outlet_name=outlet.name,
                 sku_name=sku.name,
@@ -231,7 +356,7 @@ def explain_plan(body: ExplainPlanRequest, db: Session = Depends(get_db)):
         weather_signal = rationale.get("weather_signal") or {}
         manual_overrides = rationale.get("manual_overrides") or []
         stockout_censoring = rationale.get("stockout_censoring") or {}
-        prompt = FORECAST_EXPLANATION_PROMPT.format(
+        prompt = f"{_language_prompt_prefix(language)}\n\n" + FORECAST_EXPLANATION_PROMPT.format(
             outlet_name=outlet.name,
             sku_name=sku.name,
             date=str(body.plan_date),
@@ -263,15 +388,52 @@ def explain_plan(body: ExplainPlanRequest, db: Session = Depends(get_db)):
             reason_tags=", ".join(trend_tags) or "None",
             trend_summary=", ".join(trend_tags) or "Stable",
         )
-        fallback = (
-            f"Forecast for {sku.name} at {outlet.name} on {body.plan_date}: total "
-            f"{round(line.total, 0)} units (morning {round(line.morning, 0)}, midday "
-            f"{round(line.midday, 0)}, evening {round(line.evening, 0)}). Based on a "
-            f"weighted blend of recent sales and weekday pattern"
-            f"{'; holiday flag active' if holiday_signal else ''}"
-            f"{'; weather adjustment applied' if weather_signal.get('adjustment_pct', 0.0) else ''}"
-            f"{'; manual override applied' if manual_overrides else ''}"
-            f"{'; stockout recovery adjusted history' if stockout_censoring.get('adjusted_history_days', 0) else ''}."
+        fallback = _localize_fallback_text(
+            "forecast",
+            language,
+            sku_name=sku.name,
+            outlet_name=outlet.name,
+            plan_date=body.plan_date,
+            total=round(line.total, 0),
+            morning=round(line.morning, 0),
+            midday=round(line.midday, 0),
+            evening=round(line.evening, 0),
+            holiday=(
+                "; penanda cuti aktif"
+                if language == "ms" and holiday_signal
+                else "；已应用假期标记"
+                if language == "zh-CN" and holiday_signal
+                else "; holiday flag active"
+                if holiday_signal
+                else ""
+            ),
+            weather=(
+                "; pelarasan cuaca digunakan"
+                if language == "ms" and weather_signal.get("adjustment_pct", 0.0)
+                else "；已应用天气调整"
+                if language == "zh-CN" and weather_signal.get("adjustment_pct", 0.0)
+                else "; weather adjustment applied"
+                if weather_signal.get("adjustment_pct", 0.0)
+                else ""
+            ),
+            override=(
+                "; override manual digunakan"
+                if language == "ms" and manual_overrides
+                else "；已应用手动覆盖"
+                if language == "zh-CN" and manual_overrides
+                else "; manual override applied"
+                if manual_overrides
+                else ""
+            ),
+            stockout=(
+                "; sejarah dilaras oleh pemulihan kehabisan stok"
+                if language == "ms" and stockout_censoring.get("adjusted_history_days", 0)
+                else "；历史已按缺货情况修正"
+                if language == "zh-CN" and stockout_censoring.get("adjusted_history_days", 0)
+                else "; stockout recovery adjusted history"
+                if stockout_censoring.get("adjusted_history_days", 0)
+                else ""
+            ),
         )
 
     elif ctx == "prep":
@@ -288,7 +450,7 @@ def explain_plan(body: ExplainPlanRequest, db: Session = Depends(get_db)):
         ]
         if not lines:
             return ExplainPlanResponse(
-                explanation="No prep plan data found for this outlet/SKU/date.",
+                explanation=_localize_fallback_text("missing_prep", language),
                 context_type=ctx,
                 outlet_name=outlet.name,
                 sku_name=sku.name,
@@ -296,7 +458,7 @@ def explain_plan(body: ExplainPlanRequest, db: Session = Depends(get_db)):
 
         rationale = lines[0].rationale_json or {}
         total_prep = sum(line.recommended_units for line in lines)
-        prompt = PREP_RATIONALE_PROMPT.format(
+        prompt = f"{_language_prompt_prefix(language)}\n\n" + PREP_RATIONALE_PROMPT.format(
             sku_name=sku.name,
             outlet_name=outlet.name,
             forecast_total=sum(
@@ -310,9 +472,12 @@ def explain_plan(body: ExplainPlanRequest, db: Session = Depends(get_db)):
             midday=lines[1].recommended_units if len(lines) > 1 else 0,
             evening=lines[2].recommended_units if len(lines) > 2 else 0,
         )
-        fallback = (
-            f"Total prep recommendation for {sku.name} at {outlet.name}: {total_prep} "
-            f"units across all dayparts."
+        fallback = _localize_fallback_text(
+            "prep",
+            language,
+            sku_name=sku.name,
+            outlet_name=outlet.name,
+            total_prep=total_prep,
         )
 
     elif ctx == "waste":
@@ -323,14 +488,14 @@ def explain_plan(body: ExplainPlanRequest, db: Session = Depends(get_db)):
         ]
         if not alerts:
             return ExplainPlanResponse(
-                explanation="No waste alert data found for this outlet/SKU/date.",
+                explanation=_localize_fallback_text("missing_waste", language),
                 context_type=ctx,
                 outlet_name=outlet.name,
                 sku_name=sku.name,
             )
 
         alert = alerts[0]
-        prompt = WASTE_ALERT_EXPLANATION_PROMPT.format(
+        prompt = f"{_language_prompt_prefix(language)}\n\n" + WASTE_ALERT_EXPLANATION_PROMPT.format(
             outlet_name=outlet.name,
             sku_name=sku.name,
             daypart=alert.daypart,
@@ -339,9 +504,14 @@ def explain_plan(body: ExplainPlanRequest, db: Session = Depends(get_db)):
             waste_rate_pct=round(alert.waste_rate * 100, 1),
             excess_prep_units=_format_float(alert.excess_prep_units),
         )
-        fallback = (
-            f"{sku.name} at {outlet.name} has a {alert.risk_level} waste risk in the "
-            f"{alert.daypart}. {alert.reason}."
+        fallback = _localize_fallback_text(
+            "waste",
+            language,
+            sku_name=sku.name,
+            outlet_name=outlet.name,
+            risk_level=alert.risk_level,
+            daypart=alert.daypart,
+            reason=alert.reason,
         )
 
     elif ctx == "stockout":
@@ -352,14 +522,14 @@ def explain_plan(body: ExplainPlanRequest, db: Session = Depends(get_db)):
         ]
         if not alerts:
             return ExplainPlanResponse(
-                explanation="No stockout alert data found for this outlet/SKU/date.",
+                explanation=_localize_fallback_text("missing_stockout", language),
                 context_type=ctx,
                 outlet_name=outlet.name,
                 sku_name=sku.name,
             )
 
         alert = alerts[0]
-        prompt = STOCKOUT_ALERT_EXPLANATION_PROMPT.format(
+        prompt = f"{_language_prompt_prefix(language)}\n\n" + STOCKOUT_ALERT_EXPLANATION_PROMPT.format(
             outlet_name=outlet.name,
             sku_name=sku.name,
             daypart=alert.affected_daypart,
@@ -367,9 +537,14 @@ def explain_plan(body: ExplainPlanRequest, db: Session = Depends(get_db)):
             coverage_pct=_format_float(alert.coverage_pct),
             reason=alert.reason,
         )
-        fallback = (
-            f"{sku.name} at {outlet.name} has a {alert.risk_level} stockout risk in the "
-            f"{alert.affected_daypart}. {alert.reason}."
+        fallback = _localize_fallback_text(
+            "stockout",
+            language,
+            sku_name=sku.name,
+            outlet_name=outlet.name,
+            risk_level=alert.risk_level,
+            daypart=alert.affected_daypart,
+            reason=alert.reason,
         )
 
     else:
@@ -392,7 +567,7 @@ def explain_plan(body: ExplainPlanRequest, db: Session = Depends(get_db)):
 
         if not matching_lines:
             return ExplainPlanResponse(
-                explanation="No replenishment recommendation found for this SKU on this date.",
+                explanation=_localize_fallback_text("missing_replenishment", language),
                 context_type=ctx,
                 outlet_name=outlet.name,
                 sku_name=sku.name,
@@ -401,7 +576,7 @@ def explain_plan(body: ExplainPlanRequest, db: Session = Depends(get_db)):
         line = matching_lines[0]
         ingredient = line.ingredient
         unit = ingredient.unit if ingredient else "units"
-        prompt = REPLENISHMENT_RATIONALE_PROMPT.format(
+        prompt = f"{_language_prompt_prefix(language)}\n\n" + REPLENISHMENT_RATIONALE_PROMPT.format(
             ingredient_name=ingredient.name if ingredient else "Unknown ingredient",
             stock_on_hand=_format_float(line.stock_on_hand),
             unit=unit,
@@ -411,11 +586,16 @@ def explain_plan(body: ExplainPlanRequest, db: Session = Depends(get_db)):
             driving_skus=", ".join(line.driving_skus or []),
             sku_name=sku.name,
         )
-        fallback = (
-            f"{sku.name} is driving a {line.urgency} reorder recommendation for "
-            f"{ingredient.name if ingredient else 'an ingredient'}: need "
-            f"{_format_float(line.need_qty)} {unit}, stock {_format_float(line.stock_on_hand)} "
-            f"{unit}, reorder {_format_float(line.reorder_qty)} {unit}."
+        fallback = _localize_fallback_text(
+            "replenishment",
+            language,
+            sku_name=sku.name,
+            urgency=line.urgency,
+            ingredient_name=ingredient.name if ingredient else "ingredient",
+            need_qty=_format_float(line.need_qty),
+            stock_on_hand=_format_float(line.stock_on_hand),
+            reorder_qty=_format_float(line.reorder_qty),
+            unit=unit,
         )
 
     explanation = _call_llm(prompt, fallback)
@@ -430,6 +610,7 @@ def explain_plan(body: ExplainPlanRequest, db: Session = Depends(get_db)):
 @router.post("/copilot/daily-brief", response_model=DailyBriefResponse)
 def generate_daily_brief(body: DailyBriefRequest, db: Session = Depends(get_db)):
     brief_date = body.brief_date
+    language = _normalize_language(body.language)
 
     fc_run = (
         db.query(ForecastRun)
@@ -448,8 +629,7 @@ def generate_daily_brief(body: DailyBriefRequest, db: Session = Depends(get_db))
         if line.urgency == "critical"
     )
 
-    day_labels = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
-    weekday = day_labels[brief_date.weekday()]
+    weekday = _weekday_label(brief_date, language)
 
     high_waste = [alert for alert in waste_alerts if alert.risk_level == "high"]
     high_stock = [alert for alert in stockout_alerts if alert.risk_level == "high"]
@@ -465,7 +645,7 @@ def generate_daily_brief(body: DailyBriefRequest, db: Session = Depends(get_db))
     if critical_count > 0:
         top_actions.append(f"Place {critical_count} critical ingredient reorder(s)")
 
-    prompt = DAILY_BRIEF_PROMPT.format(
+    prompt = f"{_language_prompt_prefix(language)}\n\n" + DAILY_BRIEF_PROMPT.format(
         date=str(brief_date),
         weekday=weekday,
         total_predicted_sales=total_sales,
@@ -478,14 +658,41 @@ def generate_daily_brief(body: DailyBriefRequest, db: Session = Depends(get_db))
         at_risk_outlets=", ".join(at_risk) or "None",
     )
 
-    fallback = (
-        f"Daily brief for {brief_date} ({weekday}). Total predicted sales are {total_sales} "
-        f"units, with waste risk at {waste_risk_score}/100 and stockout risk at "
-        f"{stockout_risk_score}/100.\n\n"
-        f"Key risks: {len(high_waste)} high waste alerts, {len(high_stock)} high stockout alerts, "
-        f"and {critical_count} critical ingredient reorders. "
-        f"{'At-risk outlets: ' + ', '.join(at_risk) + '.' if at_risk else 'No outlets are currently flagged as high risk.'}\n\n"
-        f"Top actions: {'; '.join(top_actions[:3]) or 'Review the latest prep and replenishment plans before service.'}"
+    at_risk_sentence = (
+        (
+            ("Cawangan berisiko: " if language == "ms" else "高风险门店：" if language == "zh-CN" else "At-risk outlets: ")
+            + ", ".join(at_risk)
+            + "."
+        )
+        if at_risk
+        else (
+            "Tiada cawangan berisiko tinggi pada masa ini."
+            if language == "ms"
+            else "目前没有被标记为高风险的门店。"
+            if language == "zh-CN"
+            else "No outlets are currently flagged as high risk."
+        )
+    )
+    fallback = _localize_fallback_text(
+        "daily_brief",
+        language,
+        brief_date=brief_date,
+        weekday=weekday,
+        total_sales=total_sales,
+        waste_risk_score=waste_risk_score,
+        stockout_risk_score=stockout_risk_score,
+        high_waste_count=len(high_waste),
+        high_stock_count=len(high_stock),
+        critical_count=critical_count,
+        at_risk_sentence=at_risk_sentence,
+        top_actions="; ".join(top_actions[:3])
+        or (
+            "Semak pelan persediaan dan pengisian semula terkini sebelum operasi."
+            if language == "ms"
+            else "在营业前复核最新备货和补货计划。"
+            if language == "zh-CN"
+            else "Review the latest prep and replenishment plans before service."
+        ),
     )
 
     brief = _call_llm(prompt, fallback)
@@ -495,7 +702,8 @@ def generate_daily_brief(body: DailyBriefRequest, db: Session = Depends(get_db))
 @router.post("/copilot/run-scenario", response_model=ScenarioResponse)
 def run_scenario(body: ScenarioRequest, db: Session = Depends(get_db)):
     target_date = body.target_date or date_type.today()
-    payload = run_scenario_simulation(body.scenario_text, target_date, db).to_dict()
+    language = _normalize_language(body.language)
+    payload = run_scenario_simulation(body.scenario_text, target_date, db, language).to_dict()
     return ScenarioResponse(
         scenario=payload["scenario"],
         baseline=payload["baseline"],
@@ -508,7 +716,12 @@ def run_scenario(body: ScenarioRequest, db: Session = Depends(get_db)):
 
 @router.post("/copilot/daily-actions", response_model=DailyActionsResponse)
 def daily_actions(body: DailyActionsRequest, db: Session = Depends(get_db)):
-    payload = generate_daily_actions(body.target_date, body.top_n, db, _call_llm)
+    language = _normalize_language(body.language)
+    llm = lambda prompt, fallback="": _call_llm(
+        f"{_language_prompt_prefix(language)}\n\n{prompt}",
+        fallback,
+    )
+    payload = generate_daily_actions(body.target_date, body.top_n, db, llm, language)
     return DailyActionsResponse(
         date=payload["date"],
         brief=payload["brief"],

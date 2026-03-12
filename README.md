@@ -2,6 +2,11 @@
 
 BakeWise is an AI prep and replenishment copilot for bakery-cafe chains. This `predictory` repo currently contains a FastAPI backend plus a Next.js frontend for day-ahead forecasting, prep planning, replenishment, waste alerts, stockout alerts, and copilot-style explanations.
 
+The demo UI now supports:
+- English (`en`)
+- Bahasa Melayu (`ms`)
+- Simplified Chinese (`zh-CN`)
+
 ## What the product does
 
 - Forecasts demand by outlet and daypart
@@ -43,6 +48,8 @@ Notes:
 - The backend loads environment variables from the repo root.
 - For copilot LLMs, you can use `GEMINI_API_KEY` / `GOOGLE_API_KEY` for Google AI Studio, or `VERTEXAI_PROJECT` + `VERTEXAI_LOCATION` for Vertex AI.
 - Weather demand drivers are off by default. Set `WEATHER_FETCH_ENABLED=true` to allow live Open-Meteo weather snapshots when outlet coordinates are present.
+- The frontend uses an in-app language switcher and persists the selected language in `localStorage`.
+- Copilot endpoints accept an optional `language` field with values `en`, `ms`, or `zh-CN`. Business data stays language-neutral.
 - Copilot endpoint examples and sample payloads are in [`apps/api/copilot/EXAMPLES.md`](./apps/api/copilot/EXAMPLES.md).
 
 ### 2. Run the backend (PowerShell)
@@ -118,7 +125,9 @@ Then open: `http://localhost:3002/dashboard`
 - `POST /api/v1/plans/prep/run`
 - `POST /api/v1/plans/replenishment/run`
 - `POST /api/v1/copilot/daily-brief`
+- `POST /api/v1/copilot/explain-plan`
 - `POST /api/v1/copilot/run-scenario`
+- `POST /api/v1/copilot/daily-actions`
 
 ## Tests
 
@@ -138,6 +147,12 @@ pytest -q
 | `/risk-center` | Waste and stockout alerts |
 | `/copilot` | Daily brief and AI explanation flows |
 | `/scenario-planner` | What-if scenario simulation |
+
+## Multilingual notes
+
+- UI text is localized in-app via a language switcher in the sidebar.
+- Copilot prose can be requested in English, Bahasa Melayu, or Simplified Chinese.
+- Raw business data such as SKU names, outlet names, quantities, and IDs are not translated by the backend.
 
 ## Reference docs
 

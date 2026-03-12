@@ -12,20 +12,38 @@ import {
   ChefHat,
   GitBranch,
 } from "lucide-react";
+import { useLanguage } from "@/components/i18n/LanguageProvider";
+import LanguageSwitcher from "@/components/i18n/LanguageSwitcher";
 import { cn } from "@/lib/utils";
 
 const NAV = [
-  { href: "/dashboard",        label: "Dashboard",       icon: LayoutDashboard },
-  { href: "/forecast",         label: "Forecast",        icon: TrendingUp },
-  { href: "/prep-plan",        label: "Prep Plan",        icon: ClipboardList },
-  { href: "/replenishment",    label: "Replenishment",   icon: ShoppingCart },
-  { href: "/risk-center",      label: "Risk Centre",     icon: AlertTriangle },
-  { href: "/scenario-planner", label: "Scenario Planner", icon: GitBranch },
-  { href: "/copilot",          label: "AI Copilot",      icon: Bot },
+  { href: "/dashboard", labelKey: "nav.dashboard", fallback: "Dashboard", icon: LayoutDashboard },
+  { href: "/forecast", labelKey: "nav.forecast", fallback: "Forecast", icon: TrendingUp },
+  { href: "/prep-plan", labelKey: "nav.prepPlan", fallback: "Prep Plan", icon: ClipboardList },
+  {
+    href: "/replenishment",
+    labelKey: "nav.replenishment",
+    fallback: "Replenishment",
+    icon: ShoppingCart,
+  },
+  {
+    href: "/risk-center",
+    labelKey: "nav.riskCenter",
+    fallback: "Risk Centre",
+    icon: AlertTriangle,
+  },
+  {
+    href: "/scenario-planner",
+    labelKey: "nav.scenarioPlanner",
+    fallback: "Scenario Planner",
+    icon: GitBranch,
+  },
+  { href: "/copilot", labelKey: "nav.copilot", fallback: "AI Copilot", icon: Bot },
 ];
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const { t } = useLanguage();
 
   return (
     <aside className="fixed inset-y-0 left-0 w-60 bg-white border-r border-neutral-200 flex flex-col z-30">
@@ -39,7 +57,7 @@ export default function Sidebar() {
 
       {/* Nav */}
       <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto scrollbar-hide">
-        {NAV.map(({ href, label, icon: Icon }) => {
+        {NAV.map(({ href, labelKey, fallback, icon: Icon }) => {
           const active = pathname === href || pathname.startsWith(href + "/");
           return (
             <Link
@@ -53,15 +71,16 @@ export default function Sidebar() {
               )}
             >
               <Icon className={cn("h-4 w-4", active ? "text-amber-500" : "text-neutral-400")} />
-              {label}
+              {t(labelKey, fallback)}
             </Link>
           );
         })}
       </nav>
 
       {/* Footer */}
-      <div className="px-5 py-4 border-t border-neutral-100 text-xs text-neutral-400">
-        BakeWise v1 &middot; Day 2 Build
+      <div className="space-y-3 border-t border-neutral-100 px-5 py-4">
+        <LanguageSwitcher />
+        <div className="text-xs text-neutral-400">{t("nav.footer", "BakeWise v1 · ASEAN demo build")}</div>
       </div>
     </aside>
   );
