@@ -89,6 +89,13 @@ def _weighted_recent_total(daily_totals: dict[date, float], target_date: date) -
     return weighted
 
 
+def _recent_signal_available(daily_totals: dict[date, float], target_date: date) -> bool:
+    for i in range(1, 8):
+        if (target_date - timedelta(days=i)) in daily_totals:
+            return True
+    return False
+
+
 def _weekday_pattern_total(daily_totals: dict[date, float], target_date: date) -> float:
     """Average of last 4 same-weekday totals."""
     weekday = target_date.weekday()
@@ -102,6 +109,11 @@ def _weekday_pattern_total(daily_totals: dict[date, float], target_date: date) -
     return float(statistics.mean(vals)) if vals else 0.0
 
 
+def _weekday_signal_available(daily_totals: dict[date, float], target_date: date) -> bool:
+    weekday = target_date.weekday()
+    return any(d.weekday() == weekday and d < target_date for d in daily_totals)
+
+
 def _moving_average_14_total(daily_totals: dict[date, float], target_date: date) -> float:
     """14-day moving average on total demand."""
     total = 0.0
@@ -112,6 +124,50 @@ def _moving_average_14_total(daily_totals: dict[date, float], target_date: date)
             total += daily_totals[day]
             count += 1
     return total / count if count > 0 else 0.0
+
+
+def _ma14_signal_available(daily_totals: dict[date, float], target_date: date) -> bool:
+    return any((target_date - timedelta(days=i)) in daily_totals for i in range(1, 15))
+
+
+def _blend_total_with_available_signals(
+    weighted_total: float,
+    weekday_total: float,
+    ma14_total: float,
+    has_recent: bool,
+    has_weekday: bool,
+    has_ma14: bool,
+) -> tuple[float, dict[str, float]]:
+    """
+    Renormalize component weights when some components have no historical support.
+    This avoids under-forecasting on sparse histories.
+    """
+    base_weights = {
+        "weighted_recent_total": 0.40,
+        "weekday_pattern_total": 0.40,
+        "moving_avg_14d_total": 0.20,
+    }
+    components = {
+        "weighted_recent_total": weighted_total,
+        "weekday_pattern_total": weekday_total,
+        "moving_avg_14d_total": ma14_total,
+    }
+    availability = {
+        "weighted_recent_total": has_recent,
+        "weekday_pattern_total": has_weekday,
+        "moving_avg_14d_total": has_ma14,
+    }
+
+    active_weight = sum(base_weights[name] for name, present in availability.items() if present)
+    if active_weight <= 0:
+        return 0.0, {k: 0.0 for k in base_weights}
+
+    applied_weights = {
+        name: (base_weights[name] / active_weight if availability[name] else 0.0)
+        for name in base_weights
+    }
+    blended_total = sum(components[name] * applied_weights[name] for name in components)
+    return blended_total, applied_weights
 
 
 def _historical_daypart_ratios(daily_sales: dict[date, dict], target_date: date, lookback_days: int = 28) -> dict[str, float]:
@@ -159,7 +215,18 @@ def forecast_demand(
     weekday_total = _weekday_pattern_total(daily_totals, target_date)
     ma14_total = _moving_average_14_total(daily_totals, target_date)
 
-    combined_total = max(0.0, (0.40 * weighted_total) + (0.40 * weekday_total) + (0.20 * ma14_total))
+    has_recent = _recent_signal_available(daily_totals, target_date)
+    has_weekday = _weekday_signal_available(daily_totals, target_date)
+    has_ma14 = _ma14_signal_available(daily_totals, target_date)
+    combined_total, applied_weights = _blend_total_with_available_signals(
+        weighted_total=weighted_total,
+        weekday_total=weekday_total,
+        ma14_total=ma14_total,
+        has_recent=has_recent,
+        has_weekday=has_weekday,
+        has_ma14=has_ma14,
+    )
+    combined_total = max(0.0, combined_total)
     daypart_ratios = _historical_daypart_ratios(daily_sales, target_date)
 
     combined = {dp: combined_total * daypart_ratios[dp] for dp in DAYPARTS}
@@ -182,6 +249,7 @@ def forecast_demand(
         "weighted_recent_total": round(weighted_total, 1),
         "weekday_pattern_total": round(weekday_total, 1),
         "moving_avg_14d_total": round(ma14_total, 1),
+        "applied_component_weights": {k: round(v, 3) for k, v in applied_weights.items()},
         "historical_daypart_ratios": {k: round(v, 3) for k, v in daypart_ratios.items()},
         "reason_tags": reason_tags,
         "target_weekday": day_labels[target_date.weekday()],

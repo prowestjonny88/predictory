@@ -1,5 +1,5 @@
 import random
-from datetime import date
+from datetime import date, timedelta
 
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -9,6 +9,16 @@ from sqlalchemy.pool import StaticPool
 from alerts.stockout import detect_stockout_risk
 from alerts.waste import detect_waste_risk
 from db.database import Base, get_db
+from db.models import (
+    Ingredient,
+    InventorySnapshot,
+    Outlet,
+    PrepPlan,
+    PrepPlanLine,
+    RecipeBOM,
+    SKU,
+    SalesFact,
+)
 from db.seed import seed_master_data, seed_sales_and_waste
 from main import app
 from planning.prep import generate_prep_plan
@@ -101,3 +111,89 @@ def test_daily_plan_api_returns_required_sections_and_plan_triggers():
             assert "plan_id" in repl_resp.json()
     finally:
         app.dependency_overrides.clear()
+
+
+def test_stockout_keeps_checking_other_skus_after_ingredient_alert():
+    SessionLocal = _build_session_factory()
+    db = SessionLocal()
+
+    outlet = Outlet(name="Edge Outlet", code="EDGE-OUT")
+    sku_a = SKU(
+        name="SKU A",
+        code="EDGE-A",
+        category="Pastry",
+        freshness_hours=8,
+        is_bestseller=False,
+        safety_buffer_pct=0.1,
+        price=5.0,
+    )
+    sku_b = SKU(
+        name="SKU B",
+        code="EDGE-B",
+        category="Pastry",
+        freshness_hours=8,
+        is_bestseller=True,
+        safety_buffer_pct=0.1,
+        price=5.0,
+    )
+    ing = Ingredient(
+        name="Butter",
+        code="EDGE-ING",
+        unit="kg",
+        stock_on_hand=0.0,
+        reorder_point=1.0,
+        supplier_lead_time_hours=48,
+        cost_per_unit=10.0,
+    )
+    db.add_all([outlet, sku_a, sku_b, ing])
+    db.flush()
+
+    db.add_all(
+        [
+            RecipeBOM(sku_id=sku_a.id, ingredient_id=ing.id, quantity_per_unit=1.0, unit="kg"),
+            RecipeBOM(sku_id=sku_b.id, ingredient_id=ing.id, quantity_per_unit=1.0, unit="kg"),
+        ]
+    )
+
+    target_date = date(2026, 3, 10)
+    for i in range(1, 15):
+        d = target_date - timedelta(days=i)
+        db.add_all(
+            [
+                SalesFact(outlet_id=outlet.id, sku_id=sku_a.id, sale_date=d, daypart="morning", units_sold=8, revenue=40),
+                SalesFact(outlet_id=outlet.id, sku_id=sku_a.id, sale_date=d, daypart="midday", units_sold=6, revenue=30),
+                SalesFact(outlet_id=outlet.id, sku_id=sku_a.id, sale_date=d, daypart="evening", units_sold=4, revenue=20),
+                SalesFact(outlet_id=outlet.id, sku_id=sku_b.id, sale_date=d, daypart="morning", units_sold=20, revenue=100),
+                SalesFact(outlet_id=outlet.id, sku_id=sku_b.id, sale_date=d, daypart="midday", units_sold=10, revenue=50),
+                SalesFact(outlet_id=outlet.id, sku_id=sku_b.id, sale_date=d, daypart="evening", units_sold=8, revenue=40),
+            ]
+        )
+
+    db.add_all(
+        [
+            InventorySnapshot(outlet_id=outlet.id, sku_id=sku_a.id, snapshot_date=target_date, snapshot_time="eod", units_on_hand=5),
+            InventorySnapshot(outlet_id=outlet.id, sku_id=sku_b.id, snapshot_date=target_date, snapshot_time="eod", units_on_hand=0),
+        ]
+    )
+
+    prep = PrepPlan(plan_date=target_date, status="draft")
+    db.add(prep)
+    db.flush()
+    db.add_all(
+        [
+            PrepPlanLine(plan_id=prep.id, outlet_id=outlet.id, sku_id=sku_a.id, daypart="morning", recommended_units=2, current_stock=5, status="pending"),
+            PrepPlanLine(plan_id=prep.id, outlet_id=outlet.id, sku_id=sku_b.id, daypart="morning", recommended_units=0, current_stock=0, status="pending"),
+        ]
+    )
+    db.commit()
+
+    alerts = detect_stockout_risk(target_date, db)
+    db.close()
+
+    assert any(a.reason.startswith("Ingredient stock covers only") for a in alerts)
+    assert any(
+        a.sku_name == "SKU B"
+        and a.affected_daypart == "morning"
+        and "Morning stock" in a.reason
+        for a in alerts
+    )

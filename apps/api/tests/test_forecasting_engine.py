@@ -9,6 +9,7 @@ from forecasting.engine import (
     _weighted_recent_total,
     _weekday_pattern_total,
     _moving_average_14_total,
+    _blend_total_with_available_signals,
     forecast_demand,
     run_forecast_for_date,
 )
@@ -42,6 +43,22 @@ def test_forecast_components_math():
 
     ma_totals = {target - timedelta(days=i): float(i) for i in range(1, 15)}
     assert _moving_average_14_total(ma_totals, target) == 7.5
+
+
+def test_blend_renormalizes_when_weekday_signal_missing():
+    combined, applied = _blend_total_with_available_signals(
+        weighted_total=100.0,
+        weekday_total=0.0,
+        ma14_total=100.0,
+        has_recent=True,
+        has_weekday=False,
+        has_ma14=True,
+    )
+    # Base 0.4 + 0.2 gets renormalized to 2/3 and 1/3.
+    assert round(applied["weighted_recent_total"], 3) == 0.667
+    assert applied["weekday_pattern_total"] == 0.0
+    assert round(applied["moving_avg_14d_total"], 3) == 0.333
+    assert abs(combined - 100.0) <= 0.1
 
 
 def test_forecast_uses_daypart_ratios_and_combined_total():
@@ -115,4 +132,3 @@ def test_run_forecast_persists_forecast_lines():
     assert run.id is not None
     assert len(run.lines) == len(outlets) * len(skus)
     assert db.query(ForecastLine).count() == len(outlets) * len(skus)
-

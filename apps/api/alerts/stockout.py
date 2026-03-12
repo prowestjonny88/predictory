@@ -124,6 +124,7 @@ def detect_stockout_risk(target_date: date, db: Session) -> list[StockoutAlert]:
     alerts: list[StockoutAlert] = []
 
     for outlet in outlets:
+        ingredient_alert_emitted = False
         for sku in skus:
             current_stock = _get_stock(db, outlet.id, sku.id)
             fc = forecast_demand(outlet.id, sku.id, target_date, db)
@@ -186,7 +187,7 @@ def detect_stockout_risk(target_date: date, db: Session) -> list[StockoutAlert]:
                     ))
 
             # Check ingredient coverage for production
-            if ingredient_coverage < STANDARD_COVERAGE_THRESHOLD:
+            if ingredient_coverage < STANDARD_COVERAGE_THRESHOLD and not ingredient_alert_emitted:
                 for dp in DAYPARTS:
                     dp_demand = getattr(fc, dp)
                     if dp_demand > 0:
@@ -204,7 +205,7 @@ def detect_stockout_risk(target_date: date, db: Session) -> list[StockoutAlert]:
                             ),
                             coverage_pct=round(ingredient_coverage * 100, 1),
                         ))
-                break  # one alert per outlet is enough for ingredient issue
+                ingredient_alert_emitted = True
 
     alerts.sort(key=lambda a: (0 if a.risk_level == "high" else 1))
     return alerts

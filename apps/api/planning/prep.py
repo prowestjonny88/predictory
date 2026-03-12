@@ -109,7 +109,8 @@ def recommend_prep(
 
     current_stock = _get_current_stock(db, outlet_id, sku_id)
     waste_rate = _get_waste_rate_7d(db, outlet_id, sku_id, target_date)
-    buffer = sku.safety_buffer_pct if sku.safety_buffer_pct is not None else DEFAULT_SAFETY_BUFFER
+    raw_buffer = sku.safety_buffer_pct if sku.safety_buffer_pct is not None else DEFAULT_SAFETY_BUFFER
+    buffer = min(max(raw_buffer, 0.0), 1.0)
 
     adjustments = []
 
@@ -130,7 +131,7 @@ def recommend_prep(
     short_shelf = sku.freshness_hours < 8
 
     # Allocate stock against morning first (reduces morning prep)
-    stock_remaining = current_stock
+    stock_remaining = float(current_stock)
     results: dict[str, int] = {}
     for dp in DAYPARTS:
         if short_shelf and dp == "evening" and results.get("morning", 0) > 0:
@@ -140,7 +141,7 @@ def recommend_prep(
 
         demand = daypart_forecasts[dp] * waste_adj
         stock_for_dp = min(stock_remaining, demand)
-        stock_remaining = max(0, stock_remaining - int(stock_for_dp))
+        stock_remaining = max(0.0, stock_remaining - stock_for_dp)
 
         net_demand = demand - stock_for_dp
         prep = max(0, net_demand + (net_demand * buffer))
@@ -148,6 +149,7 @@ def recommend_prep(
 
     rationale = {
         "safety_buffer_pct": buffer,
+        "raw_safety_buffer_pct": raw_buffer,
         "current_stock": current_stock,
         "waste_rate_7d": round(waste_rate, 3),
         "short_shelf_life": short_shelf,
