@@ -51,7 +51,7 @@ export default function Sidebar() {
         <div className="flex items-center gap-2 border-b border-neutral-100 px-5 py-5">
           <ChefHat className="h-6 w-6 text-amber-500" />
           <span className="text-lg font-bold tracking-tight text-neutral-900">
-            Bake<span className="text-amber-500">Wise</span>
+            Predict<span className="text-amber-500">ory</span>
           </span>
         </div>
 
