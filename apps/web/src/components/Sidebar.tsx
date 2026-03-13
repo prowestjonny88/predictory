@@ -11,6 +11,7 @@ import {
   Bot,
   ChefHat,
   GitBranch,
+  Package,
 } from "lucide-react";
 import { useLanguage } from "@/components/i18n/LanguageProvider";
 import LanguageSwitcher from "@/components/i18n/LanguageSwitcher";
@@ -31,6 +32,12 @@ const NAV = [
     labelKey: "nav.riskCenter",
     fallback: "Risk Centre",
     icon: AlertTriangle,
+  },
+  {
+    href: "/stock",
+    labelKey: "nav.stock",
+    fallback: "Current Stock",
+    icon: Package,
   },
   {
     href: "/scenario-planner",

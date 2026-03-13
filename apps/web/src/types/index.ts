@@ -38,6 +38,16 @@ export interface Ingredient {
   cost_per_unit: number;
 }
 
+export interface Inventory {
+  id: number;
+  outlet_id: number;
+  sku_id: number;
+  sku_name: string;
+  snapshot_date: string;
+  snapshot_time: string;
+  units_on_hand: number;
+}
+
 export interface ForecastLine {
   id: number;
   outlet_id: number;

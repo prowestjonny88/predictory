@@ -13,6 +13,7 @@ import type {
   HealthResponse,
   ImportResult,
   Ingredient,
+  Inventory,
   LanguageCode,
   Outlet,
   PlanRunResult,
@@ -46,6 +47,8 @@ export const api = {
   outlets: (): Promise<Outlet[]> => apiFetch<Outlet[]>(`${V1}/outlets`),
   skus: (): Promise<SKU[]> => apiFetch<SKU[]>(`${V1}/skus`),
   ingredients: (): Promise<Ingredient[]> => apiFetch<Ingredient[]>(`${V1}/ingredients`),
+  inventory: (outletId?: string): Promise<Inventory[]> =>
+    apiFetch<Inventory[]>(`${V1}/inventory${outletId && outletId !== 'all' ? `?outlet_id=${outletId}` : ""}`),
   health: (): Promise<HealthResponse> => apiFetch<HealthResponse>(`${API_URL}/health`),
 
   dailyPlan: (date: string): Promise<DailyPlan> =>
@@ -68,8 +71,7 @@ export const api = {
     skuId?: number | null
   ): Promise<ForecastContext> =>
     apiFetch<ForecastContext>(
-      `${V1}/forecast-context?target_date=${targetDate}&outlet_id=${outletId}${
-        skuId ? `&sku_id=${skuId}` : ""
+      `${V1}/forecast-context?target_date=${targetDate}&outlet_id=${outletId}${skuId ? `&sku_id=${skuId}` : ""
       }`
     ),
   getForecastOverrides: (
@@ -78,8 +80,7 @@ export const api = {
     skuId?: number | null
   ): Promise<ForecastOverride[]> =>
     apiFetch<ForecastOverride[]>(
-      `${V1}/forecast-overrides?target_date=${targetDate}&outlet_id=${outletId}${
-        skuId ? `&sku_id=${skuId}` : ""
+      `${V1}/forecast-overrides?target_date=${targetDate}&outlet_id=${outletId}${skuId ? `&sku_id=${skuId}` : ""
       }`
     ),
   createForecastOverride: (payload: ForecastOverridePayload): Promise<ForecastOverride> =>

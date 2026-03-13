@@ -29,8 +29,6 @@ OUTLETS = [
     {"name": "Roti Lane KLCC",         "code": "RL-KLCC", "address": "Suria KLCC, Kuala Lumpur", "latitude": 3.1579, "longitude": 101.7116},
     {"name": "Roti Lane Bangsar",      "code": "RL-BGS",  "address": "Bangsar Village II, KL", "latitude": 3.1291, "longitude": 101.6738},
     {"name": "Roti Lane Mid Valley",   "code": "RL-MV",   "address": "Mid Valley Megamall, KL", "latitude": 3.1174, "longitude": 101.6770},
-    {"name": "Roti Lane Bukit Bintang","code": "RL-BB",   "address": "Pavilion, Bukit Bintang, KL", "latitude": 3.1490, "longitude": 101.7131},
-    {"name": "Roti Lane Damansara",    "code": "RL-DMR",  "address": "Damansara Utama, PJ", "latitude": 3.1374, "longitude": 101.6220},
 ]
 
 SKUS = [
@@ -39,9 +37,6 @@ SKUS = [
     {"name": "Banana Bread",      "code": "SKU-BNB", "category": "Bread",    "freshness_hours": 24, "is_bestseller": False, "safety_buffer_pct": 0.08, "price": 12.00},
     {"name": "Cheese Danish",     "code": "SKU-CDN", "category": "Pastry",   "freshness_hours": 8,  "is_bestseller": True,  "safety_buffer_pct": 0.10, "price": 9.00},
     {"name": "Cinnamon Roll",     "code": "SKU-CNR", "category": "Pastry",   "freshness_hours": 10, "is_bestseller": False, "safety_buffer_pct": 0.08, "price": 7.50},
-    {"name": "Sourdough Loaf",    "code": "SKU-SDL", "category": "Bread",    "freshness_hours": 48, "is_bestseller": False, "safety_buffer_pct": 0.05, "price": 22.00},
-    {"name": "Almond Croissant",  "code": "SKU-ACR", "category": "Pastry",   "freshness_hours": 8,  "is_bestseller": True,  "safety_buffer_pct": 0.10, "price": 9.50},
-    {"name": "Matcha Latte",      "code": "SKU-MTL", "category": "Beverage", "freshness_hours": 4,  "is_bestseller": True,  "safety_buffer_pct": 0.15, "price": 14.00},
 ]
 
 INGREDIENTS = [
@@ -62,22 +57,16 @@ RECIPE_BOM = {
     "SKU-BNB": [("ING-FLR", 0.150), ("ING-EGG", 2.0),   ("ING-MLK", 0.080), ("ING-BUT", 0.040)],
     "SKU-CDN": [("ING-BUT", 0.070), ("ING-FLR", 0.110), ("ING-EGG", 1.0),   ("ING-CHE", 0.040)],
     "SKU-CNR": [("ING-FLR", 0.100), ("ING-EGG", 1.0),   ("ING-BUT", 0.030), ("ING-CIN", 0.008)],
-    "SKU-SDL": [("ING-FLR", 0.500), ("ING-MLK", 0.200), ("ING-BUT", 0.050)],
-    "SKU-ACR": [("ING-BUT", 0.060), ("ING-FLR", 0.120), ("ING-EGG", 1.0),   ("ING-ALM", 0.025)],
-    "SKU-MTL": [("ING-MLK", 0.250)],
 }
 
 # Base daily sales per outlet per SKU (units across all dayparts)
-# [KLCC, Bangsar, MidValley, BukitBintang, Damansara]
+# [KLCC, Bangsar, MidValley]
 BASE_DAILY_SALES = {
-    "SKU-CRO": [45, 35, 50, 40, 30],
-    "SKU-CMU": [30, 25, 35, 28, 20],
-    "SKU-BNB": [15, 12, 18, 14, 10],
-    "SKU-CDN": [25, 20, 30, 22, 18],
-    "SKU-CNR": [20, 16, 22, 18, 14],
-    "SKU-SDL": [8,  6,  10, 7,  5],
-    "SKU-ACR": [12, 10, 14, 11, 8],
-    "SKU-MTL": [55, 45, 65, 50, 35],
+    "SKU-CRO": [45, 35, 50],
+    "SKU-CMU": [30, 25, 35],
+    "SKU-BNB": [15, 12, 18],
+    "SKU-CDN": [25, 20, 30],
+    "SKU-CNR": [20, 16, 22],
 }
 
 # Daypart split ratios [morning, midday, evening]
@@ -87,9 +76,6 @@ DAYPART_RATIOS = {
     "SKU-BNB": [0.20, 0.50, 0.30],
     "SKU-CDN": [0.45, 0.35, 0.20],
     "SKU-CNR": [0.40, 0.35, 0.25],
-    "SKU-SDL": [0.30, 0.45, 0.25],
-    "SKU-ACR": [0.50, 0.30, 0.20],
-    "SKU-MTL": [0.50, 0.30, 0.20],
 }
 
 # Weekend multiplier
@@ -121,16 +107,60 @@ def _seed_demo_holidays(db):
             is_active=True,
             source="seeded_demo",
         ),
+        HolidayCalendar(
+            holiday_date=date(today.year, 1, 1),
+            name="New Year's Day",
+            country_code="MY",
+            holiday_type="Public holiday",
+            demand_uplift_pct=15.0,
+            is_active=True,
+            source="seeded_demo",
+        ),
+        HolidayCalendar(
+            holiday_date=date(today.year, 2, 10), # Roughly CNY time
+            name="Chinese New Year",
+            country_code="MY",
+            holiday_type="Public holiday",
+            demand_uplift_pct=35.0,
+            is_active=True,
+            source="seeded_demo",
+        ),
+        HolidayCalendar(
+            holiday_date=date(today.year, 12, 25),
+            name="Christmas Day",
+            country_code="MY",
+            holiday_type="Public holiday",
+            demand_uplift_pct=25.0,
+            is_active=True,
+            source="seeded_demo",
+        ),
+        HolidayCalendar(
+            holiday_date=today + timedelta(days=10),
+            name="Upcoming Local Holiday",
+            country_code="MY",
+            holiday_type="Public holiday",
+            demand_uplift_pct=20.0,
+            is_active=True,
+            source="seeded_demo",
+        ),
     ]
     db.add_all(holidays)
     db.commit()
 
 
-def get_sales_base(sku_code: str, outlet_idx: int, sale_date: date) -> int:
+def get_sales_base(sku_code: str, outlet_idx: int, sale_date: date, db=None) -> int:
     base = BASE_DAILY_SALES[sku_code][outlet_idx]
     # Weekend boost
     if sale_date.weekday() >= 5:
         base = int(base * WEEKEND_MULTIPLIER)
+        
+    # Holiday boost
+    if db:
+        holiday = db.query(HolidayCalendar).filter(HolidayCalendar.holiday_date == sale_date).first()
+        if holiday and holiday.demand_uplift_pct:
+            # Apply the database-configured uplift factor directly
+            base = int(base * (1.0 + (holiday.demand_uplift_pct / 100.0)))
+
     # Add noise
     base = max(0, int(base + random.gauss(0, base * 0.15)))
     return base
@@ -218,12 +248,14 @@ def seed_sales_and_waste(db, outlets, skus):
             sku_code = sku.code
             for outlet in outlets:
                 o_idx = outlet_idx_map[outlet.code]
-                total_base = get_sales_base(sku_code, o_idx, current)
+                daily_base = get_sales_base(sku_code, o_idx, current, db)
+
+                # Induce stockouts based on the outlet pattern
                 ratios = DAYPART_RATIOS[sku_code]
 
                 daypart_sales = {}
                 for dp_idx, dp in enumerate(DAYPARTS):
-                    units = max(0, int(total_base * ratios[dp_idx]))
+                    units = max(0, int(daily_base * ratios[dp_idx]))
                     daypart_sales[dp] = units
 
                 # ── Bangsar croissant overprep / waste ──────────────────────

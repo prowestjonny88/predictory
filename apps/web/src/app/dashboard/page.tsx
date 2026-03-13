@@ -8,6 +8,7 @@ import AlertCard from "@/components/AlertCard";
 import ForecastInsightCharts from "@/components/ForecastInsightCharts";
 import Header from "@/components/Header";
 import KPICard from "@/components/KPICard";
+import YearlyTrendsCharts from "@/components/YearlyTrendsCharts";
 import ActionPlanPanel from "@/components/copilot/ActionPlanPanel";
 import { useLanguage } from "@/components/i18n/LanguageProvider";
 import { api } from "@/lib/api";
@@ -123,6 +124,13 @@ export default function DashboardPage() {
             forecasts={dailyPlanQuery.data?.forecasts}
             isLoading={dailyPlanQuery.isLoading}
           />
+        </section>
+
+        <section>
+          <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-neutral-500">
+            Yearly Trends Overview
+          </h2>
+          <YearlyTrendsCharts />
         </section>
 
         <section>
