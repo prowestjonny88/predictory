@@ -34,8 +34,7 @@ const MONTHS = [
     "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
 ];
 
-// Let's assume current month is June for the prototype visualization
-const CURRENT_MONTH_INDEX = 5;
+const CURRENT_MONTH_INDEX = new Date().getMonth();
 
 // Pseudo-random number generator for stable mock data
 function pseudoRandom(seed: number) {

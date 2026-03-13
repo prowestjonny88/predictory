@@ -7,7 +7,7 @@ import { CopyIcon } from "lucide-react";
 import Header from "@/components/Header";
 import { useLanguage } from "@/components/i18n/LanguageProvider";
 import { api } from "@/lib/api";
-import type { Inventory, Outlet } from "@/types";
+import type { Inventory, Outlet, Ingredient } from "@/types";
 
 export default function StockPage() {
     const [outletId, setOutletId] = useState<string>("all");
@@ -25,8 +25,15 @@ export default function StockPage() {
         refetchInterval: 30000,
     });
 
+    const ingredientsQuery = useQuery<Ingredient[]>({
+        queryKey: ["ingredients"],
+        queryFn: api.ingredients,
+        staleTime: Infinity,
+    });
+
     const outlets = outletsQuery.data ?? [];
     const inventory = inventoryQuery.data ?? [];
+    const ingredients = ingredientsQuery.data ?? [];
 
     const latestInventory = useMemo(() => {
         const seen = new Set<string>();
@@ -111,6 +118,62 @@ export default function StockPage() {
                                                 {item.units_on_hand > 0 && item.units_on_hand <= 5 && (
                                                     <span className="ml-2 inline-flex items-center rounded-full bg-orange-50 px-2 py-0.5 text-[10px] font-medium text-orange-700 ring-1 ring-inset ring-orange-600/10">
                                                         Low
+                                                    </span>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <section>
+                    <div className="flex items-center justify-between mb-4">
+                        <h2 className="text-sm font-bold uppercase tracking-wide text-neutral-600 pl-1">
+                            Base Ingredients
+                        </h2>
+                    </div>
+
+                    <div className="overflow-x-auto overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm ring-1 ring-neutral-900/5">
+                        <table className="w-full text-sm">
+                            <thead>
+                                <tr className="border-b border-neutral-200 bg-neutral-50/80 text-left text-xs font-semibold uppercase tracking-wider text-neutral-500">
+                                    <th className="px-5 py-4">Ingredient Name</th>
+                                    <th className="px-5 py-4">Outlet</th>
+                                    <th className="px-5 py-4">Snapshot Time</th>
+                                    <th className="px-5 py-4 text-right">Stock On Hand</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-neutral-100">
+                                {ingredientsQuery.isLoading ? (
+                                    Array.from({ length: 5 }).map((_, i) => (
+                                        <tr key={i}>
+                                            <td colSpan={4} className="px-5 py-4">
+                                                <div className="h-4 animate-pulse rounded bg-neutral-100 w-full" />
+                                            </td>
+                                        </tr>
+                                    ))
+                                ) : ingredients.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={4} className="px-5 py-12 text-center text-sm text-neutral-400">
+                                            No ingredient data available.
+                                        </td>
+                                    </tr>
+                                ) : (
+                                    ingredients.map((item) => (
+                                        <tr key={item.id} className="transition-colors hover:bg-neutral-50/60 group">
+                                            <td className="px-5 py-4 font-medium text-neutral-900">{item.name}</td>
+                                            <td className="px-5 py-4 text-neutral-600">Central Warehouse</td>
+                                            <td className="px-5 py-4 text-neutral-500 text-xs">
+                                                {new Date().toISOString().split("T")[0]} • <span className="uppercase text-amber-600">LIVE</span>
+                                            </td>
+                                            <td className="px-5 py-4 text-right font-semibold tabular-nums text-neutral-800">
+                                                {item.stock_on_hand?.toFixed(2) ?? "-"} <span className="text-neutral-500 text-xs font-normal ml-1">{item.unit}</span>
+                                                {(item.stock_on_hand ?? 0) < (item.reorder_point ?? 0) && (
+                                                    <span className="ml-2 inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-medium text-red-700 ring-1 ring-inset ring-red-600/10">
+                                                        Needs Reorder
                                                     </span>
                                                 )}
                                             </td>
