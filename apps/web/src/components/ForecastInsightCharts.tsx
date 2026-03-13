@@ -126,7 +126,7 @@ function OutletChart({ forecasts }: { forecasts: DailyPlanForecastLine[] }) {
         ) : (
           <div className={expanded ? "h-full" : "h-64"}>
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData} margin={{ top: 4, right: 8, left: 0, bottom: 40 }}>
+              <BarChart data={chartData} margin={{ top: 30, right: 8, left: 0, bottom: 60 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F3F4F6" />
                 <XAxis
                   dataKey="name"
@@ -135,6 +135,7 @@ function OutletChart({ forecasts }: { forecasts: DailyPlanForecastLine[] }) {
                   tick={{ fontSize: 11, fill: "#6B7280" }}
                   axisLine={false}
                   tickLine={false}
+                  interval={0}
                 />
                 <YAxis
                   axisLine={false}
@@ -154,9 +155,11 @@ function OutletChart({ forecasts }: { forecasts: DailyPlanForecastLine[] }) {
                   formatter={(value) => [`${value} units`]}
                 />
                 <Legend
-                  wrapperStyle={{ fontSize: 11, paddingTop: 8 }}
+                  verticalAlign="top"
+                  align="right"
+                  wrapperStyle={{ fontSize: 10, paddingBottom: 15 }}
                   iconType="circle"
-                  iconSize={8}
+                  iconSize={6}
                 />
                 <Bar dataKey="morning" name="Morning" stackId="a" fill={DAYPART_COLORS.morning} radius={[0, 0, 0, 0]} />
                 <Bar dataKey="midday" name="Midday" stackId="a" fill={DAYPART_COLORS.midday} />
@@ -267,7 +270,7 @@ function ItemChart({ forecasts }: { forecasts: DailyPlanForecastLine[] }) {
         ) : (
           <div className={expanded ? "h-full" : "h-64"}>
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData} margin={{ top: 4, right: 8, left: 0, bottom: 40 }}>
+              <BarChart data={chartData} margin={{ top: 4, right: 8, left: 0, bottom: 60 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F3F4F6" />
                 <XAxis
                   dataKey="name"
@@ -276,6 +279,7 @@ function ItemChart({ forecasts }: { forecasts: DailyPlanForecastLine[] }) {
                   tick={{ fontSize: 11, fill: "#6B7280" }}
                   axisLine={false}
                   tickLine={false}
+                  interval={0}
                 />
                 <YAxis
                   axisLine={false}
