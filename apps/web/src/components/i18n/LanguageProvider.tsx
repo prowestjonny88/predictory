@@ -34,7 +34,9 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const stored = normalizeLanguage(window.localStorage.getItem(LANGUAGE_STORAGE_KEY));
-    setLanguageState(stored);
+    if (stored !== language) {
+      setLanguageState(stored);
+    }
   }, []);
 
   useEffect(() => {

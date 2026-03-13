@@ -33,7 +33,7 @@ export default function AlertCard({ riskLevel, title, subtitle, meta, children }
   return (
     <div
       className={cn(
-        "bg-white rounded-lg border border-l-4 px-4 py-3 shadow-sm",
+        "card-interactive bg-white rounded-lg border border-l-4 px-4 py-3 shadow-sm",
         borderColors[riskLevel]
       )}
     >

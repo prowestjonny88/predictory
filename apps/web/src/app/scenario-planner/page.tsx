@@ -94,7 +94,7 @@ export default function ScenarioPlannerPage() {
         />
       </Header>
 
-      <main className="max-w-4xl space-y-6 p-6">
+      <main className="max-w-4xl space-y-6 p-6 page-enter">
         <section>
           <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-neutral-500">
             {t("scenario.quickScenarios", "Quick Scenarios")}
@@ -174,8 +174,8 @@ export default function ScenarioPlannerPage() {
           </div>
         )}
 
-        {scenarioMutation.data && (
-          <section className="space-y-5">
+        {scenarioMutation.data ? (
+          <section className="space-y-5 animate-fade-in">
             <div className="flex items-center gap-2">
               <GitBranch className="h-4 w-4 text-violet-500" />
               <h2 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
@@ -184,6 +184,16 @@ export default function ScenarioPlannerPage() {
             </div>
             <ScenarioResultPanel result={scenarioMutation.data} />
           </section>
+        ) : !scenarioMutation.isPending && !scenarioMutation.error && (
+          <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-neutral-200 bg-white py-16 text-center">
+            <GitBranch className="h-10 w-10 text-neutral-200" />
+            <p className="text-sm font-medium text-neutral-500">
+              Run a scenario to see the impact analysis
+            </p>
+            <p className="text-xs text-neutral-400 max-w-xs">
+              Choose a quick scenario above or describe your own, then click Run Scenario to model the downstream effects on waste, stockout, and prep volumes.
+            </p>
+          </div>
         )}
       </main>
     </div>

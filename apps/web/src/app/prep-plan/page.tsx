@@ -30,6 +30,7 @@ export default function PrepPlanPage() {
   const dailyPlanQuery = useQuery<DailyPlan>({
     queryKey: ["dailyPlan", date],
     queryFn: () => api.dailyPlan(date),
+    staleTime: 30_000,
   });
 
   const outletsQuery = useQuery<Outlet[]>({
@@ -49,6 +50,7 @@ export default function PrepPlanPage() {
     queryKey: ["prepPlanDetail", prepPlanId],
     queryFn: () => api.getPrepPlan(prepPlanId as number),
     enabled: prepPlanId != null,
+    staleTime: 30_000,
   });
 
   const runMutation = useMutation({
@@ -247,6 +249,17 @@ export default function PrepPlanPage() {
             {approveMutation.isPending
               ? t("common.generating", "Generating...")
               : t("prep.approveAll", "Approve All")}
+          </button>
+        )}
+        {prepPlanId != null && prepStatus === "approved" && (
+          <button
+            onClick={() => runMutation.mutate()}
+            disabled={runMutation.isPending}
+            className="rounded-md border border-orange-300 bg-orange-50 px-4 py-1.5 text-sm font-medium text-orange-700 transition-colors hover:bg-orange-100 disabled:opacity-60"
+          >
+            {runMutation.isPending
+              ? t("common.running", "Running...")
+              : "↺ Regenerate Plan"}
           </button>
         )}
       </Header>

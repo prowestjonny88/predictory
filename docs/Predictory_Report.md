@@ -1,6 +1,6 @@
 # Predictory Project Report
 
-This document is prepared for the **technical team submission track**. The emphasis is on system architecture, implementation scope, engineering decisions, validation evidence, and technical business value. Product framing and UX decisions are included only as supporting context for the implemented system.
+This document is prepared for the **technical team submission track**. The emphasis is on system architecture, implementation scope, engineering decisions, validation evidence, and technical business value. Product framing and interface decisions are included only where they help explain the implemented system and its operator workflow.
 
 ## Introduction
 
@@ -197,15 +197,15 @@ The current implementation also supports:
 - forecast overrides
 - daily planning summary generation
 
-### Product Framing and UX Decisions
+### Workflow and Interface Decisions
 
-Although this is a technical submission, the product still required clear workflow design. The repository does not contain evidence of formal field interviews, pilot validation, or structured usability studies with bakery operators. Therefore, this section is presented as implementation-supporting product framing rather than as a separate non-technical research track.
+Although this is a technical submission, the system still required clear workflow design. The repository does not contain evidence of formal field interviews, pilot validation, or structured usability studies with bakery operators. Therefore, this section is presented only as implementation-supporting context rather than as a separate non-technical research track.
 
 #### Problem Framing
 
 The team began by identifying a domain-specific pain point: bakery businesses face high uncertainty in next-day production, whether they run a single shop or several outlets, especially when products are perishable and demand differs by daypart. The product requirement document clearly frames the solution around this decision problem rather than around generic inventory or transaction tracking.
 
-#### Persona and Role Definition
+#### Operator Roles Reflected in the System
 
 The prototype implies the following user roles:
 
@@ -215,9 +215,9 @@ The prototype implies the following user roles:
 - outlet manager
 - purchaser or inventory lead
 
-These roles are grounded in the operating model described in the PRD and reflected in the planning, approval, replenishment, and explanation flows built into the app.
+These roles are grounded in the operating model described in the PRD and reflected directly in the planning, approval, replenishment, and explanation flows built into the application.
 
-#### User-Flow Design
+#### Workflow Design
 
 The screens are designed around a practical evening planning ritual for either a single bakery shop or a multi-outlet operation:
 
@@ -228,7 +228,7 @@ The screens are designed around a practical evening planning ritual for either a
 5. inspect waste and stockout risks
 6. use AI explanation and scenarios to support decisions
 
-This is an important implementation decision because it makes the interface decision-oriented rather than report-oriented.
+This is an important implementation decision because it makes the interface decision-oriented rather than report-oriented, which is critical for a planning system intended for daily operational use.
 
 ## Key Features and Explanation
 
@@ -333,6 +333,18 @@ Based on the repository, the prototype currently implements:
 - waste and stockout alert generation
 - AI explain-plan, daily brief, daily actions, and scenario APIs
 - multilingual frontend and copilot support
+
+### Technical Contribution Summary
+
+From a technical-team perspective, the main contribution of Predictory is not a single algorithm but the integration of multiple operational modules into one coherent system:
+
+- a FastAPI backend with clear module boundaries for forecasting, planning, alerts, ingestion, and copilot features
+- a frontend that consumes those contracts through typed integrations rather than static mock data
+- a deterministic decision engine that remains auditable and explainable
+- an AI layer that is intentionally constrained to explanation, summarization, action phrasing, and scenario support
+- a seeded dataset engineered to demonstrate realistic bakery failure modes such as waste hotspots and morning stockouts
+
+This combination is what makes the prototype technically credible for a hackathon setting.
 
 ### What Is Innovative in This Prototype
 
@@ -448,7 +460,7 @@ The prototype includes several concrete indicators of engineering completeness:
 
 ## Prototype Showcase
 
-While this is a technical submission, interface evidence is still useful because it demonstrates that the implemented backend modules are exposed through coherent user workflows. This section uses real captured screens from the working prototype.
+While this is a technical submission, interface evidence is still useful because it demonstrates that the implemented backend modules are exposed through coherent operator workflows. This section uses real captured screens from the working prototype.
 
 ### Screenshot 1: Executive Overview Dashboard
 
@@ -522,7 +534,7 @@ A major challenge was balancing credibility with ambition. The product needed to
 
 ### 3. Frontend and backend contract drift
 
-As the backend became more complete, the frontend had to be realigned to the actual API contracts. This required freezing the backend contracts and then updating types, request payloads, and screen assumptions so the UI matched real backend behavior.
+As the backend became more complete, the frontend had to be realigned to the actual API contracts. This required freezing backend response shapes and then updating types, request payloads, and screen assumptions so the web application matched real backend behavior rather than stale local assumptions.
 
 ### 4. Demo-safe integration of demand drivers
 
@@ -545,6 +557,7 @@ The app needed to support English, Bahasa Melayu, and Simplified Chinese without
 - validate forecast quality using real POS and inventory exports
 - measure planning time saved, waste trend changes, and stockout reduction trends
 - harden authentication, audit logging, and operational monitoring
+- add CI-backed regression checks for critical forecast, prep, alert, and copilot flows
 
 ### Phase 2: Operational Data Integration
 
@@ -552,6 +565,7 @@ The app needed to support English, Bahasa Melayu, and Simplified Chinese without
 - connect to inventory and purchasing systems
 - automate ingestion of sales, item catalog, shop or outlet master data, inventory, and promotions
 - keep CSV import as fallback rather than the primary workflow
+- add connector abstractions so vendor-specific integrations do not leak into core planning logic
 
 ### Phase 3: Smarter Demand Drivers
 
@@ -566,6 +580,7 @@ The app needed to support English, Bahasa Melayu, and Simplified Chinese without
 - model cannibalization and substitution between SKUs
 - validate forecast performance on held-out operational data
 - introduce more advanced forecasting methods only when enough data exists
+- benchmark ML-based forecasting against the current deterministic baseline before replacing any production-facing logic
 
 ### Phase 5: Product and Business Expansion
 
@@ -574,6 +589,7 @@ The app needed to support English, Bahasa Melayu, and Simplified Chinese without
 - add richer executive analytics and trend reporting
 - build a stronger onboarding flow for CSV mapping and account setup
 - add notifications and monitoring for planning exceptions
+- improve deployment hardening, observability, and runtime performance for real pilot usage
 
 ## AI Acknowledgement (Mandatory)
 
