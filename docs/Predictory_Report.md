@@ -1,5 +1,21 @@
 # Predictory Project Report
 
+---
+
+**Team Name:** CHAT GPT  
+**Case Study Chosen:** 8 — AI for Inclusive MSME Growth  
+**Project Name:** Predictory — AI-Powered Bakery Intelligence Platform
+
+| ID | Role | Name |
+|---|---|---|
+| P1 | Infra Lead | LAU WEI ZHONG |
+| P2 | Data Engineer | TAN JUN YONG |
+| P3 | Planning Engine | TAN KANG ZHENG (TEAM LEADER) |
+| P4 | Frontend Engineer | TAN SZE YUNG |
+| P5 | AI/LLM Engineer | NG HONG JON |
+
+---
+
 This document is prepared for the **technical team submission track**. The emphasis is on system architecture, implementation scope, engineering decisions, validation evidence, and technical business value. Product framing and interface decisions are included only where they help explain the implemented system and its operator workflow.
 
 ## Introduction
@@ -69,6 +85,7 @@ Current market solutions fall into three broad categories: POS/reporting platfor
 | Inventory and procurement platform | MarketMan | Purchasing, supplier management, food costing, multi-location HQ management, POS and distributor integrations [7] | Strong procurement and cost management, but less specialized for bakery demand-by-daypart decision support |
 | Restaurant operations and commissary | Restaurant365 | Inventory, purchasing, commissary, multi-location reporting, waste reduction, production and fulfillment workflows [8][9] | Covers broader restaurant operations well, but is not optimized around the specific day-ahead bakery planning ritual |
 | Enterprise demand planning | Anaplan Demand Planning | Collaborative planning, driver-based demand planning, scenario analysis, enterprise coordination [10] | Powerful but broader and more enterprise-oriented than the needs of small-to-mid-sized bakery businesses, whether single-shop or multi-outlet |
+| F&B Procurement & Inventory | Food Market Hub | Automated procurement, real-time inventory tracking, daily waste recording, AI-powered sales forecasting to optimize purchasing [11] | Strong on procurement and supply chain, but lacks specialized daypart-aware bakery production (prep) plan generation and AI-assisted causality explanations |
 
 ### Gaps Predictory Intends to Fix
 
@@ -458,6 +475,65 @@ The prototype includes several concrete indicators of engineering completeness:
 - seeded holidays and outlet coordinates
 - automated backend test coverage across multiple functional domains
 
+### Simulated Demo Results
+
+To provide quantitative evidence without overclaiming real-world outcomes, the following results are derived directly from Predictory's seeded operational dataset, which uses realistic operational patterns to replicate typical bakery failure modes.
+
+#### Demo Dataset Overview
+
+| Metric | Value |
+|---|---|
+| Outlets simulated | 3 (KLCC, Bangsar, Mid Valley) |
+| SKUs tracked | 5 (Butter Croissant, Chocolate Muffin, Banana Bread, Cheese Danish, Cinnamon Roll) |
+| Historical sales window | 30 days |
+| Ingredients tracked via BOM | 8 |
+| Holidays seeded | 6 (including CNY +35% uplift, Christmas +25%, New Year +15%) |
+| Weekend demand multiplier | ×1.25 above base |
+
+#### Simulated Operational Patterns Detected
+
+| Scenario | Outlet | Pattern | How Predictory Surfaced It |
+|---|---|---|---|
+| Chronic overproduction | Roti Lane Bangsar | Butter Croissant prepped **~18% above actual sales** for 30 consecutive days → **~15% end-of-day waste rate** | Waste alert generated; prep plan recommendation reduced by approx. 15 units/day |
+| High-frequency stockout | Roti Lane Mid Valley | Morning Butter Croissant sold out on **4 of every 7 days** (Mon/Wed/Fri/Sat) | Stockout alert generated; AI brief flagged lost revenue opportunity and suggested morning batch increase |
+| Demand spike on holidays | All outlets | CNY holiday applied **+35% demand uplift** across all SKUs | Forecast layer auto-adjusted quantities; Demand Drivers panel displayed the uplift flag |
+| Weekend surge | All outlets | Demand runs **25% higher** on Saturdays and Sundays | Forecast engine detected weekday vs. weekend pattern and adjusted prep recommendations accordingly |
+
+#### Forecasted Daily Demand (Base Weekday, All Outlets Combined)
+
+| SKU | KLCC | Bangsar | Mid Valley | Total/day |
+|---|---|---|---|---|
+| Butter Croissant | 45 | 35 | 50 | **130 units** |
+| Cheese Danish | 25 | 20 | 30 | **75 units** |
+| Chocolate Muffin | 30 | 25 | 35 | **90 units** |
+| Cinnamon Roll | 20 | 16 | 22 | **58 units** |
+| Banana Bread | 15 | 12 | 18 | **45 units** |
+| **Total** | **135** | **108** | **155** | **≈ 398 units/day** |
+
+*(Saturday/Sunday projected at ×1.25, giving approximately **498 units/day** across 3 outlets on weekends.)*
+
+#### Risk Alerts Generated (Simulated 30-Day Run)
+
+| Alert Type | Outlet | Product | Detection Method |
+|---|---|---|---|
+| Waste Hotspot | Roti Lane Bangsar | Butter Croissant | Waste rate exceeded 15% threshold for 30 consecutive days |
+| Stockout Risk | Roti Lane Mid Valley | Butter Croissant | Morning EOD inventory reached 0 on 4 of 7 days per week |
+| Demand Driver: Holiday | All outlets | All SKUs | Upcoming CNY (+35%) and Demo Festival Day (+5%) detected |
+| Demand Driver: Weekend | All outlets | All SKUs | Weekend multiplier ×1.25 automatically applied to forecast |
+
+#### Key System Outcomes
+
+These simulated results demonstrate three core operational improvements that Predictory is designed to deliver:
+
+1. **Earlier waste detection.** The Bangsar overproduction pattern (15%+ waste rate on Croissants) was identified on **day 1 of the seeded window**, not after 30 days of manual observation. In a real deployment, this could translate to preventing weeks of cumulative loss before human observation catches it.
+
+2. **Proactive stockout prevention.** The Mid Valley morning stockout pattern (4× per week) was flagged as a recurring risk, prompting a targeted prep recommendation increase. With a 25% uplift to the morning batch (~6 additional units), estimated recoverable revenue per day could reach **RM 51 (6 units × RM 8.50)**, or approximately **RM 1,428/month** for this single outlet-SKU combination.
+
+3. **Context-aware forecasting.** Demand driver signals (holidays, weekends) adjusted the baseline automatically, demonstrating that the forecasting layer can incorporate contextual knowledge without requiring manual recalibration by the bakery team.
+
+> **Disclaimer:** These figures are derived from the prototype's seeded simulation environment. They illustrate the system's detection capability and directional business impact under controlled demo conditions, not live operational data. Real-world results will depend on actual POS, inventory, and operations data from deployed bakery environments.
+
+
 ## Prototype Showcase
 
 While this is a technical submission, interface evidence is still useful because it demonstrates that the implemented backend modules are exposed through coherent operator workflows. This section uses real captured screens from the working prototype.
@@ -465,60 +541,57 @@ While this is a technical submission, interface evidence is still useful because
 ### Screenshot 1: Executive Overview Dashboard
 
 ![Executive Overview Dashboard](./screenshot/dashboard.png)
+![Executive Overview Dashboard Part 2](./screenshot/dashboard_p2.png)
 
-Recommended caption:  
 **Figure 1. Executive Overview dashboard.** This screen consolidates predicted sales, waste risk, stockout risk, recommended actions, and at-risk shops or outlets into a single planning view. It matters because operators need a fast decision summary before reviewing detailed plans.
 
 ### Screenshot 2: Forecast and Demand Drivers
 
 ![Forecast and Demand Drivers](./screenshot/forecast.png)
 
-Recommended caption:  
 **Figure 2. Forecast screen with context-aware demand drivers.** The forecast view combines shop/daypart or outlet/daypart demand lines with holiday, weather, override, and stockout-recovery context. It matters because bakery planning depends on more than raw historical averages.
 
 ### Screenshot 3: Prep Plan and Approval Flow
 
 ![Prep Plan and Approval Flow](./screenshot/prep_plan.png)
 
-Recommended caption:  
 **Figure 3. Prep planning with human-in-the-loop editing.** Users can inspect recommended prep quantities, adjust line items, and approve the plan for execution. It matters because operational trust requires editable recommendations, not fully automated decisions.
 
 ### Screenshot 4: Ingredient Replenishment
 
 ![Ingredient Replenishment](./screenshot/replenishment.png)
 
-Recommended caption:  
 **Figure 4. Ingredient replenishment planning.** The system converts SKU-level prep needs into ingredient reorder actions with urgency signals. It matters because production planning is only useful if ingredient availability is also managed.
 
 ### Screenshot 5: Risk Centre
 
 ![Risk Centre](./screenshot/risk_centre.png)
 
-Recommended caption:  
 **Figure 5. Risk centre for proactive issue detection.** Waste and stockout alerts are surfaced before service begins, allowing operators to intervene earlier. It matters because preventing problems is more valuable than only reporting them after the fact.
 
 ### Screenshot 6: AI Copilot
 
 ![AI Copilot](./screenshot/ai_copilot.png)
 
-Recommended caption:  
 **Figure 6. AI copilot for explainable action support.** The copilot layer converts operational signals into readable daily briefs and structured action recommendations. It matters because decision support is more useful when teams can quickly understand the reasoning behind a plan.
 
 ### Screenshot 7: Scenario Planner
 
 ![Scenario Planner](./screenshot/scenario_planner.png)
-
-Recommended caption:  
+  
 **Figure 7. Scenario planning interface.** Users can test hypothetical operational changes and inspect how waste and stockout risks may shift. It matters because safe experimentation supports better planning under uncertainty.
 
-### Screenshot 8: Multilingual Experience
+### Screenshot 8: Current Stock Inventory
 
-**[Insert Screenshot: Any key page in Bahasa Melayu or Simplified Chinese]**
+![Current Stock](./screenshot/current_stock.png)
 
-Note: a dedicated multilingual screenshot file has not yet been added under `docs/screenshot/`, so this figure remains as a final placeholder.
+**Figure 8. Current Stock inventory monitoring.** This view provides a unified snapshot of stock levels for all products across multiple outlet locations. It matters because real-time stock visibility is the foundation for accurate replenishment and waste prevention.
 
-Recommended caption:  
-**Figure 8. Multilingual UI for inclusive adoption.** Predictory supports English, Bahasa Melayu, and Simplified Chinese in the interface and copilot outputs. It matters because accessibility and usability improve when teams can interact with the system in familiar languages.
+### Screenshot 9: Multilingual Experience
+
+![Multilingual Experience](./screenshot/multilingual.png)
+
+**Figure 9. Multilingual UI for inclusive adoption.** Predictory supports English, Bahasa Melayu, and Simplified Chinese in the interface and copilot outputs. It matters because accessibility and usability improve when teams can interact with the system in familiar languages.
 
 ## Challenges Faced
 
@@ -595,21 +668,16 @@ The app needed to support English, Bahasa Melayu, and Simplified Chinese without
 
 ### Disclosure
 
-This project used AI assistance during development. At minimum, the development workflow clearly involved OpenAI/Codex-style assistance for planning, coding, debugging, and technical refinement.
+This project utilized a multi-layered AI stack for research, development, and as a core part of the application’s production intelligence.
 
-### Usage
-
-The final submission should include a completed disclosure table like the one below.
-
-| AI Tool | Status | How It Was Used |
+| AI Category | AI Tool | How It Was Used |
 |---|---|---|
-| OpenAI Codex / ChatGPT | Confirmed baseline | Used for code assistance, debugging support, architecture planning, technical explanation, and report drafting support |
-| [Add tool name] | Pending team confirmation | [Add exact usage before submission] |
-| [Add tool name] | Pending team confirmation | [Add exact usage before submission] |
-
-### Mandatory Finalization Note
-
-Before submission, this section must be completed with the exact AI tools used by the team. Leaving this incomplete would create compliance risk because the competition requires full disclosure of AI assistance.
+| **Production Intelligence** | Google Gemini 2.5 (API via LiteLLM) | Integrated into the backend to generate Daily Forecast Briefs, prioritized Daily Actions, and plain-language reasoning for production decisions. |
+| **Development Support** | Google Gemini (Web), Antigravity (Agentic Helper) | Used for overall project orchestration, UI design implementation, agent-to-environment interaction, and terminal automation. |
+| **Coding & Refinement** | GitHub Copilot, OpenAI Codex | Used for code generation, boilerplate reduction, unit test writing, and complex logic debugging across React/FastAPI. |
+| **Deep Research** | Perplexity AI, ChatGPT (GPT-5.4 Pro) | Used for market analysis (competitor research), SDG alignment verification, and statistical data gathering for Malaysia's food waste. |
+| **Asset Generation** | Google Nano Banana 2.0, NotebookLM | Used to generate professional infographics, tech stack visuals, and slide assets for the pitch deck and report. |
+| **Collaboration** | Notion AI | Used for team collaboration, documentation drafting, and meeting note summarization during the ideation phase. |
 
 ## Conclusion
 
@@ -660,3 +728,5 @@ Overall, Predictory is a strong prototype because it is not merely a concept or 
 [9] Restaurant365, "Restaurant Commissary Management." <https://www.restaurant365.com/inventory/commissary/>
 
 [10] Anaplan, "Demand Planning Software." <https://www.anaplan.com/solutions/demand-planning-software/>
+
+[11] Food Market Hub, "Features: Restaurant Inventory & Procurement." <https://foodmarkethub.com/>
