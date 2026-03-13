@@ -1,6 +1,6 @@
 # Predictory Screenshot Capture Guide
 
-Use this file when capturing final report screenshots. Keep the same date selected across screens where possible, and use demo states that show visible actions or risks rather than empty tables.
+Use this file when assembling screenshots for the final **technical-team submission**. Keep the same date selected across screens where possible, and use demo states that show visible actions or risks rather than empty tables.
 
 ## 1. Dashboard
 

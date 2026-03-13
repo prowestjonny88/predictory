@@ -1,5 +1,7 @@
 # Predictory Project Report
 
+This document is prepared for the **technical team submission track**. The emphasis is on system architecture, implementation scope, engineering decisions, validation evidence, and technical business value. Product framing and UX decisions are included only as supporting context for the implemented system.
+
 ## Introduction
 
 ### Background of the Case Study
@@ -83,7 +85,7 @@ In short, existing tools are often strongest at recording, tracking, costing, an
 
 ## Methodology
 
-### Technical Track
+### Technical Team Focus
 
 Predictory is implemented as a modular monolith with a modern web frontend, a Python backend, a relational database layer, and an AI layer used for explanation and scenario support. The current repository uses:
 
@@ -195,9 +197,9 @@ The current implementation also supports:
 - forecast overrides
 - daily planning summary generation
 
-### Non-Technical Track
+### Product Framing and UX Decisions
 
-The non-technical methodology for Predictory follows a design-thinking-inspired product process, but it should be described carefully and truthfully. The repository does not contain evidence of formal field interviews, pilot validation, or structured usability studies with bakery operators. Therefore, this section is framed as workflow-centered product design rather than field-validated user research.
+Although this is a technical submission, the product still required clear workflow design. The repository does not contain evidence of formal field interviews, pilot validation, or structured usability studies with bakery operators. Therefore, this section is presented as implementation-supporting product framing rather than as a separate non-technical research track.
 
 #### Problem Framing
 
@@ -226,7 +228,7 @@ The screens are designed around a practical evening planning ritual:
 5. inspect waste and stockout risks
 6. use AI explanation and scenarios to support decisions
 
-This is a strong non-technical design choice because it makes the interface decision-oriented rather than report-oriented.
+This is an important implementation decision because it makes the interface decision-oriented rather than report-oriented.
 
 ## Key Features and Explanation
 
@@ -386,6 +388,17 @@ The implementation is backed by concrete engineering artifacts:
 - frontend pages for dashboard, forecast, prep plan, replenishment, risk center, copilot, and scenario planning
 - automated backend test coverage across forecasting, prep, replenishment, alerting, data APIs, forecast context, and copilot behavior
 
+### Engineering Validation
+
+From a technical-team perspective, the strongest evidence in this prototype is not only that screens exist, but that the modules are wired together coherently and validated in code:
+
+- backend API contracts are documented in `apps/api/CONTRACTS.md`
+- seeded data supports repeatable demo scenarios rather than random mock values
+- forecasting, prep, replenishment, alerts, and copilot modules are separated in the backend codebase
+- backend tests cover forecasting, prep, replenishment, ingestion, alerts, forecast context, and copilot flows
+- frontend integration work was validated through successful typecheck and lint runs
+- the remaining local build issue was environment-specific (`spawn EPERM` under Windows/OneDrive), not a known application logic failure
+
 In the latest verified development cycle before this report, the project had a passing backend test suite and passing frontend typecheck and lint. The remaining build issue documented during development was an environment-specific local Next.js worker `spawn EPERM` problem, not a known product logic or typing failure.
 
 ### Objectives Met
@@ -435,7 +448,7 @@ The prototype includes several concrete indicators of engineering completeness:
 
 ## Prototype Showcase
 
-This section is intentionally structured as a placeholder plus capture guide so screenshots can be inserted after the app is run locally.
+While this is a technical submission, interface evidence is still useful because it demonstrates that the implemented backend modules are exposed through coherent user workflows. This section uses real captured screens from the working prototype.
 
 ### Screenshot 1: Executive Overview Dashboard
 
