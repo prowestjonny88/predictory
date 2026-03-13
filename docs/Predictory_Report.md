@@ -1,6 +1,5 @@
 # Predictory Project Report
 
----
 
 **Team Name:** CHAT GPT  
 **Case Study Chosen:** 8 — AI for Inclusive MSME Growth  
@@ -51,26 +50,9 @@ Bakery businesses, from single-shop operators to multi-outlet bakery-cafe chains
 
 Existing restaurant and retail systems often provide transaction history, item availability, inventory counts, or procurement records. However, these tools do not typically convert that information into day-ahead shop-level or outlet-by-outlet, daypart-aware prep decisions for short-shelf-life bakery products. As a result, operators still rely heavily on manual judgment, which can be slow, inconsistent, and vulnerable to overreaction or underreaction.
 
-For bakery businesses, whether a single shop or a multi-outlet chain, this gap has direct consequences:
+For bakery businesses, this gap leads to: overproduction and waste; peak-hour stockouts; poor central-kitchen allocation; unnecessary ingredient spend; wasted labor; and inconsistent customer experience.
 
-- overproduction and end-of-day waste
-- stockouts during morning and lunch peaks
-- poor central-kitchen allocation across outlets
-- unnecessary ingredient spend
-- wasted labor and production capacity
-- weaker consistency in freshness and customer experience
-
-### Objectives
-
-The objectives of Predictory are:
-
-- reduce overproduction and end-of-day bakery waste
-- reduce stockouts during peak selling windows
-- improve shop-level and outlet-level prep decisions by date and daypart
-- translate prep plans into ingredient replenishment actions
-- provide explainable recommendations that users can review and override
-- reduce planning time and increase planning consistency across one shop or many outlets
-- give kitchen and operations teams a clearer, action-oriented view of tomorrow's plan
+The objectives of Predictory are to: reduce bakery waste and stockouts; improve shop-level prep decisions; translate plans into ingredient replenishment; provide explainable, overridable recommendations; and increase planning consistency across one or many locations.
 
 ## Review of Existing Solutions
 
@@ -87,16 +69,7 @@ Current market solutions fall into three broad categories: POS/reporting platfor
 | Enterprise demand planning | Anaplan Demand Planning | Collaborative planning, driver-based demand planning, scenario analysis, enterprise coordination [10] | Powerful but broader and more enterprise-oriented than the needs of small-to-mid-sized bakery businesses, whether single-shop or multi-outlet |
 | F&B Procurement & Inventory | Food Market Hub | Automated procurement, real-time inventory tracking, daily waste recording, AI-powered sales forecasting to optimize purchasing [11] | Strong on procurement and supply chain, but lacks specialized daypart-aware bakery production (prep) plan generation and AI-assisted causality explanations |
 
-### Gaps Predictory Intends to Fix
-
-Predictory is designed to close a specific gap between reporting tools and action tools. It does this by:
-
-- forecasting demand by outlet and daypart
-- converting forecast into prep recommendations
-- converting prep into ingredient replenishment needs
-- flagging likely waste and stockout risks before production
-- providing plain-language explanations and scenario simulation
-- keeping a human-in-the-loop edit and approval workflow
+Predictory closes the gap by: forecasting demand by outlet/daypart; converting forecasts into prep and replenishment needs; flagging waste and stockout risks proactively; providing AI-driven explanations; and maintaining a human-in-the-loop approval workflow.
 
 In short, existing tools are often strongest at recording, tracking, costing, and reporting. Predictory aims to be strongest at **next-day bakery planning and explainable action support**.
 
@@ -198,21 +171,7 @@ The forecast layer has also been expanded with contextual demand drivers:
 
 This makes the forecasting engine more convincing than a simple moving average, while remaining explainable and practical for a prototype.
 
-### Planning and Risk Logic
-
-The planning engine translates forecasts into actions for a single bakery shop or a network of outlets:
-
-- prep recommendations by outlet, SKU, and daypart
-- ingredient replenishment needs from recipes/BOM
-- waste and stockout alerts based on operational thresholds
-
-The current implementation also supports:
-
-- manual prep edits
-- prep approval workflow
-- forecast context inspection
-- forecast overrides
-- daily planning summary generation
+The engine translates forecasts into: prep recommendations by outlet, SKU, and daypart; ingredient replenishment needs; and proactive risk alerts. It supports manual edits, approval flows, context inspection, and daily planning summaries.
 
 ### Workflow and Interface Decisions
 
@@ -247,56 +206,13 @@ The screens are designed around a practical evening planning ritual for either a
 
 This is an important implementation decision because it makes the interface decision-oriented rather than report-oriented, which is critical for a planning system intended for daily operational use.
 
-## Key Features and Explanation
-
-### 1. Executive Dashboard
-
-The dashboard consolidates predicted sales, risk scores, at-risk shops or outlets, top deterministic actions, and optional AI action plans. It gives decision-makers a quick overview before they move into detailed operational pages.
-
-### 2. Forecasting With Demand Drivers
-
-The forecast page does more than show baseline demand. It surfaces:
-
-- shop/daypart or outlet/daypart forecast lines
-- holiday flags
-- weather signals
-- manual event and promo overrides
-- stockout-recovery context
-
-This is important because a planning tool becomes more trustworthy when users can see not only the forecast number, but also the demand drivers behind it.
-
-### 3. Editable Prep Planning
-
-The prep-plan flow turns forecast demand into recommended prep units by shop or outlet, SKU, and daypart. Users can edit lines and approve the plan. This human-in-the-loop design is important because frontline teams usually want support, not blind automation.
-
-### 4. Ingredient Replenishment
-
-The replenishment module converts prep requirements into ingredient needs using recipe/BOM data. This makes the system operationally coherent: forecast leads to prep, and prep leads to ingredient action.
-
-### 5. Waste and Stockout Risk Center
-
-The risk-center shows waste and stockout alerts before service begins, rather than only reporting them after the fact. This moves the product from passive reporting toward proactive intervention.
-
-### 6. AI Explainability and Copilot Support
-
-The copilot layer provides:
-
-- explain-plan responses
-- daily brief generation
-- structured daily actions
-- scenario interpretation
-
-This makes the system easier to understand and defend operationally, especially for teams that need narrative summaries rather than raw tables.
-
-### 7. Multilingual Experience
-
-The prototype supports:
-
-- English
-- Bahasa Melayu
-- Simplified Chinese
-
-This adds inclusivity and practical usability for ASEAN-facing teams with mixed language preferences.
+**1. Executive Dashboard:** Consolidates sales, risk, and actions into an AI-supported overview.  
+**2. Forecast Drivers:** Surfaces outlet/daypart demand along with holidays, weather, and stockout recovery signals.  
+**3. Prep Planning:** Turns forecasts into editable batch recommendations for frontline control.  
+**4. Replenishment:** Links prep needs to ingredient procurement via BOM logic.  
+**5. Risk Center:** Proactively flags waste and stockout alerts before service begins.  
+**6. AI Copilot:** Provides daily briefs, structured actions, and explainable decision support.  
+**7. Multilingual:** Supports English, Malay, and Chinese for inclusive adoption.
 
 ## Tech Stacks Used
 
@@ -351,44 +267,11 @@ Based on the repository, the prototype currently implements:
 - AI explain-plan, daily brief, daily actions, and scenario APIs
 - multilingual frontend and copilot support
 
-### Technical Contribution Summary
+### Technical Validation & Business Value
 
-From a technical-team perspective, the main contribution of Predictory is not a single algorithm but the integration of multiple operational modules into one coherent system:
+Predictory is innovative as a working decision-support layer—not just a dashboard. Technical contributions include: a modular FastAPI backend; a typed Next.js frontend; an auditable deterministic engine; and a constrained AI layer for explainability. 
 
-- a FastAPI backend with clear module boundaries for forecasting, planning, alerts, ingestion, and copilot features
-- a frontend that consumes those contracts through typed integrations rather than static mock data
-- a deterministic decision engine that remains auditable and explainable
-- an AI layer that is intentionally constrained to explanation, summarization, action phrasing, and scenario support
-- a seeded dataset engineered to demonstrate realistic bakery failure modes such as waste hotspots and morning stockouts
-
-This combination is what makes the prototype technically credible for a hackathon setting.
-
-### What Is Innovative in This Prototype
-
-The prototype is innovative not because it claims to be a custom-trained ML system, but because it combines several layers into a single operational flow:
-
-- deterministic demand forecasting
-- daypart-aware bakery planning
-- ingredient-level replenishment
-- proactive waste and stockout risk surfacing
-- human-in-the-loop override and approval
-- explainable AI on top of operational logic
-- multilingual accessibility
-
-The result is more credible than a pure dashboard, and more controllable than a fully autonomous AI workflow.
-
-### Business Value
-
-If validated in real bakery operations, the business value of Predictory would likely come from:
-
-- lower end-of-day waste
-- fewer missed sales from stockouts
-- better alignment between the kitchen and the point of sale, whether one shop or many outlets
-- reduced over-ordering of ingredients
-- faster and more consistent daily planning
-- clearer reasoning for operational decisions
-
-The prototype should not yet claim live ROI, but it does demonstrate a clear path to operational and financial value.
+Expected business value includes: **lower end-of-day waste; fewer missed sales from stockouts; better kitchen-POS alignment; and faster daily planning.**
 
 ## Results
 
@@ -430,27 +313,11 @@ From a technical-team perspective, the strongest evidence in this prototype is n
 
 In the latest verified development cycle before this report, the project had a passing backend test suite and passing frontend typecheck and lint. The remaining build issue documented during development was an environment-specific local Next.js worker `spawn EPERM` problem, not a known product logic or typing failure.
 
-### Objectives Met
-
-The prototype substantially meets its core objectives at the prototype level:
-
-**Objective: Reduce overproduction and waste**  
-Met at the prototype decision-support level through waste alerts, prep recommendations, and risk scoring.
-
-**Objective: Reduce stockouts**  
-Met at the prototype decision-support level through demand forecasting, stockout alerts, and replenishment logic.
-
-**Objective: Improve outlet-level prep decisions**  
-Met through shop-level or outlet/daypart forecasting and editable prep planning.
-
-**Objective: Convert prep into replenishment action**  
-Met through BOM-driven ingredient recommendations and urgency classification.
-
-**Objective: Provide explainable recommendations**  
-Met through AI explanations, daily briefs, and scenario interpretation.
-
-**Objective: Keep humans in control**  
-Met through manual edits, override logic, and approval flows.
+**Waste/Stockout reduction:** Addressed via risk alerts and prep recommendations.  
+**Prep Decisons:** Met through outlet/daypart forecasting and editable planning.  
+**Replenishment:** Met via BOM-driven ingredient needs.  
+**Explainability:** Met through AI explanations and scenario interpretation.  
+**Control:** Met through manual overrides and approval flows.
 
 ### What Is Not Yet Proven
 
@@ -463,17 +330,7 @@ The system should not yet claim real-world impact metrics such as:
 
 These outcomes remain future validation targets, not proven prototype results. The correct claim is that Predictory demonstrates a credible, explainable operational planning prototype with realistic seeded evidence and a clear path toward measurable business impact.
 
-### Quantitative Development Evidence
-
-The prototype includes several concrete indicators of engineering completeness:
-
-- 5 demo outlets
-- 8 seeded SKUs
-- 30 days of seeded history
-- 7 major user-facing routes
-- multilingual UI and copilot outputs in 3 languages
-- seeded holidays and outlet coordinates
-- automated backend test coverage across multiple functional domains
+The prototype features: 5 demo outlets; 8 seeded SKUs; 30 days of history; 7 major user routes; 3-language support; seeded holidays; and full backend test coverage.
 
 ### Simulated Demo Results
 
@@ -534,135 +391,67 @@ These simulated results demonstrate three core operational improvements that Pre
 > **Disclaimer:** These figures are derived from the prototype's seeded simulation environment. They illustrate the system's detection capability and directional business impact under controlled demo conditions, not live operational data. Real-world results will depend on actual POS, inventory, and operations data from deployed bakery environments.
 
 
-## Prototype Showcase
-
-While this is a technical submission, interface evidence is still useful because it demonstrates that the implemented backend modules are exposed through coherent operator workflows. This section uses real captured screens from the working prototype.
-
-### Screenshot 1: Executive Overview Dashboard
+### Prototype Showcase
 
 ![Executive Overview Dashboard](./screenshot/dashboard.png)
 ![Executive Overview Dashboard Part 2](./screenshot/dashboard_p2.png)
-
-**Figure 1. Executive Overview dashboard.** This screen consolidates predicted sales, waste risk, stockout risk, recommended actions, and at-risk shops or outlets into a single planning view. It matters because operators need a fast decision summary before reviewing detailed plans.
-
-### Screenshot 2: Forecast and Demand Drivers
+**Figure 1. Executive Overview dashboard.** Consolidates predicted sales, waste/stockout risk, and recommended actions into a single planning view.
 
 ![Forecast and Demand Drivers](./screenshot/forecast.png)
-
-**Figure 2. Forecast screen with context-aware demand drivers.** The forecast view combines shop/daypart or outlet/daypart demand lines with holiday, weather, override, and stockout-recovery context. It matters because bakery planning depends on more than raw historical averages.
-
-### Screenshot 3: Prep Plan and Approval Flow
+**Figure 2. Forecast screen with context-aware demand drivers.** Combines outlet/daypart demand lines with holiday, weather, and stockout-recovery context.
 
 ![Prep Plan and Approval Flow](./screenshot/prep_plan.png)
-
-**Figure 3. Prep planning with human-in-the-loop editing.** Users can inspect recommended prep quantities, adjust line items, and approve the plan for execution. It matters because operational trust requires editable recommendations, not fully automated decisions.
-
-### Screenshot 4: Ingredient Replenishment
+**Figure 3. Prep planning with human-in-the-loop editing.** Allows users to inspect recommendations, adjust line items, and approve plans for execution.
 
 ![Ingredient Replenishment](./screenshot/replenishment.png)
-
-**Figure 4. Ingredient replenishment planning.** The system converts SKU-level prep needs into ingredient reorder actions with urgency signals. It matters because production planning is only useful if ingredient availability is also managed.
-
-### Screenshot 5: Risk Centre
+**Figure 4. Ingredient replenishment planning.** Converts SKU-level prep needs into ingredient reorder actions with urgency signals.
 
 ![Risk Centre](./screenshot/risk_centre.png)
-
-**Figure 5. Risk centre for proactive issue detection.** Waste and stockout alerts are surfaced before service begins, allowing operators to intervene earlier. It matters because preventing problems is more valuable than only reporting them after the fact.
-
-### Screenshot 6: AI Copilot
+**Figure 5. Risk centre for proactive issue detection.** Surfaces waste and stockout alerts before service begins for early intervention.
 
 ![AI Copilot](./screenshot/ai_copilot.png)
-
-**Figure 6. AI copilot for explainable action support.** The copilot layer converts operational signals into readable daily briefs and structured action recommendations. It matters because decision support is more useful when teams can quickly understand the reasoning behind a plan.
-
-### Screenshot 7: Scenario Planner
+**Figure 6. AI copilot for explainable action support.** Converts operational signals into readable daily briefs and structured action plans.
 
 ![Scenario Planner](./screenshot/scenario_planner.png)
-  
-**Figure 7. Scenario planning interface.** Users can test hypothetical operational changes and inspect how waste and stockout risks may shift. It matters because safe experimentation supports better planning under uncertainty.
+**Figure 7. Scenario planning interface.** Tests hypothetical operational changes to see how waste and stockout risks shift.
 
-### Screenshot 8: Current Stock Inventory
-
-![Current Stock](./screenshot/current_stock.png)
-
-**Figure 8. Current Stock inventory monitoring.** This view provides a unified snapshot of stock levels for all products across multiple outlet locations. It matters because real-time stock visibility is the foundation for accurate replenishment and waste prevention.
-
-### Screenshot 9: Multilingual Experience
+![Current Stock Inventory](./screenshot/current_stock.png)
+**Figure 8. Current Stock inventory monitoring.** Provides a unified snapshot of stock levels across all outlet locations.
 
 ![Multilingual Experience](./screenshot/multilingual.png)
-
-**Figure 9. Multilingual UI for inclusive adoption.** Predictory supports English, Bahasa Melayu, and Simplified Chinese in the interface and copilot outputs. It matters because accessibility and usability improve when teams can interact with the system in familiar languages.
+**Figure 9. Multilingual UI.** Supports English, Bahasa Melayu, and Simplified Chinese for inclusive adoption.
 
 ## Challenges Faced
 
 The development process revealed several practical challenges:
 
-### 1. Data realism versus hackathon time
-
-A convincing bakery-planning demo needs more than random sample data. The team had to create seeded data that reflected realistic operational conditions such as shop-specific or outlet-specific demand, daypart behavior, waste patterns, and stockout patterns.
-
-### 2. Avoiding overclaiming on AI and ML
-
-A major challenge was balancing credibility with ambition. The product needed to feel intelligent without pretending to have a production-grade trained ML model or validated real-world business impact. The solution was to keep business-critical planning logic deterministic and use AI mainly for explanation, summarization, and scenario support.
-
-### 3. Frontend and backend contract drift
-
-As the backend became more complete, the frontend had to be realigned to the actual API contracts. This required freezing backend response shapes and then updating types, request payloads, and screen assumptions so the web application matched real backend behavior rather than stale local assumptions.
-
-### 4. Demo-safe integration of demand drivers
-
-Adding holiday, weather, overrides, and stockout-censoring logic improved realism, but also increased the risk of confusing users if the drivers were hidden. The challenge was solved by exposing a forecast-context layer and a demand-drivers panel in the UI.
-
-### 5. Environment-specific local build issues
-
-During development, the frontend encountered a local Next.js `spawn EPERM` issue in the Windows/OneDrive environment. This did not invalidate the app logic, but it highlighted an engineering challenge around local build environments and reproducibility.
-
-### 6. Multilingual support without over-engineering
-
-The app needed to support English, Bahasa Melayu, and Simplified Chinese without introducing a heavy routing-based i18n architecture. The pragmatic solution was an in-app language provider with localized UI strings and localized copilot prose.
+### 1. Data Realism: Created seeded data reflecting realistic bakery demand, waste, and stockout patterns.
+### 2. Balanced AI: Kept business logic deterministic for credibility while using AI for explainability and scenario support.
+### 3. Contract Drift: Realigned the frontend to frozen backend API contracts as the system matured.
+### 4. Integration Safety: Surfaced demand drivers (weather, holidays) in the UI to maintain user trust.
+### 5. Build Stability: Navigated local build challenges (spawn EPERM) without impacting application logic.
+### 6. Pragmatic Multi-lang: Implemented a lightweight i18n provider for inclusive adoption across ASEAN regions.
 
 ## Detailed Future Roadmap
 
 ### Phase 1: Pilot Readiness
-
-- deploy the current prototype to a stable hosted environment
-- run pilot onboarding with one real bakery operator, whether a single shop or a multi-outlet business
-- validate forecast quality using real POS and inventory exports
-- measure planning time saved, waste trend changes, and stockout reduction trends
-- harden authentication, audit logging, and operational monitoring
-- add CI-backed regression checks for critical forecast, prep, alert, and copilot flows
+Deploy the current prototype to a cloud-hosted environment (e.g., Railway, Render, or AWS EC2) with a managed PostgreSQL instance. Onboard at least one real bakery operator—single-shop or multi-outlet—to validate the planning workflow with actual POS and inventory exports. Measure tangible outcomes including planning time saved, trend changes in end-of-day waste, and stockout frequency reduction. Harden the system with authentication (JWT/OAuth), audit logging, and CI-backed regression tests for critical forecast, prep, alert, and copilot flows.
 
 ### Phase 2: Operational Data Integration
-
-- connect to live POS systems
-- connect to inventory and purchasing systems
-- automate ingestion of sales, item catalog, shop or outlet master data, inventory, and promotions
-- keep CSV import as fallback rather than the primary workflow
-- add connector abstractions so vendor-specific integrations do not leak into core planning logic
+Automate data ingestion from live POS systems (e.g., Square, Toast) and inventory/procurement platforms via API connectors or scheduled CSV pipelines. Build vendor-agnostic connector abstractions so that integrations do not leak into core planning logic. Retire manual CSV upload as the primary onboarding path and make it a fallback. Add webhook or polling support for near-real-time inventory updates across outlets.
 
 ### Phase 3: Smarter Demand Drivers
+Enrich the forecasting layer with more granular signal sources: outlet-specific weather tuning, expanded public holiday calendars for Malaysia and regional markets, merchant-defined promotion calendars, and scheduled event flags (e.g., school holidays, sports events). Refine the stockout-censoring heuristic with a more principled lost-sales estimation model. Add manual demand override history to allow operators to teach the system over time.
 
-- strengthen weather logic with more outlet-specific signal tuning
-- add richer holiday calendars and region-specific events
-- add manual and scheduled promo calendars
-- improve stockout-censoring and lost-sales estimation
+### Phase 4: ML Model Integration
+Introduce trained machine learning models as an optional enhancement layer on top of the existing deterministic baseline. The planned progression is:
+- **Gradient Boosted Trees (XGBoost / LightGBM):** Train per-SKU, per-outlet demand models using 90+ days of real POS history, incorporating holiday flags, weather signals, and promo features. Target MAPE (Mean Absolute Percentage Error) below 15% on held-out test windows.
+- **Time-Series Models (Prophet / NeuralProphet):** Apply for outlets with strong seasonality or irregular holiday demand spikes. These models handle trend and seasonality decomposition natively, making them a strong fit for bakery demand patterns.
+- **Ensemble Strategy:** Run ML predictions in parallel with the deterministic baseline and blend outputs weighted by rolling accuracy. This ensures the system degrades gracefully if the ML model underperforms on sparse data.
+- **Model Monitoring:** Implement automated drift detection and retraining triggers to keep models accurate as operations change. All ML outputs will remain explainability-wrapped—predictions will be surfaced alongside confidence intervals and contributing feature weights so operators can still reason about the recommendation.
 
-### Phase 4: Advanced Analytics and Modeling
-
-- estimate promo elasticity using real promo history
-- model cannibalization and substitution between SKUs
-- validate forecast performance on held-out operational data
-- introduce more advanced forecasting methods only when enough data exists
-- benchmark ML-based forecasting against the current deterministic baseline before replacing any production-facing logic
-
-### Phase 5: Product and Business Expansion
-
-- improve multi-organization support
-- expand role-based workflows for head office teams, outlet teams, and lean single-shop teams
-- add richer executive analytics and trend reporting
-- build a stronger onboarding flow for CSV mapping and account setup
-- add notifications and monitoring for planning exceptions
-- improve deployment hardening, observability, and runtime performance for real pilot usage
+### Phase 5: Scale and Product Expansion
+Extend multi-organization support for bakery chains managing distinct brands or regional business units. Build richer executive analytics with trend reporting, waste cost attribution, and cross-outlet benchmarking. Improve onboarding with guided CSV field mapping, self-serve catalog setup, and account configuration wizards. Add notification systems for planning exceptions and unresolved risk alerts. Harden deployment with observability tooling (e.g., Prometheus, Grafana, Sentry) and introduce SLA-backed uptime guarantees for pilot customers.
 
 ## AI Acknowledgement (Mandatory)
 
@@ -685,27 +474,9 @@ Predictory is a focused, operationally grounded prototype that addresses a real 
 
 The project aligns most strongly with **SDG 12** by targeting waste reduction and more responsible production planning for perishable goods. It also supports **SDG 9** by digitizing and modernizing a planning workflow that is often still manual. The prototype demonstrates meaningful progress through an end-to-end workflow, seeded operational evidence, explainable AI assistance, and multilingual accessibility.
 
-The next stage of development should focus on:
-
-- live POS and inventory integrations
-- pilot deployment with real bakery operators
-- stronger validation of forecast quality and business impact
-- additional demand drivers such as promotions, events, and richer weather logic
-- advanced modeling such as elasticity, substitution, and deeper lost-sales estimation
+The next stage of development will focus on: live POS and inventory integrations; pilot deployment with real bakery operators; stronger validation of forecast quality; and advanced modeling for elasticity, substitution, and lost-sales estimation.
 
 Overall, Predictory is a strong prototype because it is not merely a concept or dashboard mockup. It is a working decision-support system with a clear problem focus, a credible technical foundation, and a sustainability narrative that is specific, defensible, and relevant to real bakery operations.
-
-## References
-
-### Internal project sources
-
-- [PRD](../prd_v_1_predictory_bakery_copilot.md)
-- [Team Plan](../TEAM_PLAN.md)
-- [Architecture Notes](../tech_stack_architecture_v_1_predictory.md)
-- [README](../README.md)
-- [Backend Contracts](../apps/api/CONTRACTS.md)
-- [Copilot Examples](../apps/api/copilot/EXAMPLES.md)
-- [Seed Script](../apps/api/db/seed.py)
 
 ### External sources and citations
 

@@ -99,7 +99,7 @@ apps/
 
 docs/
   Predictory_Report.md
-  Predictory_Screenshot_Captions.md
+  Predictory_Report.pdf
 
 Root docs:
   prd_v_1_predictory_bakery_copilot.md
@@ -356,4 +356,4 @@ add them explicitly to this section before external submission or judging.
 - [Architecture](./tech_stack_architecture_v_1_predictory.md)
 - [Team Plan](./TEAM_PLAN.md)
 - [Project Report Draft](./docs/Predictory_Report.md)
-- [Screenshot Capture Guide](./docs/Predictory_Screenshot_Captions.md)
+- [Project Report PDF](./docs/Predictory_Report.pdf)
