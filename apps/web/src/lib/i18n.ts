@@ -38,7 +38,10 @@ export function translate(
   fallback?: string,
   values?: Record<string, string | number>
 ): string {
-  const template = dictionaries[language][key] ?? dictionaries.en[key] ?? fallback ?? key;
+  if (!dictionaries[language]) {
+    console.error(`[i18n] Missing dictionary for language:`, language, `Type:`, typeof language);
+  }
+  const template = dictionaries[language]?.[key] ?? dictionaries.en[key] ?? fallback ?? key;
   if (!values) {
     return template;
   }

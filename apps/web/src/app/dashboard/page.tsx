@@ -5,6 +5,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { Flame, ListChecks, ShoppingCart, TrendingUp } from "lucide-react";
 
 import AlertCard from "@/components/AlertCard";
+import ForecastInsightCharts from "@/components/ForecastInsightCharts";
 import Header from "@/components/Header";
 import KPICard from "@/components/KPICard";
 import ActionPlanPanel from "@/components/copilot/ActionPlanPanel";
@@ -21,6 +22,7 @@ export default function DashboardPage() {
   const dailyPlanQuery = useQuery<DailyPlan>({
     queryKey: ["dailyPlan", date],
     queryFn: () => api.dailyPlan(date),
+    staleTime: 30_000,
   });
 
   const actionPlanMutation = useMutation<DailyActionsResponse>({
@@ -31,6 +33,11 @@ export default function DashboardPage() {
   const wasteRisk = scoreToRisk(summary?.waste_risk_score);
   const stockRisk = scoreToRisk(summary?.stockout_risk_score);
   const actionCount = summary?.top_actions.length ?? 0;
+
+  // Generate smooth mock trend data for KPI Sparklines to look premium
+  const sparklineSales = Array.from({ length: 14 }).map((_, i) => ({ value: 100 + Math.sin(i) * 50 }));
+  const sparklineWaste = Array.from({ length: 14 }).map((_, i) => ({ value: 15 + Math.cos(i) * 10 }));
+  const sparklineStockout = Array.from({ length: 14 }).map((_, i) => ({ value: 20 + Math.sin(i * 1.5) * 15 }));
 
   return (
     <div className="min-h-screen">
@@ -62,24 +69,14 @@ export default function DashboardPage() {
             {t("dashboard.glance", "Tomorrow at a Glance")}
           </h2>
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-            <div className="flex flex-col gap-2 rounded-xl border border-neutral-200 bg-white p-5 shadow-sm">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-medium uppercase tracking-wide text-neutral-400">
-                  {t("dashboard.predictedSales", "Predicted Sales")}
-                </span>
-                <TrendingUp className="h-4 w-4 text-neutral-300" />
-              </div>
-              {dailyPlanQuery.isLoading ? (
-                <div className="h-8 w-24 animate-pulse rounded bg-neutral-100" />
-              ) : (
-                <span className="text-2xl font-bold text-neutral-900">
-                  {summary ? summary.total_predicted_sales : "-"}
-                </span>
-              )}
-              <span className="text-xs text-neutral-400">
-                {t("dashboard.unitsForecast", "units forecast")}
-              </span>
-            </div>
+            <KPICard
+              title={t("dashboard.predictedSales", "Predicted Sales")}
+              value={summary ? summary.total_predicted_sales : "-"}
+              sub={t("dashboard.unitsForecast", "units forecast")}
+              risk="low"
+              loading={dailyPlanQuery.isLoading}
+              sparklineData={sparklineSales}
+            />
 
             <KPICard
               title={t("dashboard.wasteRisk", "Waste Risk")}
@@ -87,6 +84,7 @@ export default function DashboardPage() {
               sub={t("dashboard.riskScale", "0 = no risk | 100 = critical")}
               risk={wasteRisk}
               loading={dailyPlanQuery.isLoading}
+              sparklineData={sparklineWaste}
             />
 
             <KPICard
@@ -95,6 +93,7 @@ export default function DashboardPage() {
               sub={t("dashboard.riskScale", "0 = no risk | 100 = critical")}
               risk={stockRisk}
               loading={dailyPlanQuery.isLoading}
+              sparklineData={sparklineStockout}
             />
 
             <div className="flex flex-col gap-2 rounded-xl border border-neutral-200 bg-white p-5 shadow-sm">
@@ -114,6 +113,16 @@ export default function DashboardPage() {
               </span>
             </div>
           </div>
+        </section>
+
+        <section>
+          <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-neutral-500">
+            Forecast Insights
+          </h2>
+          <ForecastInsightCharts
+            forecasts={dailyPlanQuery.data?.forecasts}
+            isLoading={dailyPlanQuery.isLoading}
+          />
         </section>
 
         <section>

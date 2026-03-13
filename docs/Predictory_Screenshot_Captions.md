@@ -17,7 +17,7 @@ Use this file when assembling screenshots for the final **technical-team submiss
 - **Executive Overview dashboard.** This screen gives bakery operators a fast summary of tomorrow's predicted sales, top actions, and operational risks in one place.
 
 **Why it matters**
-- shows that the product begins with a decision summary, not just raw data
+- shows that the implemented backend modules surface as a usable decision summary, not just raw data
 
 ## 2. Forecast
 
@@ -50,7 +50,7 @@ Use this file when assembling screenshots for the final **technical-team submiss
 - **Prep planning with human-in-the-loop approval.** Users can inspect, adjust, and approve the next-day production plan rather than relying on a black-box recommendation.
 
 **Why it matters**
-- demonstrates operational trust and usability
+- demonstrates that the technical system supports human-in-the-loop operations rather than opaque automation
 
 ## 4. Replenishment
 
@@ -66,7 +66,7 @@ Use this file when assembling screenshots for the final **technical-team submiss
 - **Ingredient replenishment recommendations.** Predictory translates prep requirements into ingredient-level reorder actions and urgency signals.
 
 **Why it matters**
-- shows the system links forecasting to procurement execution
+- shows the technical pipeline links forecasting to procurement execution
 
 ## 5. Risk Centre
 

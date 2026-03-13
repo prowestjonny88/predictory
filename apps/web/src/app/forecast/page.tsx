@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { HelpCircle, X } from "lucide-react";
 
 import DemandDriversPanel from "@/components/forecast/DemandDriversPanel";
+import ForecastChart from "@/components/ForecastChart";
 import OverrideEditor from "@/components/forecast/OverrideEditor";
 import Header from "@/components/Header";
 import { useLanguage } from "@/components/i18n/LanguageProvider";
@@ -50,6 +51,7 @@ export default function ForecastPage() {
   const forecastsQuery = useQuery<ForecastRun[]>({
     queryKey: ["forecasts", date, outletId],
     queryFn: () => api.getForecasts(date, outletId === "all" ? undefined : outletId),
+    staleTime: 30_000,
   });
 
   const contextQuery = useQuery({
@@ -301,7 +303,7 @@ export default function ForecastPage() {
         </button>
       </Header>
 
-      <main className="max-w-7xl space-y-6 p-6">
+      <main className="max-w-7xl space-y-6 p-6 page-enter">
         {(forecastsQuery.error ||
           runMutation.error ||
           adjustMutation.error ||
@@ -366,6 +368,12 @@ export default function ForecastPage() {
             ))}
           </div>
         </section>
+
+        {lines.length > 0 && (
+          <section>
+            <ForecastChart lines={lines} />
+          </section>
+        )}
 
         {selectedOutlet ? (
           <div className="space-y-4">

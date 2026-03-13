@@ -45,7 +45,18 @@ export default function CopilotPage() {
         />
       </Header>
 
-      <main className="max-w-4xl space-y-6 p-6">
+      <main className="max-w-4xl space-y-6 p-6 page-enter">
+        {!briefMutation.data && !dailyActionsMutation.data && !briefMutation.isPending && !dailyActionsMutation.isPending && (
+          <div className="flex items-center gap-4 rounded-xl border border-amber-100 bg-amber-50 p-5">
+            <Bot className="h-8 w-8 shrink-0 text-amber-400" />
+            <div>
+              <p className="text-sm font-semibold text-amber-800">Your AI Copilot is ready</p>
+              <p className="mt-0.5 text-xs text-amber-700">
+                Generate a Daily Brief for a plain-language summary, or an Action Plan for structured, prioritised recommendations for today.
+              </p>
+            </div>
+          </div>
+        )}
         <section className="space-y-4 rounded-xl border border-neutral-200 bg-white p-5 shadow-sm">
           <div className="flex items-center gap-2">
             <Bot className="h-4 w-4 text-amber-500" />
