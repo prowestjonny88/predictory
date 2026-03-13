@@ -271,7 +271,7 @@ This project was developed with a multi-layered AI stack, which is fully disclos
 | 🧠 **Production AI** | Google Gemini 2.5 (via LiteLLM) | Powers the in-app Daily Brief, Daily Actions, and scenario explanations |
 | 🛠️ **Development** | Google Gemini (Web), Antigravity | Project orchestration, UI design, terminal automation, code review |
 | 💻 **Coding** | GitHub Copilot, OpenAI Codex | Code generation, boilerplate, debugging across React/FastAPI |
-| 🔍 **Research** | Perplexity AI, ChatGPT (GPT-4o) | Competitor analysis, SDG alignment, Malaysia food waste statistics |
+| 🔍 **Research** | Perplexity AI, ChatGPT (GPT-5.4 Pro) | Competitor analysis, SDG alignment, Malaysia food waste statistics |
 | 🎨 **Assets** | NotebookLM (summaries), image generation tools | Pitch deck infographics, tech stack visuals |
 | 📋 **Collaboration** | Notion AI | Team documentation and meeting notes |
 
