@@ -31,7 +31,7 @@ Predictory is an AI-assisted prep and replenishment copilot for multi-outlet bak
 
 | Resource | Link |
 |---|---|
-| 📄 **Project Report** | [PDF](./docs/Predictory_Report.pdf) · [Predictory_Report.md](./docs/Predictory_Report.md) |
+| 📄 **Project Report** | [PDF](./docs/Final_Report.pdf) · [Predictory_Report.md](./docs/Predictory_Report.md) |
 | 🎬 **Demo Video** | ▶️ _[YouTube Link](https://youtu.be/JBPmZhmIVvc)_ |
 
 ---
