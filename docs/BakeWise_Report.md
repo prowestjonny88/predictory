@@ -12,10 +12,10 @@ The repository, seeded demo data, and product requirement documents position Bak
 
 The food-waste problem is large enough to justify targeted operational tools rather than generic reporting dashboards:
 
-- Globally, **13.2% of food is lost after harvest and before retail**, and **19% more is wasted at retail, food-service, and household levels**, according to FAO's 2024 summary of FAO and UNEP indicators [1].
+- Globally, **13.2% of food is lost after harvest and before retail**, and **19% more is wasted at retail, food-service, and household levels**, according to the latest FAO and UNEP triennial indicators [1].
 - FAO also states that food loss and waste account for an estimated **8% to 10% of global greenhouse gas emissions**, linking the issue directly to climate and sustainability outcomes [1].
-- In Malaysia, the U.S. International Trade Administration's 2024 Malaysia waste-management market brief reports that the country disposes of **more than 39,000 tonnes of municipal solid waste daily**, with **over 30% consisting of food waste**, and cites **8.3 million metric tons of food waste annually** [2].
-- Malaysia's **National Food Security Policy 2030** states that Malaysian households generate approximately **79 kg of food waste per person annually**, slightly above the global average of 74 kg per person cited from the UNEP Food Waste Index [3].
+- In Malaysia, 2025 statistics cited by Deputy Prime Minister Datuk Seri Dr Ahmad Zahid Hamidi indicate the country disposes of **8.3 million tonnes of food waste annually**, with **24% of it still perfectly suitable for consumption**. This amounts to an alarming **260 kilograms of food waste per individual per year** [2].
+- Furthermore, 2025 data from the Solid Waste and Public Cleansing Management Corporation (SWCorp) shows that total solid waste generation rose by over 10% in 2025, driven by economic activity and consumption changes, keeping food waste as the dominant component of landfills (often exceeding 30% to 40% during peak seasons like Ramadan) [3].
 
 These figures support a strong sustainability case for better production planning in food-service operations, especially for perishable bakery products with short freshness windows.
 
@@ -612,9 +612,9 @@ Overall, BakeWise is a strong prototype because it is not merely a concept or da
 
 [1] FAO, "Food Loss and Food Waste," Policy Support and Governance Gateway. <https://www.fao.org/policy-support/policy-themes/food-loss-and-food-waste/en>
 
-[2] International Trade Administration, "Malaysia Waste Management," 29 March 2024. <https://www.trade.gov/market-intelligence/malaysia-waste-management>
+[2] Malay Mail / Bernama, "Zahid: Malaysia disposes of 8.3 million tonnes of food waste annually," April 2025.
 
-[3] Malaysia National Food Security Policy 2030, section on food waste. <https://www.kpkm.gov.my/images/08-petak-informasi/penerbitan/Project-Food-Security-Final-Report-Policy-Document-v13-Digital.pdf>
+[3] Business Today, "SWCorp Reports 10% Increase In Solid Waste For 2025," 2025 & SWCorp Ramadan statistics.
 
 [4] Square, "Square Restaurant Inventory by MarketMan." <https://squareup.com/us/en/inventory-management/restaurants>
 
