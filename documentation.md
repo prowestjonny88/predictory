@@ -6,6 +6,8 @@
 ## Problem Statement
 Micro, Small, and Medium Enterprises (MSMEs) are the backbone of the ASEAN economy, accounting for 97% of businesses and 85% of employment. However, a massive productivity and market access gap persists because the benefits of the digital economy are concentrated among larger corporations. 
 
+Most POS systems today function primarily as inventory management tools and do not offer the ability to predict next-day preparation needs. This is why we created Predictory: to combine inventory visibility with predictive preparation planning in a single solution.
+
 Within the Food & Beverage sector—specifically bakery-cafes—this manifests as a total reliance on manual, intuition-based operations. Lacking access to enterprise-grade supply chain tools, these MSMEs suffer from frequent overproduction (leading to end-of-day food waste) and stockouts during peak hours (leading to lost revenue). They lack the predictive market analytics and digital capabilities needed to optimize their resources, holding them back from scaling and achieving true economic resilience.
 
 ## SDG Alignment
