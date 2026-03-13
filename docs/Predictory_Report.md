@@ -439,49 +439,49 @@ This section is intentionally structured as a placeholder plus capture guide so 
 
 ### Screenshot 1: Executive Overview Dashboard
 
-**[Insert Screenshot: Dashboard KPI Overview]**
+![Executive Overview Dashboard](./screenshot/dashboard.png)
 
 Recommended caption:  
 **Figure 1. Executive Overview dashboard.** This screen consolidates predicted sales, waste risk, stockout risk, recommended actions, and at-risk outlets into a single planning view. It matters because operators need a fast decision summary before reviewing detailed plans.
 
 ### Screenshot 2: Forecast and Demand Drivers
 
-**[Insert Screenshot: Forecast page with demand drivers panel visible]**
+![Forecast and Demand Drivers](./screenshot/forecast.png)
 
 Recommended caption:  
 **Figure 2. Forecast screen with context-aware demand drivers.** The forecast view combines outlet/daypart demand lines with holiday, weather, override, and stockout-recovery context. It matters because bakery planning depends on more than raw historical averages.
 
 ### Screenshot 3: Prep Plan and Approval Flow
 
-**[Insert Screenshot: Prep Plan page with editable lines and approval state]**
+![Prep Plan and Approval Flow](./screenshot/prep_plan.png)
 
 Recommended caption:  
 **Figure 3. Prep planning with human-in-the-loop editing.** Users can inspect recommended prep quantities, adjust line items, and approve the plan for execution. It matters because operational trust requires editable recommendations, not fully automated decisions.
 
 ### Screenshot 4: Ingredient Replenishment
 
-**[Insert Screenshot: Replenishment page with ingredient rows]**
+![Ingredient Replenishment](./screenshot/replenishment.png)
 
 Recommended caption:  
 **Figure 4. Ingredient replenishment planning.** The system converts SKU-level prep needs into ingredient reorder actions with urgency signals. It matters because production planning is only useful if ingredient availability is also managed.
 
 ### Screenshot 5: Risk Centre
 
-**[Insert Screenshot: Risk Centre page with waste and stockout alerts]**
+![Risk Centre](./screenshot/risk_centre.png)
 
 Recommended caption:  
 **Figure 5. Risk centre for proactive issue detection.** Waste and stockout alerts are surfaced before service begins, allowing operators to intervene earlier. It matters because preventing problems is more valuable than only reporting them after the fact.
 
 ### Screenshot 6: AI Copilot
 
-**[Insert Screenshot: Copilot page showing daily brief or daily actions]**
+![AI Copilot](./screenshot/ai_copilot.png)
 
 Recommended caption:  
 **Figure 6. AI copilot for explainable action support.** The copilot layer converts operational signals into readable daily briefs and structured action recommendations. It matters because decision support is more useful when teams can quickly understand the reasoning behind a plan.
 
 ### Screenshot 7: Scenario Planner
 
-**[Insert Screenshot: Scenario Planner with result visible]**
+![Scenario Planner](./screenshot/scenario_planner.png)
 
 Recommended caption:  
 **Figure 7. Scenario planning interface.** Users can test hypothetical operational changes and inspect how waste and stockout risks may shift. It matters because safe experimentation supports better planning under uncertainty.
@@ -489,6 +489,8 @@ Recommended caption:
 ### Screenshot 8: Multilingual Experience
 
 **[Insert Screenshot: Any key page in Bahasa Melayu or Simplified Chinese]**
+
+Note: a dedicated multilingual screenshot file has not yet been added under `docs/screenshot/`, so this figure remains as a final placeholder.
 
 Recommended caption:  
 **Figure 8. Multilingual UI for inclusive adoption.** Predictory supports English, Bahasa Melayu, and Simplified Chinese in the interface and copilot outputs. It matters because accessibility and usability improve when teams can interact with the system in familiar languages.
