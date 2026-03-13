@@ -1,6 +1,6 @@
 # Predictory: AI for Inclusive MSME Growth
 
-**Team Name:** [Insert Team Name]  
+**Team Name:** CHAT GPT 
 **Project Name:** Predictory  
 
 ## Problem Statement
