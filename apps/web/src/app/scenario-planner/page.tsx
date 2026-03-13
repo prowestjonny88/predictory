@@ -15,52 +15,52 @@ const PRESETS = {
   en: [
     {
       id: "cut-croissant",
-      label: "Reduce croissant prep by 15%",
       text: "Reduce croissant prep at Bangsar by 15%",
+      label: "Reduce croissant prep at Bangsar by 15%",
     },
     {
       id: "butter-delay",
-      label: "Butter delivery delayed",
       text: "Promo at KLCC by 25%",
+      label: "Promo at KLCC by 25%",
     },
     {
       id: "demand-spike",
-      label: "30% weekend demand spike",
       text: "Increase croissant prep at Mid Valley by 30%",
+      label: "Increase croissant prep at Mid Valley by 30%",
     },
   ],
   ms: [
     {
       id: "cut-croissant",
-      label: "Kurangkan prep croissant 15%",
       text: "Kurangkan prep croissant di Bangsar sebanyak 15%",
+      label: "Kurangkan prep croissant di Bangsar sebanyak 15%",
     },
     {
       id: "butter-delay",
-      label: "Penghantaran butter tertangguh",
       text: "Promosi di KLCC sebanyak 25%",
+      label: "Promosi di KLCC sebanyak 25%",
     },
     {
       id: "demand-spike",
-      label: "Lonjakan permintaan hujung minggu 30%",
       text: "Tingkatkan prep croissant di Mid Valley sebanyak 30%",
+      label: "Tingkatkan prep croissant di Mid Valley sebanyak 30%",
     },
   ],
   "zh-CN": [
     {
       id: "cut-croissant",
-      label: "将 croissant 备货减少 15%",
       text: "将 Bangsar 的 croissant 备货减少 15%",
+      label: "将 Bangsar 的 croissant 备货减少 15%",
     },
     {
       id: "butter-delay",
-      label: "Butter 配送延迟",
       text: "在 KLCC 做 25% 促销活动",
+      label: "在 KLCC 做 25% 促销活动",
     },
     {
       id: "demand-spike",
-      label: "周末需求激增 30%",
       text: "将 Mid Valley 的 croissant 备货增加 30%",
+      label: "将 Mid Valley 的 croissant 备货增加 30%",
     },
   ],
 } as const;

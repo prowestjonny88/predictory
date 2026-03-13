@@ -158,7 +158,7 @@ function YearlyOutletChart({ outlets, mode }: { outlets: Outlet[]; mode: TrendVi
                                 String(name).replace("_past", " (Actual)").replace("_future", " (Predicted)")
                             ]}
                         />
-                        <ReferenceLine x={labels[currentIndex]} stroke="#9CA3AF" strokeDasharray="3 3" label={{ position: 'insideTopLeft', value: 'Today', fill: '#9CA3AF', fontSize: 11 }} />
+                        <ReferenceLine x={labels[currentIndex]} stroke="#9CA3AF" strokeDasharray="3 3" label={{ position: 'insideTopRight', value: 'Today', fill: '#9CA3AF', fontSize: 11 }} />
                         <Legend
                             wrapperStyle={{ fontSize: 11, paddingTop: 10 }}
                             iconType="circle"
@@ -286,7 +286,7 @@ function YearlyProductChart({ skus, outlets, mode }: { skus: SKU[], outlets: Out
                                 String(name).replace("_past", " (Actual)").replace("_future", " (Predicted)")
                             ]}
                         />
-                        <ReferenceLine x={labels[currentIndex]} stroke="#9CA3AF" strokeDasharray="3 3" label={{ position: 'insideTopLeft', value: 'Today', fill: '#9CA3AF', fontSize: 11 }} />
+                        <ReferenceLine x={labels[currentIndex]} stroke="#9CA3AF" strokeDasharray="3 3" label={{ position: 'insideTopRight', value: 'Today', fill: '#9CA3AF', fontSize: 11 }} />
                         <Legend
                             wrapperStyle={{ fontSize: 11, paddingTop: 10 }}
                             iconType="circle"
