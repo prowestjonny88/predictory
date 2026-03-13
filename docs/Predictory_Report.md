@@ -1,12 +1,12 @@
-# BakeWise Project Report
+# Predictory Project Report
 
 ## Introduction
 
 ### Background of the Case Study
 
-BakeWise is a bakery operations decision-support system built for multi-outlet bakery-cafe chains. The project is grounded in a common operational reality: many bakery businesses already have sales data, inventory records, and basic reports, but next-day prep decisions are still made manually. In practice, this often leads to repeated overproduction of slow-moving baked goods, stockouts during peak periods, inefficient central-kitchen allocation, excess ingredient purchasing, and inconsistent freshness across outlets.
+Predictory is a bakery operations decision-support system built for multi-outlet bakery-cafe chains. The project is grounded in a common operational reality: many bakery businesses already have sales data, inventory records, and basic reports, but next-day prep decisions are still made manually. In practice, this often leads to repeated overproduction of slow-moving baked goods, stockouts during peak periods, inefficient central-kitchen allocation, excess ingredient purchasing, and inconsistent freshness across outlets.
 
-The repository, seeded demo data, and product requirement documents position BakeWise around a very specific operating model: a Malaysia bakery-cafe chain with a central kitchen and several outlets. The prototype uses Roti Lane Bakery as the case study, with five seeded outlets, multiple SKUs, and realistic waste and stockout patterns. Rather than acting as a replacement for POS or ERP systems, BakeWise is designed as a decision layer that helps operators decide what to prep, what to replenish, and where risk is likely to appear before service begins.
+The repository, seeded demo data, and product requirement documents position Predictory around a very specific operating model: a Malaysia bakery-cafe chain with a central kitchen and several outlets. The prototype uses Roti Lane Bakery as the case study, with five seeded outlets, multiple SKUs, and realistic waste and stockout patterns. Rather than acting as a replacement for POS or ERP systems, Predictory is designed as a decision layer that helps operators decide what to prep, what to replenish, and where risk is likely to appear before service begins.
 
 ### Why This Problem Matters: Statistics With Citations
 
@@ -21,9 +21,9 @@ These figures support a strong sustainability case for better production plannin
 
 ### Chosen SDG
 
-The primary Sustainable Development Goal addressed by BakeWise is **SDG 12: Responsible Consumption and Production**. The strongest alignment is through waste reduction, better use of ingredients, more disciplined production planning, and improved operational visibility for perishable goods. By helping bakery teams prepare closer to actual demand, BakeWise aims to reduce avoidable waste without sacrificing service availability.
+The primary Sustainable Development Goal addressed by Predictory is **SDG 12: Responsible Consumption and Production**. The strongest alignment is through waste reduction, better use of ingredients, more disciplined production planning, and improved operational visibility for perishable goods. By helping bakery teams prepare closer to actual demand, Predictory aims to reduce avoidable waste without sacrificing service availability.
 
-BakeWise also supports **SDG 9: Industry, Innovation and Infrastructure** as a secondary alignment. The system digitizes a workflow that is often still manual, introduces AI-assisted decision support, and connects forecasting, replenishment, and risk detection into a single operational flow. In that sense, the solution is not only about reducing waste, but also about modernizing bakery operations in a practical, explainable, and scalable way.
+Predictory also supports **SDG 9: Industry, Innovation and Infrastructure** as a secondary alignment. The system digitizes a workflow that is often still manual, introduces AI-assisted decision support, and connects forecasting, replenishment, and risk detection into a single operational flow. In that sense, the solution is not only about reducing waste, but also about modernizing bakery operations in a practical, explainable, and scalable way.
 
 ### Problem Statement
 
@@ -44,7 +44,7 @@ For bakery-cafe chains, this gap has direct consequences:
 
 ### Objectives
 
-The objectives of BakeWise are:
+The objectives of Predictory are:
 
 - reduce overproduction and end-of-day bakery waste
 - reduce stockouts during peak selling windows
@@ -56,11 +56,11 @@ The objectives of BakeWise are:
 
 ## Review of Existing Solutions
 
-Current market solutions fall into three broad categories: POS/reporting platforms, inventory and procurement tools, and general demand-planning systems. BakeWise is intended to sit between those categories by focusing specifically on next-day bakery action support.
+Current market solutions fall into three broad categories: POS/reporting platforms, inventory and procurement tools, and general demand-planning systems. Predictory is intended to sit between those categories by focusing specifically on next-day bakery action support.
 
 ### Competitor and Existing Solution Analysis
 
-| Category | Example | What It Does Well | Gap Relative to BakeWise |
+| Category | Example | What It Does Well | Gap Relative to Predictory |
 |---|---|---|---|
 | POS + restaurant inventory | Square Restaurant Inventory by MarketMan | Ingredient-level tracking, waste documentation, par levels, purchase orders, invoice scanning, multi-location visibility, POS sync [4] | Strong at tracking and control, but not centered on bakery-specific outlet/daypart prep recommendations for tomorrow |
 | Restaurant inventory and finance | Toast xtraCHEF / Toast Inventory Management | Invoice automation, recipe costing, inventory management, vendor and product catalog centralization, margin visibility [5][6] | Strong back-office control, but less focused on operational prep planning as a single bakery workflow |
@@ -68,9 +68,9 @@ Current market solutions fall into three broad categories: POS/reporting platfor
 | Restaurant operations and commissary | Restaurant365 | Inventory, purchasing, commissary, multi-location reporting, waste reduction, production and fulfillment workflows [8][9] | Covers broader restaurant operations well, but is not optimized around the specific day-ahead bakery planning ritual |
 | Enterprise demand planning | Anaplan Demand Planning | Collaborative planning, driver-based demand planning, scenario analysis, enterprise coordination [10] | Powerful but broader and more enterprise-oriented than the needs of small-to-mid-sized bakery-cafe chains |
 
-### Gaps BakeWise Intends to Fix
+### Gaps Predictory Intends to Fix
 
-BakeWise is designed to close a specific gap between reporting tools and action tools. It does this by:
+Predictory is designed to close a specific gap between reporting tools and action tools. It does this by:
 
 - forecasting demand by outlet and daypart
 - converting forecast into prep recommendations
@@ -79,13 +79,13 @@ BakeWise is designed to close a specific gap between reporting tools and action 
 - providing plain-language explanations and scenario simulation
 - keeping a human-in-the-loop edit and approval workflow
 
-In short, existing tools are often strongest at recording, tracking, costing, and reporting. BakeWise aims to be strongest at **next-day bakery planning and explainable action support**.
+In short, existing tools are often strongest at recording, tracking, costing, and reporting. Predictory aims to be strongest at **next-day bakery planning and explainable action support**.
 
 ## Methodology
 
 ### Technical Track
 
-BakeWise is implemented as a modular monolith with a modern web frontend, a Python backend, a relational database layer, and an AI layer used for explanation and scenario support. The current repository uses:
+Predictory is implemented as a modular monolith with a modern web frontend, a Python backend, a relational database layer, and an AI layer used for explanation and scenario support. The current repository uses:
 
 - **Frontend:** Next.js 14, React 18, TypeScript, Tailwind CSS, TanStack Query, Zustand, Recharts, Lucide
 - **Backend:** FastAPI, Uvicorn, SQLAlchemy 2.x, Alembic, Pydantic v2
@@ -197,7 +197,7 @@ The current implementation also supports:
 
 ### Non-Technical Track
 
-The non-technical methodology for BakeWise follows a design-thinking-inspired product process, but it should be described carefully and truthfully. The repository does not contain evidence of formal field interviews, pilot validation, or structured usability studies with bakery operators. Therefore, this section is framed as workflow-centered product design rather than field-validated user research.
+The non-technical methodology for Predictory follows a design-thinking-inspired product process, but it should be described carefully and truthfully. The repository does not contain evidence of formal field interviews, pilot validation, or structured usability studies with bakery operators. Therefore, this section is framed as workflow-centered product design rather than field-validated user research.
 
 #### Problem Framing
 
@@ -348,7 +348,7 @@ The result is more credible than a pure dashboard, and more controllable than a 
 
 ### Business Value
 
-If validated in real bakery operations, the business value of BakeWise would likely come from:
+If validated in real bakery operations, the business value of Predictory would likely come from:
 
 - lower end-of-day waste
 - fewer missed sales from stockouts
@@ -363,7 +363,7 @@ The prototype should not yet claim live ROI, but it does demonstrate a clear pat
 
 ### Prototype Outcome
 
-BakeWise delivers a working prototype across the core operational workflow it set out to solve. Based on the current repository, the project includes:
+Predictory delivers a working prototype across the core operational workflow it set out to solve. Based on the current repository, the project includes:
 
 - demand forecasting by outlet and daypart
 - prep plan generation
@@ -419,7 +419,7 @@ The system should not yet claim real-world impact metrics such as:
 - validated forecast accuracy on production POS data
 - full operational ROI after deployment
 
-These outcomes remain future validation targets, not proven prototype results. The correct claim is that BakeWise demonstrates a credible, explainable operational planning prototype with realistic seeded evidence and a clear path toward measurable business impact.
+These outcomes remain future validation targets, not proven prototype results. The correct claim is that Predictory demonstrates a credible, explainable operational planning prototype with realistic seeded evidence and a clear path toward measurable business impact.
 
 ### Quantitative Development Evidence
 
@@ -491,7 +491,7 @@ Recommended caption:
 **[Insert Screenshot: Any key page in Bahasa Melayu or Simplified Chinese]**
 
 Recommended caption:  
-**Figure 8. Multilingual UI for inclusive adoption.** BakeWise supports English, Bahasa Melayu, and Simplified Chinese in the interface and copilot outputs. It matters because accessibility and usability improve when teams can interact with the system in familiar languages.
+**Figure 8. Multilingual UI for inclusive adoption.** Predictory supports English, Bahasa Melayu, and Simplified Chinese in the interface and copilot outputs. It matters because accessibility and usability improve when teams can interact with the system in familiar languages.
 
 ## Challenges Faced
 
@@ -582,7 +582,7 @@ Before submission, this section must be completed with the exact AI tools used b
 
 ## Conclusion
 
-BakeWise is a focused, operationally grounded prototype that addresses a real problem in bakery-cafe chains: how to plan tomorrow's prep and replenishment decisions more accurately than manual judgment or historical averages alone. Instead of attempting to replace POS or ERP systems, it acts as a decision-support layer that converts operational data into outlet/daypart forecasts, prep plans, replenishment needs, and proactive risk signals.
+Predictory is a focused, operationally grounded prototype that addresses a real problem in bakery-cafe chains: how to plan tomorrow's prep and replenishment decisions more accurately than manual judgment or historical averages alone. Instead of attempting to replace POS or ERP systems, it acts as a decision-support layer that converts operational data into outlet/daypart forecasts, prep plans, replenishment needs, and proactive risk signals.
 
 The project aligns most strongly with **SDG 12** by targeting waste reduction and more responsible production planning for perishable goods. It also supports **SDG 9** by digitizing and modernizing a planning workflow that is often still manual. The prototype demonstrates meaningful progress through an end-to-end workflow, seeded operational evidence, explainable AI assistance, and multilingual accessibility.
 
@@ -594,15 +594,15 @@ The next stage of development should focus on:
 - additional demand drivers such as promotions, events, and richer weather logic
 - advanced modeling such as elasticity, substitution, and deeper lost-sales estimation
 
-Overall, BakeWise is a strong prototype because it is not merely a concept or dashboard mockup. It is a working decision-support system with a clear problem focus, a credible technical foundation, and a sustainability narrative that is specific, defensible, and relevant to real bakery operations.
+Overall, Predictory is a strong prototype because it is not merely a concept or dashboard mockup. It is a working decision-support system with a clear problem focus, a credible technical foundation, and a sustainability narrative that is specific, defensible, and relevant to real bakery operations.
 
 ## References
 
 ### Internal project sources
 
-- [PRD](../prd_v_1_bake_wise_bakery_copilot.md)
+- [PRD](../prd_v_1_predictory_bakery_copilot.md)
 - [Team Plan](../TEAM_PLAN.md)
-- [Architecture Notes](../tech_stack_architecture_v_1_bake_wise.md)
+- [Architecture Notes](../tech_stack_architecture_v_1_predictory.md)
 - [README](../README.md)
 - [Backend Contracts](../apps/api/CONTRACTS.md)
 - [Copilot Examples](../apps/api/copilot/EXAMPLES.md)

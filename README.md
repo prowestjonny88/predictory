@@ -1,6 +1,6 @@
-# BakeWise
+# Predictory
 
-BakeWise is an AI-assisted prep and replenishment copilot for multi-outlet bakery-cafe chains.
+Predictory is an AI-assisted prep and replenishment copilot for multi-outlet bakery-cafe chains.
 
 This repository contains a working prototype with:
 - a FastAPI backend
@@ -11,7 +11,7 @@ This repository contains a working prototype with:
 
 ## Project Details
 
-### What BakeWise solves
+### What Predictory solves
 
 Bakery-cafe chains already track sales and inventory, but daily production planning is still often manual. That leads to:
 - overproduction and end-of-day waste
@@ -20,7 +20,7 @@ Bakery-cafe chains already track sales and inventory, but daily production plann
 - excess ingredient purchasing
 - wasted labor and oven capacity
 
-BakeWise addresses that gap by turning historical demand and operational data into next-day actions.
+Predictory addresses that gap by turning historical demand and operational data into next-day actions.
 
 ### Core product capabilities
 
@@ -38,7 +38,7 @@ BakeWise addresses that gap by turning historical demand and operational data in
 - Primary: **SDG 12 - Responsible Consumption and Production**
 - Secondary: **SDG 9 - Industry, Innovation and Infrastructure**
 
-BakeWise is primarily aligned to SDG 12 because it targets bakery waste reduction and more disciplined use of ingredients, labor, and production capacity.
+Predictory is primarily aligned to SDG 12 because it targets bakery waste reduction and more disciplined use of ingredients, labor, and production capacity.
 
 ## Current Scope
 
@@ -98,12 +98,12 @@ apps/
   web/        Next.js frontend
 
 docs/
-  BakeWise_Report.md
-  BakeWise_Screenshot_Captions.md
+  Predictory_Report.md
+  Predictory_Screenshot_Captions.md
 
 Root docs:
-  prd_v_1_bake_wise_bakery_copilot.md
-  tech_stack_architecture_v_1_bake_wise.md
+  prd_v_1_predictory_bakery_copilot.md
+  tech_stack_architecture_v_1_predictory.md
   TEAM_PLAN.md
 ```
 
@@ -123,7 +123,7 @@ Create the root `.env` file based on [`.env.example`](./.env.example).
 Minimum local demo config:
 
 ```env
-DATABASE_URL=sqlite:///./bakewise.db
+DATABASE_URL=sqlite:///./predictory.db
 ENVIRONMENT=development
 ALLOWED_ORIGINS=http://localhost:3000,http://localhost:3001,http://localhost:3002
 
@@ -226,7 +226,7 @@ Fix:
 - for local demo use:
 
 ```env
-DATABASE_URL=sqlite:///./bakewise.db
+DATABASE_URL=sqlite:///./predictory.db
 ```
 
 ### Alembic fails because tables already exist
@@ -237,8 +237,8 @@ Cause:
 Fix for local demo reset:
 
 ```powershell
-Remove-Item .\bakewise.db -Force -ErrorAction SilentlyContinue
-Remove-Item .\apps\api\bakewise.db -Force -ErrorAction SilentlyContinue
+Remove-Item .\predictory.db -Force -ErrorAction SilentlyContinue
+Remove-Item .\apps\api\predictory.db -Force -ErrorAction SilentlyContinue
 ```
 
 Then rerun:
@@ -352,8 +352,8 @@ add them explicitly to this section before external submission or judging.
 
 ## Reference Docs
 
-- [PRD](./prd_v_1_bake_wise_bakery_copilot.md)
-- [Architecture](./tech_stack_architecture_v_1_bake_wise.md)
+- [PRD](./prd_v_1_predictory_bakery_copilot.md)
+- [Architecture](./tech_stack_architecture_v_1_predictory.md)
 - [Team Plan](./TEAM_PLAN.md)
-- [Project Report Draft](./docs/BakeWise_Report.md)
-- [Screenshot Capture Guide](./docs/BakeWise_Screenshot_Captions.md)
+- [Project Report Draft](./docs/Predictory_Report.md)
+- [Screenshot Capture Guide](./docs/Predictory_Screenshot_Captions.md)

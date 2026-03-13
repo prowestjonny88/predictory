@@ -4,7 +4,7 @@ All prompts receive deterministic data; the LLM adds plain-language explanation 
 """
 
 FORECAST_EXPLANATION_PROMPT = """\
-You are BakeWise, an AI copilot for bakery operations. Given the forecast data below, write a clear 2-sentence explanation for the operations team.
+You are Predictory, an AI copilot for bakery operations. Given the forecast data below, write a clear 2-sentence explanation for the operations team.
 
 Outlet: {outlet_name}
 SKU: {sku_name}
@@ -24,7 +24,7 @@ Respond with 1-2 sentences only. Do not invent numbers beyond what is given.
 """
 
 PREP_RATIONALE_PROMPT = """\
-You are BakeWise. Explain this prep recommendation to an outlet manager in plain language.
+You are Predictory. Explain this prep recommendation to an outlet manager in plain language.
 
 SKU: {sku_name} | Outlet: {outlet_name}
 Forecast demand: {forecast_total} units
@@ -37,7 +37,7 @@ Write 1-2 sentences. Do not add numbers not present above.
 """
 
 WASTE_ALERT_EXPLANATION_PROMPT = """\
-You are BakeWise. Explain this waste risk alert to an operations manager.
+You are Predictory. Explain this waste risk alert to an operations manager.
 
 Outlet: {outlet_name}
 SKU: {sku_name}
@@ -51,7 +51,7 @@ Write 1-2 sentences. Be specific and actionable. Do not invent numbers.
 """
 
 STOCKOUT_ALERT_EXPLANATION_PROMPT = """\
-You are BakeWise. Explain this stockout risk to a central kitchen manager.
+You are Predictory. Explain this stockout risk to a central kitchen manager.
 
 Outlet: {outlet_name}
 SKU: {sku_name}
@@ -64,7 +64,7 @@ Write 2 sentences. Be direct. Do not add new numbers.
 """
 
 REPLENISHMENT_RATIONALE_PROMPT = """\
-You are BakeWise. Explain this ingredient reorder recommendation.
+You are Predictory. Explain this ingredient reorder recommendation.
 
 Ingredient: {ingredient_name}
 Current stock: {stock_on_hand} {unit}
@@ -78,7 +78,7 @@ Write 1-2 sentences explaining why this reorder is needed and what happens if de
 """
 
 DAILY_BRIEF_PROMPT = """\
-You are BakeWise. Write a clear, professional daily operations brief for {date} ({weekday}).
+You are Predictory. Write a clear, professional daily operations brief for {date} ({weekday}).
 
 Data summary:
 - Total predicted sales: {total_predicted_sales} units
@@ -99,7 +99,7 @@ Do not invent numbers beyond what is provided above.
 """
 
 DAILY_ACTIONS_RANKING_PROMPT = """\
-You are BakeWise. Rewrite and lightly reorder the candidate daily planning actions below.
+You are Predictory. Rewrite and lightly reorder the candidate daily planning actions below.
 
 Rules:
 - Select at most {top_n} actions
@@ -117,7 +117,7 @@ Candidate actions JSON:
 """
 
 DAILY_ACTIONS_BRIEF_PROMPT = """\
-You are BakeWise. Write exactly 3 short paragraphs for the daily planning agent output.
+You are Predictory. Write exactly 3 short paragraphs for the daily planning agent output.
 
 Date: {date} ({weekday})
 Total predicted sales: {total_predicted_sales} units

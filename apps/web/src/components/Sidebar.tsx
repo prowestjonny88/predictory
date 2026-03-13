@@ -79,7 +79,7 @@ export default function Sidebar() {
 
         <div className="space-y-3 border-t border-neutral-100 px-5 py-4">
           <LanguageSwitcher compact={false} />
-          <div className="text-xs text-neutral-400">{t("nav.footer", "BakeWise v1 · ASEAN demo build")}</div>
+          <div className="text-xs text-neutral-400">{t("nav.footer", "Predictory v1 · ASEAN demo build")}</div>
         </div>
       </aside>
 

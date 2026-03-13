@@ -1,4 +1,4 @@
-# BakeWise — 2-Day Hackathon Team Plan
+# Predictory — 2-Day Hackathon Team Plan
 
 ## Team of 5 · 2 Days · 30 Tasks · Demo MVP
 
@@ -297,7 +297,7 @@ Each person owns **exclusive directories**. No two people edit the same files.
 - [ ] Root `layout.tsx` with sidebar + header + main content area
 - [ ] Sidebar navigation with 8 routes: `/dashboard`, `/forecast`, `/prep-plan`, `/replenishment`, `/risk-center`, `/scenario-planner`, `/imports`, `/settings`
 - [ ] Active route highlighted in sidebar
-- [ ] Header contains: outlet selector dropdown, date picker, BakeWise logo
+- [ ] Header contains: outlet selector dropdown, date picker, Predictory logo
 - [ ] All 8 routes render placeholder pages (no 404s)
 - [ ] Layout responsive: sidebar collapses on mobile (<768px)
 

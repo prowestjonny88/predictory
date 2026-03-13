@@ -1,5 +1,5 @@
 """
-Demo data seed script for BakeWise — Task 25
+Demo data seed script for Predictory — Task 25
 Outlet: Roti Lane Bakery
 Outlets: KLCC, Bangsar, Mid Valley, Bukit Bintang, Damansara
 30 days historical data with:
@@ -284,7 +284,7 @@ def seed_sales_and_waste(db, outlets, skus):
 
 
 def main():
-    print("BakeWise seed starting...")
+    print("Predictory seed starting...")
     Base.metadata.create_all(bind=engine)
 
     db = SessionLocal()

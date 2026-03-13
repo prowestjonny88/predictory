@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./bakewise.db")
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./predictory.db")
 
 connect_args = {}
 if DATABASE_URL.startswith("sqlite"):

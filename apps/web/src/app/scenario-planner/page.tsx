@@ -145,7 +145,7 @@ export default function ScenarioPlannerPage() {
             <p className="text-xs text-neutral-400">
               {t(
                 "scenario.heuristicHelp",
-                "BakeWise simulates the downstream alert impact using the current heuristic scenario engine."
+                "Predictory simulates the downstream alert impact using the current heuristic scenario engine."
               )}
             </p>
             <button

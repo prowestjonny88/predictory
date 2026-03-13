@@ -7,7 +7,7 @@ import zhCN from "@/locales/zh-CN";
 export type Dictionary = Record<string, string>;
 
 export const DEFAULT_LANGUAGE: LanguageCode = "en";
-export const LANGUAGE_STORAGE_KEY = "bakewise.language";
+export const LANGUAGE_STORAGE_KEY = "predictory.language";
 
 const localeMap: Record<LanguageCode, string> = {
   en: "en-MY",

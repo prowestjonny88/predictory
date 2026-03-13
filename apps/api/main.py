@@ -26,7 +26,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="BakeWise API",
+    title="Predictory API",
     description="AI prep and replenishment copilot for bakery-cafe chains",
     version="1.0.0",
     lifespan=lifespan,

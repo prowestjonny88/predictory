@@ -6,7 +6,7 @@ import "./globals.css";
 import Providers from "./providers";
 
 export const metadata: Metadata = {
-  title: "BakeWise - Bakery Intelligence",
+  title: "Predictory - Bakery Intelligence",
   description: "AI-powered daily planning for bakery operations",
 };
 

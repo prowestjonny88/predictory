@@ -1,4 +1,4 @@
-"""Initial schema — all BakeWise core tables
+"""Initial schema — all Predictory core tables
 
 Revision ID: 001
 Revises:

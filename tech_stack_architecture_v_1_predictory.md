@@ -1,7 +1,7 @@
-# Tech Stack & Architecture v1 — BakeWise
+# Tech Stack & Architecture v1 — Predictory
 
 ## Document status
-Recommended baseline architecture and stack for the BakeWise MVP and near-term production path.
+Recommended baseline architecture and stack for the Predictory MVP and near-term production path.
 
 ## Goal
 Choose a stack that is:
@@ -1183,5 +1183,5 @@ It gives you:
 ## The most important principle
 **Keep business-critical forecasting and planning deterministic. Use AI to explain, assist, and simulate.**
 
-That is the most stable and defensible technical foundation for BakeWise.
+That is the most stable and defensible technical foundation for Predictory.
 

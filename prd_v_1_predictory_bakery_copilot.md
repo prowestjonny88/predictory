@@ -1,4 +1,4 @@
-# PRD v1 — BakeWise
+# PRD v1 — Predictory
 
 ## Document status
 Baseline PRD for 2-day hackathon build.
@@ -15,7 +15,7 @@ Baseline PRD for 2-day hackathon build.
 
 ## 1. Product summary
 
-**BakeWise** is an AI prep and replenishment copilot for **3–10 outlet bakery-cafe chains in Malaysia**.
+**Predictory** is an AI prep and replenishment copilot for **3–10 outlet bakery-cafe chains in Malaysia**.
 
 It helps operators decide:
 - what to prep tomorrow
@@ -23,15 +23,15 @@ It helps operators decide:
 - what ingredients to reorder
 - which SKUs are likely to be overproduced or stock out
 
-BakeWise is **not** a POS, ERP, procurement marketplace, or generic inventory tracker.
+Predictory is **not** a POS, ERP, procurement marketplace, or generic inventory tracker.
 It is a **decision layer** on top of existing systems.
 
 ### One-line positioning
-**BakeWise tells bakery chains what to prep, what to replenish, and where waste will happen before it happens.**
+**Predictory tells bakery chains what to prep, what to replenish, and where waste will happen before it happens.**
 
 ### Differentiation
 Most incumbents focus on recording transactions, stock levels, procurement steps, or generic reporting.
-BakeWise focuses on **outlet/daypart prep decisions** for perishable bakery operations.
+Predictory focuses on **outlet/daypart prep decisions** for perishable bakery operations.
 
 ---
 
@@ -134,7 +134,7 @@ Help bakery-cafe operators decide what to prep, where to allocate it, and what t
 ### Main user flow
 Evening planning for the next day.
 
-At the end of the day, the operations or central kitchen manager opens BakeWise and sees:
+At the end of the day, the operations or central kitchen manager opens Predictory and sees:
 1. tomorrow's predicted demand by outlet and daypart
 2. recommended prep quantities by SKU
 3. ingredient replenishment recommendations
@@ -153,7 +153,7 @@ The manager can then:
 ## 7. MVP scope
 
 ### MVP promise
-A bakery chain manager can use BakeWise each evening to generate a next-day prep and replenishment plan that is more accurate than historical averages alone.
+A bakery chain manager can use Predictory each evening to generate a next-day prep and replenishment plan that is more accurate than historical averages alone.
 
 ### Must-have outputs
 - outlet/daypart demand forecast
@@ -469,7 +469,7 @@ Shows:
 **Butter Croissant**
 
 ### Demo narrative
-Roti Lane currently uses historical averages and manager intuition to decide tomorrow's prep. That leads to excess croissants at slower outlets and stockouts during the morning rush at stronger outlets. BakeWise forecasts demand by outlet and daypart, recommends exact prep levels, converts the prep plan into butter/flour needs, and warns where waste is likely before the next day begins.
+Roti Lane currently uses historical averages and manager intuition to decide tomorrow's prep. That leads to excess croissants at slower outlets and stockouts during the morning rush at stronger outlets. Predictory forecasts demand by outlet and daypart, recommends exact prep levels, converts the prep plan into butter/flour needs, and warns where waste is likely before the next day begins.
 
 ---
 
@@ -534,7 +534,7 @@ For the hackathon, present these as pilot targets or modeled outcomes, for examp
 
 ## 19. Out-of-scope statement for judges and stakeholders
 
-BakeWise does **not** replace existing systems.
+Predictory does **not** replace existing systems.
 It augments them by becoming the daily planning and decision layer for bakery operations.
 
 ---
@@ -545,5 +545,5 @@ It augments them by becoming the daily planning and decision layer for bakery op
 
 More specifically:
 
-**BakeWise helps bakery chains forecast outlet/daypart demand, plan prep, replenish ingredients, and prevent waste before it happens.**
+**Predictory helps bakery chains forecast outlet/daypart demand, plan prep, replenish ingredients, and prevent waste before it happens.**
 

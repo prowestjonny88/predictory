@@ -1,4 +1,4 @@
-# BakeWise Screenshot Capture Guide
+# Predictory Screenshot Capture Guide
 
 Use this file when capturing final report screenshots. Keep the same date selected across screens where possible, and use demo states that show visible actions or risks rather than empty tables.
 
@@ -31,7 +31,7 @@ Use this file when capturing final report screenshots. Keep the same date select
 - visible override section if an override is created
 
 **Caption**
-- **Forecast and demand drivers view.** BakeWise forecasts demand by outlet and daypart while showing the contextual signals that influenced the recommendation.
+- **Forecast and demand drivers view.** Predictory forecasts demand by outlet and daypart while showing the contextual signals that influenced the recommendation.
 
 **Why it matters**
 - proves the system is explainable and context-aware
@@ -63,7 +63,7 @@ Use this file when capturing final report screenshots. Keep the same date select
 - reorder quantities visible
 
 **Caption**
-- **Ingredient replenishment recommendations.** BakeWise translates prep requirements into ingredient-level reorder actions and urgency signals.
+- **Ingredient replenishment recommendations.** Predictory translates prep requirements into ingredient-level reorder actions and urgency signals.
 
 **Why it matters**
 - shows the system links forecasting to procurement execution
@@ -124,7 +124,7 @@ Use this file when capturing final report screenshots. Keep the same date select
 - language switcher visible if possible
 
 **Caption**
-- **Multilingual experience for inclusive adoption.** BakeWise supports English, Bahasa Melayu, and Simplified Chinese across the interface and copilot outputs.
+- **Multilingual experience for inclusive adoption.** Predictory supports English, Bahasa Melayu, and Simplified Chinese across the interface and copilot outputs.
 
 **Why it matters**
 - supports ASEAN inclusivity and broader usability
@@ -140,4 +140,4 @@ Use this file when capturing final report screenshots. Keep the same date select
 
 ## Final Assembly Note
 
-When the screenshots are ready, insert them into the main report at the corresponding placeholder locations in [BakeWise_Report.md](/c:/Users/JON/OneDrive/Documents/predictory/docs/BakeWise_Report.md).
+When the screenshots are ready, insert them into the main report at the corresponding placeholder locations in [Predictory_Report.md](/c:/Users/JON/OneDrive/Documents/predictory/docs/Predictory_Report.md).
