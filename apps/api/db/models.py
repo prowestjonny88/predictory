@@ -81,6 +81,21 @@ class RecipeBOM(Base):
     __table_args__ = (UniqueConstraint("sku_id", "ingredient_id", name="uq_sku_ingredient"),)
 
 
+# ─── ML Models ──────────────────────────────────────────────────────────────
+
+class ModelRun(Base):
+    __tablename__ = "model_runs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    model_version: Mapped[str] = mapped_column(String(100), nullable=False)
+    engine_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), default="completed")
+    metrics: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    forecast_runs = relationship("ForecastRun", back_populates="model_run")
+
+
 # ─── Operational Data ────────────────────────────────────────────────────────
 
 class SalesFact(Base):
@@ -140,11 +155,16 @@ class ForecastRun(Base):
     __tablename__ = "forecast_runs"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    forecast_run_id: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)  # e.g., fr_20260430_001
     forecast_date: Mapped[date] = mapped_column(Date, nullable=False, index=True)
+    model_run_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("model_runs.id"), nullable=True)
     status: Mapped[str] = mapped_column(String(20), default="completed")
+    engine_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    model_version: Mapped[str] = mapped_column(String(100), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     lines = relationship("ForecastLine", back_populates="run", cascade="all, delete-orphan")
+    model_run = relationship("ModelRun", back_populates="forecast_runs")
 
 
 class ForecastLine(Base):
@@ -299,3 +319,71 @@ class AuditEvent(Base):
     after_value: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
     user_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+# ─── Canonical API Tables ────────────────────────────────────────────────────
+
+class PrepRecommendation(Base):
+    __tablename__ = "prep_recommendations"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    forecast_run_id: Mapped[str] = mapped_column(String(50), nullable=False)
+    outlet_id: Mapped[int] = mapped_column(Integer, ForeignKey("outlets.id"), nullable=False)
+    sku_id: Mapped[int] = mapped_column(Integer, ForeignKey("skus.id"), nullable=False)
+    daypart: Mapped[str] = mapped_column(String(20), nullable=False)
+    p10: Mapped[float] = mapped_column(Float, nullable=False)
+    p50: Mapped[float] = mapped_column(Float, nullable=False)
+    p90: Mapped[float] = mapped_column(Float, nullable=False)
+    opening_stock: Mapped[int] = mapped_column(Integer, default=0)
+    recommended_prep: Mapped[int] = mapped_column(Integer, nullable=False)
+    batch_size: Mapped[int] = mapped_column(Integer, default=5)
+    waste_cost: Mapped[float] = mapped_column(Float, nullable=False)
+    stockout_cost: Mapped[float] = mapped_column(Float, nullable=False)
+    financial_exposure: Mapped[dict] = mapped_column(JSON, nullable=False)
+    reason_summary: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(String(20), default="pending_approval")
+    final_prep: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    operator_action: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    operator_reason: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    approved_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class ReplenishmentRecommendation(Base):
+    __tablename__ = "replenishment_recommendations"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    forecast_run_id: Mapped[str] = mapped_column(String(50), nullable=False)
+    ingredient_id: Mapped[int] = mapped_column(Integer, ForeignKey("ingredients.id"), nullable=False)
+    required_qty: Mapped[float] = mapped_column(Float, nullable=False)
+    current_stock: Mapped[float] = mapped_column(Float, nullable=False)
+    shortage_qty: Mapped[float] = mapped_column(Float, nullable=False)
+    reorder_qty: Mapped[float] = mapped_column(Float, nullable=False)
+    unit: Mapped[str] = mapped_column(String(20), nullable=False)
+    urgency: Mapped[str] = mapped_column(String(20), nullable=False)
+    driving_skus: Mapped[list] = mapped_column(JSON, nullable=False)
+    status: Mapped[str] = mapped_column(String(20), default="pending")
+    is_ordered: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class DecisionAuditEvent(Base):
+    __tablename__ = "decision_audit_events"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    forecast_run_id: Mapped[str] = mapped_column(String(50), nullable=False)
+    model_version: Mapped[str] = mapped_column(String(100), nullable=False)
+    engine_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    outlet_id: Mapped[int] = mapped_column(Integer, ForeignKey("outlets.id"), nullable=False)
+    sku_id: Mapped[int] = mapped_column(Integer, ForeignKey("skus.id"), nullable=False)
+    daypart: Mapped[str] = mapped_column(String(20), nullable=False)
+    p10: Mapped[float] = mapped_column(Float, nullable=False)
+    p50: Mapped[float] = mapped_column(Float, nullable=False)
+    p90: Mapped[float] = mapped_column(Float, nullable=False)
+    recommended_prep: Mapped[int] = mapped_column(Integer, nullable=False)
+    final_prep: Mapped[int] = mapped_column(Integer, nullable=False)
+    operator_action: Mapped[str] = mapped_column(String(50), nullable=False)
+    operator_reason: Mapped[str] = mapped_column(Text, nullable=False)
+    gemini_note_adjustment_applied: Mapped[bool] = mapped_column(Boolean, default=False)
+    gemini_note_summary: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

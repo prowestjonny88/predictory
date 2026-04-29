@@ -134,6 +134,53 @@ def test_daily_plan_api_returns_required_sections_and_plan_triggers():
         app.dependency_overrides.clear()
 
 
+def test_apply_recommendation_decision_updates_prep_line_and_records_audit():
+    SessionLocal = _build_session_factory()
+    db = SessionLocal()
+    _seed_demo_data(db)
+    target_date = date.today().isoformat()
+    db.close()
+
+    def override_get_db():
+        session = SessionLocal()
+        try:
+            yield session
+        finally:
+            session.close()
+
+    app.dependency_overrides[get_db] = override_get_db
+    try:
+        with TestClient(app) as client:
+            resp = client.get(f"/api/v1/api/daily-plan/{target_date}")
+            assert resp.status_code == 200
+            payload = resp.json()
+            assert payload["prep_plan"]
+
+            decision_resp = client.post(
+                f"/api/v1/api/daily-plan/recommendations/{payload['prep_plan'][0]['id']}/decision",
+                json={
+                    "operator_action": "approved",
+                    "final_prep": 5,
+                    "operator_reason": "Adjust for demand",
+                    "role": "outlet_manager",
+                },
+            )
+            assert decision_resp.status_code == 200
+            decision_payload = decision_resp.json()
+
+            assert decision_payload["status"] == "recorded"
+            assert decision_payload["final_prep"] == 5
+            assert isinstance(decision_payload["audit_event_id"], int)
+
+            db = SessionLocal()
+            plan_line = db.query(PrepPlanLine).filter(PrepPlanLine.id == payload["prep_plan"][0]["id"]).first()
+            assert plan_line.edited_units == 5
+            assert plan_line.status == "accepted"
+            db.close()
+    finally:
+        app.dependency_overrides.clear()
+
+
 def test_daily_plan_reuses_existing_runs_and_plans_after_first_generation():
     SessionLocal = _build_session_factory()
     db = SessionLocal()

@@ -6,10 +6,12 @@ from datetime import date, timedelta
 from typing import Optional
 import statistics
 
+from sqlalchemy import desc
 from sqlalchemy.orm import Session
 
-from db.models import ForecastLine, ForecastRun, SalesFact
+from db.models import ForecastLine, ForecastRun, SalesFact, ModelRun, Outlet, SKU
 from forecasting.context import build_forecast_context
+from services.model_loader import load_model_for_inference
 
 WEIGHTS_7 = [0.05, 0.05, 0.10, 0.10, 0.15, 0.20, 0.35]
 DAYPARTS = ["morning", "midday", "evening"]
@@ -152,6 +154,28 @@ def _blend_total_with_available_signals(
     }
     blended_total = sum(components[name] * applied_weights[name] for name in components)
     return blended_total, applied_weights
+
+
+def _generate_forecast_run_id(db: Session, target_date: date) -> str:
+    date_prefix = target_date.strftime("%Y%m%d")
+    existing_count = db.query(ForecastRun).filter(ForecastRun.forecast_date == target_date).count()
+    return f"fr_{date_prefix}_{existing_count + 1:03d}"
+
+
+def _get_or_create_model_run(db: Session) -> ModelRun:
+    latest = db.query(ModelRun).order_by(desc(ModelRun.created_at)).first()
+    if latest:
+        return latest
+
+    model_run = ModelRun(
+        model_version="lightgbm_p50_v1",
+        engine_name="lightgbm_mlops_prototype",
+        status="active",
+        metrics={"placeholder": True},
+    )
+    db.add(model_run)
+    db.flush()
+    return model_run
 
 
 def _historical_daypart_ratios(
@@ -307,12 +331,22 @@ def forecast_demand(
 def run_forecast_for_date(target_date: date, db: Session) -> ForecastRun:
     from db.models import Outlet, SKU
 
-    outlets = db.query(Outlet).filter(Outlet.is_active == True).all()
-    skus = db.query(SKU).filter(SKU.is_active == True).all()
+    model_info = load_model_for_inference()
+    model_run = _get_or_create_model_run(db)
 
-    run = ForecastRun(forecast_date=target_date, status="completed")
+    run = ForecastRun(
+        forecast_run_id=_generate_forecast_run_id(db, target_date),
+        forecast_date=target_date,
+        model_run_id=model_run.id,
+        status="completed",
+        engine_name=model_info["engine_name"],
+        model_version=model_run.model_version,
+    )
     db.add(run)
     db.flush()
+
+    outlets = db.query(Outlet).filter(Outlet.is_active == True).all()
+    skus = db.query(SKU).filter(SKU.is_active == True).all()
 
     for outlet in outlets:
         for sku in skus:
