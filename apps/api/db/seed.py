@@ -29,6 +29,8 @@ OUTLETS = [
     {"name": "Roti Lane KLCC",         "code": "RL-KLCC", "address": "Suria KLCC, Kuala Lumpur", "latitude": 3.1579, "longitude": 101.7116},
     {"name": "Roti Lane Bangsar",      "code": "RL-BGS",  "address": "Bangsar Village II, KL", "latitude": 3.1291, "longitude": 101.6738},
     {"name": "Roti Lane Mid Valley",   "code": "RL-MV",   "address": "Mid Valley Megamall, KL", "latitude": 3.1174, "longitude": 101.6770},
+    {"name": "Roti Lane Bukit Bintang","code": "RL-BB",   "address": "Bukit Bintang, Kuala Lumpur", "latitude": 3.1468, "longitude": 101.7113},
+    {"name": "Roti Lane Damansara",    "code": "RL-DMS",  "address": "Damansara Uptown, PJ", "latitude": 3.1348, "longitude": 101.6230},
 ]
 
 SKUS = [
@@ -37,6 +39,9 @@ SKUS = [
     {"name": "Banana Bread",      "code": "SKU-BNB", "category": "Bread",    "freshness_hours": 24, "is_bestseller": False, "safety_buffer_pct": 0.08, "price": 12.00},
     {"name": "Cheese Danish",     "code": "SKU-CDN", "category": "Pastry",   "freshness_hours": 8,  "is_bestseller": True,  "safety_buffer_pct": 0.10, "price": 9.00},
     {"name": "Cinnamon Roll",     "code": "SKU-CNR", "category": "Pastry",   "freshness_hours": 10, "is_bestseller": False, "safety_buffer_pct": 0.08, "price": 7.50},
+    {"name": "Blueberry Muffin",  "code": "SKU-BMU", "category": "Muffin",   "freshness_hours": 12, "is_bestseller": False, "safety_buffer_pct": 0.10, "price": 6.50},
+    {"name": "Sourdough Loaf",    "code": "SKU-SDL", "category": "Bread",    "freshness_hours": 24, "is_bestseller": True,  "safety_buffer_pct": 0.08, "price": 16.00},
+    {"name": "Fruit Tart",        "code": "SKU-FRT", "category": "Dessert",  "freshness_hours": 8,  "is_bestseller": False, "safety_buffer_pct": 0.10, "price": 10.00},
 ]
 
 INGREDIENTS = [
@@ -57,16 +62,22 @@ RECIPE_BOM = {
     "SKU-BNB": [("ING-FLR", 0.150), ("ING-EGG", 2.0),   ("ING-MLK", 0.080), ("ING-BUT", 0.040)],
     "SKU-CDN": [("ING-BUT", 0.070), ("ING-FLR", 0.110), ("ING-EGG", 1.0),   ("ING-CHE", 0.040)],
     "SKU-CNR": [("ING-FLR", 0.100), ("ING-EGG", 1.0),   ("ING-BUT", 0.030), ("ING-CIN", 0.008)],
+    "SKU-BMU": [("ING-FLR", 0.085), ("ING-EGG", 1.0),   ("ING-MLK", 0.055), ("ING-BUT", 0.025)],
+    "SKU-SDL": [("ING-FLR", 0.280), ("ING-MLK", 0.020)],
+    "SKU-FRT": [("ING-FLR", 0.070), ("ING-EGG", 1.0),   ("ING-BUT", 0.045), ("ING-ALM", 0.020)],
 }
 
 # Base daily sales per outlet per SKU (units across all dayparts)
-# [KLCC, Bangsar, MidValley]
+# [KLCC, Bangsar, MidValley, BukitBintang, Damansara]
 BASE_DAILY_SALES = {
-    "SKU-CRO": [45, 35, 50],
-    "SKU-CMU": [30, 25, 35],
-    "SKU-BNB": [15, 12, 18],
-    "SKU-CDN": [25, 20, 30],
-    "SKU-CNR": [20, 16, 22],
+    "SKU-CRO": [45, 35, 50, 42, 32],
+    "SKU-CMU": [30, 25, 35, 28, 24],
+    "SKU-BNB": [15, 12, 18, 16, 14],
+    "SKU-CDN": [25, 20, 30, 24, 18],
+    "SKU-CNR": [20, 16, 22, 20, 15],
+    "SKU-BMU": [28, 22, 32, 26, 21],
+    "SKU-SDL": [18, 14, 21, 17, 16],
+    "SKU-FRT": [16, 12, 18, 15, 11],
 }
 
 # Daypart split ratios [morning, midday, evening]
@@ -76,6 +87,9 @@ DAYPART_RATIOS = {
     "SKU-BNB": [0.20, 0.50, 0.30],
     "SKU-CDN": [0.45, 0.35, 0.20],
     "SKU-CNR": [0.40, 0.35, 0.25],
+    "SKU-BMU": [0.35, 0.40, 0.25],
+    "SKU-SDL": [0.30, 0.45, 0.25],
+    "SKU-FRT": [0.20, 0.45, 0.35],
 }
 
 # Weekend multiplier
@@ -257,11 +271,12 @@ def seed_sales_and_waste(db, outlets, skus):
                 for dp_idx, dp in enumerate(DAYPARTS):
                     units = max(0, int(daily_base * ratios[dp_idx]))
                     daypart_sales[dp] = units
+                total_base = sum(daypart_sales.values())
 
                 # ── Bangsar croissant overprep / waste ──────────────────────
-                # Bangsar preps ~18% more than it sells → 15%+ waste rate
+                # Bangsar preps ~25% more than it sells → 15%+ waste rate after rounding
                 if sku_code == "SKU-CRO" and outlet.code == "RL-BGS":
-                    prep_total = int(total_base * 1.18)
+                    prep_total = int(total_base * 1.25)
                     waste_total = prep_total - total_base
                     # Log evening waste (end of day)
                     if waste_total > 0:

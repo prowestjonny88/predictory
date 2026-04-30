@@ -17,6 +17,9 @@ build/
 .venv/
 venv/
 env/
+.codex-pydeps/
+.codex-train-models/
+.codex-train-exports/
 .Python
 pip-log.txt
 pip-delete-this-directory.txt
