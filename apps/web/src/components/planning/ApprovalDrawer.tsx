@@ -22,6 +22,7 @@ export default function ApprovalDrawer({ open, item, auditEvents, onClose, onSub
   const [finalPrep, setFinalPrep] = useState<string>("");
   const [reason, setReason] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   const effectiveFinalPrep = useMemo(() => {
     if (!item) {
@@ -39,11 +40,23 @@ export default function ApprovalDrawer({ open, item, auditEvents, onClose, onSub
   }
 
   const reasonRequired = action !== "approved";
+  const finalPrepRequired = action === "edited";
+  const parsedFinalPrep = Number.parseInt(finalPrep || "", 10);
+  const hasFinalPrep = !Number.isNaN(parsedFinalPrep);
+  const reasonValid = !reasonRequired || reason.trim().length >= 3;
+  const finalPrepValid = !finalPrepRequired || hasFinalPrep;
+  const submitDisabled = submitting || !reasonValid || !finalPrepValid;
 
   async function handleSubmit() {
-    if (reasonRequired && reason.trim().length < 3) {
+    if (!reasonValid) {
+      setValidationError("Reason is required for edits or rejections.");
       return;
     }
+    if (!finalPrepValid) {
+      setValidationError("Final prep is required when editing.");
+      return;
+    }
+    setValidationError(null);
     setSubmitting(true);
     await onSubmit({ action, finalPrep: effectiveFinalPrep, reason: reason.trim() || undefined });
     setSubmitting(false);
@@ -124,6 +137,12 @@ export default function ApprovalDrawer({ open, item, auditEvents, onClose, onSub
             </div>
           )}
 
+            {validationError && (
+              <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                {validationError}
+              </div>
+            )}
+
           <div className="rounded-lg border border-neutral-100 p-3">
             <p className="text-xs uppercase tracking-wide text-neutral-500">Audit preview</p>
             <AuditPreview events={auditEvents} />
@@ -132,7 +151,7 @@ export default function ApprovalDrawer({ open, item, auditEvents, onClose, onSub
         <div className="border-t px-5 py-4">
           <div className="flex items-center justify-between">
             <Badge variant="outline">Final prep {effectiveFinalPrep}</Badge>
-            <Button variant="primary" onClick={handleSubmit} disabled={submitting}>
+            <Button variant="primary" onClick={handleSubmit} disabled={submitDisabled}>
               {submitting ? "Saving..." : "Submit decision"}
             </Button>
           </div>

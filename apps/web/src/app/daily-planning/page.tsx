@@ -352,6 +352,8 @@ export default function DailyPlanningPage() {
           : item
       ),
     }));
+    setDrawerOpen(false);
+    setStatusMessage("Decision recorded.");
   }
 
   function renderActionList(items: DailyPlanTopAction[]) {

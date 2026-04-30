@@ -18,6 +18,7 @@ import LanguageSwitcher from "@/components/i18n/LanguageSwitcher";
 import { cn } from "@/lib/utils";
 
 const NAV = [
+  { href: "/daily-planning", labelKey: "nav.dailyPlanning", fallback: "Daily Planning", icon: ClipboardList },
   { href: "/dashboard", labelKey: "nav.dashboard", fallback: "Dashboard", icon: LayoutDashboard },
   { href: "/forecast", labelKey: "nav.forecast", fallback: "Forecast", icon: TrendingUp },
   { href: "/prep-plan", labelKey: "nav.prepPlan", fallback: "Prep Plan", icon: ClipboardList },
