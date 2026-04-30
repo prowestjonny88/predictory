@@ -1,0 +1,78 @@
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+
+interface Props {
+  open: boolean;
+  onClose: () => void;
+  modelVersion: string;
+  modelStatus: string;
+  engineName: string;
+  validationWindow: string;
+  metrics: {
+    wape: number;
+    bias: number;
+    p10_p90_coverage: number;
+    estimated_mismatch_cost_delta_pct: number;
+  };
+}
+
+export default function ModelEvidenceDrawer({
+  open,
+  onClose,
+  modelVersion,
+  modelStatus,
+  engineName,
+  validationWindow,
+  metrics,
+}: Props) {
+  if (!open) {
+    return null;
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end bg-black/30">
+      <div className="flex h-full w-full max-w-md flex-col bg-white shadow-xl">
+        <div className="flex items-center justify-between border-b px-5 py-4">
+          <div>
+            <h3 className="text-sm font-semibold text-neutral-900">Model evidence</h3>
+            <p className="text-xs text-neutral-500">Validation: {validationWindow}</p>
+          </div>
+          <Button variant="ghost" size="sm" onClick={onClose}>
+            Close
+          </Button>
+        </div>
+        <div className="flex-1 space-y-4 overflow-auto px-5 py-4">
+          <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-3">
+            <p className="text-xs uppercase tracking-wide text-neutral-500">Status</p>
+            <p className="text-sm font-semibold text-neutral-900">{modelStatus}</p>
+            <p className="text-xs text-neutral-500">Engine: {engineName}</p>
+            <p className="text-xs text-neutral-500">Version: {modelVersion}</p>
+          </div>
+          <div className="grid gap-2">
+            <div className="flex items-center justify-between rounded-lg border border-neutral-200 px-3 py-2">
+              <span className="text-xs text-neutral-500">WAPE</span>
+              <Badge variant="info">{(metrics.wape * 100).toFixed(1)}%</Badge>
+            </div>
+            <div className="flex items-center justify-between rounded-lg border border-neutral-200 px-3 py-2">
+              <span className="text-xs text-neutral-500">Bias</span>
+              <Badge variant="outline">{(metrics.bias * 100).toFixed(1)}%</Badge>
+            </div>
+            <div className="flex items-center justify-between rounded-lg border border-neutral-200 px-3 py-2">
+              <span className="text-xs text-neutral-500">p10-p90 coverage</span>
+              <Badge variant="low">{(metrics.p10_p90_coverage * 100).toFixed(0)}%</Badge>
+            </div>
+            <div className="flex items-center justify-between rounded-lg border border-neutral-200 px-3 py-2">
+              <span className="text-xs text-neutral-500">Mismatch cost delta</span>
+              <Badge variant="success">
+                {(metrics.estimated_mismatch_cost_delta_pct * 100).toFixed(0)}%
+              </Badge>
+            </div>
+          </div>
+          <div className="rounded-lg border border-neutral-200 bg-amber-50 p-3 text-xs text-amber-900">
+            Model status: MLOps prototype. Validated on POS-style demo window.
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
