@@ -6,6 +6,7 @@ import { HelpCircle, X } from "lucide-react";
 
 import DemandDriversPanel from "@/components/forecast/DemandDriversPanel";
 import ForecastChart from "@/components/ForecastChart";
+import ForecastMathPanel from "@/components/forecast/ForecastMathPanel";
 import OverrideEditor from "@/components/forecast/OverrideEditor";
 import Header from "@/components/Header";
 import { useLanguage } from "@/components/i18n/LanguageProvider";
@@ -30,6 +31,7 @@ export default function ForecastPage() {
   const [editingOverride, setEditingOverride] = useState<ForecastOverride | null>(null);
   const [expandedLines, setExpandedLines] = useState(new Set<number>());
   const [adjustmentInputs, setAdjustmentInputs] = useState<Record<number, string>>({});
+  const [selectedLineId, setSelectedLineId] = useState<number | null>(null);
   const [explanations, setExplanations] = useState<
     Record<number, { text: string; loading: boolean; error: boolean }>
   >({});
@@ -195,6 +197,7 @@ export default function ForecastPage() {
   });
 
   async function toggleWhy(line: ForecastDisplayLine) {
+    setSelectedLineId(line.id);
     const next = new Set(expandedLines);
     if (next.has(line.id)) {
       next.delete(line.id);
@@ -270,6 +273,13 @@ export default function ForecastPage() {
       }
     );
   }
+
+  const selectedLine = useMemo(() => {
+    if (selectedLineId == null) {
+      return null;
+    }
+    return lines.find((line) => line.id === selectedLineId) ?? null;
+  }, [lines, selectedLineId]);
 
   return (
     <div className="min-h-screen">
@@ -553,6 +563,8 @@ export default function ForecastPage() {
               </tbody>
             </table>
           </div>
+
+          <ForecastMathPanel line={selectedLine} />
         </section>
       </main>
     </div>
