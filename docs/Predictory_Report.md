@@ -413,7 +413,7 @@ The implementation is backed by concrete engineering artifacts:
 
 - backend contracts for ingestion, planning, alerts, and copilot
 - seeded demo data representing five outlets and multiple SKUs while still reflecting logic that also applies to a single-shop bakery
-- explicit demo scenarios for Bangsar waste risk and Mid Valley stockout risk
+- explicit demo scenarios for Setapak Town Center waste risk and Kajang Town stockout risk
 - frontend pages for dashboard, forecast, prep plan, replenishment, risk center, copilot, and scenario planning
 - automated backend test coverage across forecasting, prep, replenishment, alerting, data APIs, forecast context, and copilot behavior
 
@@ -483,7 +483,7 @@ To provide quantitative evidence without overclaiming real-world outcomes, the f
 
 | Metric | Value |
 |---|---|
-| Outlets simulated | 3 (KLCC, Bangsar, Mid Valley) |
+| Outlets simulated | 3 (Cheras Community Hub, Setapak Town Center, Kajang Town) |
 | SKUs tracked | 5 (Butter Croissant, Chocolate Muffin, Banana Bread, Cheese Danish, Cinnamon Roll) |
 | Historical sales window | 30 days |
 | Ingredients tracked via BOM | 8 |
@@ -494,14 +494,14 @@ To provide quantitative evidence without overclaiming real-world outcomes, the f
 
 | Scenario | Outlet | Pattern | How Predictory Surfaced It |
 |---|---|---|---|
-| Chronic overproduction | Roti Lane Bangsar | Butter Croissant prepped **~18% above actual sales** for 30 consecutive days → **~15% end-of-day waste rate** | Waste alert generated; prep plan recommendation reduced by approx. 15 units/day |
-| High-frequency stockout | Roti Lane Mid Valley | Morning Butter Croissant sold out on **4 of every 7 days** (Mon/Wed/Fri/Sat) | Stockout alert generated; AI brief flagged lost revenue opportunity and suggested morning batch increase |
+| Chronic overproduction | Roti Lane Setapak Town Center | Butter Croissant prepped **~18% above actual sales** for 30 consecutive days → **~15% end-of-day waste rate** | Waste alert generated; prep plan recommendation reduced by approx. 15 units/day |
+| High-frequency stockout | Roti Lane Kajang Town | Morning Butter Croissant sold out on **4 of every 7 days** (Mon/Wed/Fri/Sat) | Stockout alert generated; AI brief flagged lost revenue opportunity and suggested morning batch increase |
 | Demand spike on holidays | All outlets | CNY holiday applied **+35% demand uplift** across all SKUs | Forecast layer auto-adjusted quantities; Demand Drivers panel displayed the uplift flag |
 | Weekend surge | All outlets | Demand runs **25% higher** on Saturdays and Sundays | Forecast engine detected weekday vs. weekend pattern and adjusted prep recommendations accordingly |
 
 #### Forecasted Daily Demand (Base Weekday, All Outlets Combined)
 
-| SKU | KLCC | Bangsar | Mid Valley | Total/day |
+| SKU | Cheras Community Hub | Setapak Town Center | Kajang Town | Total/day |
 |---|---|---|---|---|
 | Butter Croissant | 45 | 35 | 50 | **130 units** |
 | Cheese Danish | 25 | 20 | 30 | **75 units** |
@@ -516,8 +516,8 @@ To provide quantitative evidence without overclaiming real-world outcomes, the f
 
 | Alert Type | Outlet | Product | Detection Method |
 |---|---|---|---|
-| Waste Hotspot | Roti Lane Bangsar | Butter Croissant | Waste rate exceeded 15% threshold for 30 consecutive days |
-| Stockout Risk | Roti Lane Mid Valley | Butter Croissant | Morning EOD inventory reached 0 on 4 of 7 days per week |
+| Waste Hotspot | Roti Lane Setapak Town Center | Butter Croissant | Waste rate exceeded 15% threshold for 30 consecutive days |
+| Stockout Risk | Roti Lane Kajang Town | Butter Croissant | Morning EOD inventory reached 0 on 4 of 7 days per week |
 | Demand Driver: Holiday | All outlets | All SKUs | Upcoming CNY (+35%) and Demo Festival Day (+5%) detected |
 | Demand Driver: Weekend | All outlets | All SKUs | Weekend multiplier ×1.25 automatically applied to forecast |
 
@@ -525,9 +525,9 @@ To provide quantitative evidence without overclaiming real-world outcomes, the f
 
 These simulated results demonstrate three core operational improvements that Predictory is designed to deliver:
 
-1. **Earlier waste detection.** The Bangsar overproduction pattern (15%+ waste rate on Croissants) was identified on **day 1 of the seeded window**, not after 30 days of manual observation. In a real deployment, this could translate to preventing weeks of cumulative loss before human observation catches it.
+1. **Earlier waste detection.** The Setapak Town Center overproduction pattern (15%+ waste rate on Croissants) was identified on **day 1 of the seeded window**, not after 30 days of manual observation. In a real deployment, this could translate to preventing weeks of cumulative loss before human observation catches it.
 
-2. **Proactive stockout prevention.** The Mid Valley morning stockout pattern (4× per week) was flagged as a recurring risk, prompting a targeted prep recommendation increase. With a 25% uplift to the morning batch (~6 additional units), estimated recoverable revenue per day could reach **RM 51 (6 units × RM 8.50)**, or approximately **RM 1,428/month** for this single outlet-SKU combination.
+2. **Proactive stockout prevention.** The Kajang Town morning stockout pattern (4× per week) was flagged as a recurring risk, prompting a targeted prep recommendation increase. With a 25% uplift to the morning batch (~6 additional units), estimated recoverable revenue per day could reach **RM 51 (6 units × RM 8.50)**, or approximately **RM 1,428/month** for this single outlet-SKU combination.
 
 3. **Context-aware forecasting.** Demand driver signals (holidays, weekends) adjusted the baseline automatically, demonstrating that the forecasting layer can incorporate contextual knowledge without requiring manual recalibration by the bakery team.
 

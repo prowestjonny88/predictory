@@ -190,7 +190,7 @@ The system shall forecast demand for selected bakery SKUs by:
 - Evening: 3pm–8pm
 
 #### Example output
-Outlet KLCC:
+Outlet Cheras Community Hub:
 - Butter Croissant: 54 / 28 / 14
 - Pain au Chocolat: 22 / 15 / 7
 - Pandan Bun: 18 / 12 / 6
@@ -207,7 +207,7 @@ The recommendation should consider:
 - historical waste patterns
 
 #### Example
-"Prep 88 butter croissants for KLCC tomorrow: 52 for morning, 24 for midday, 12 for evening."
+"Prep 88 butter croissants for Cheras Community Hub tomorrow: 52 for morning, 24 for midday, 12 for evening."
 
 ### FR3. Central-kitchen allocation view
 The system shall provide a planning view for central kitchen production and outlet allocation.
@@ -238,14 +238,14 @@ The recommendation should use:
 The system shall flag likely overprep / overstock situations before production begins.
 
 #### Example alerts
-- "Outlet Bangsar likely to overproduce croissants by 14% tomorrow evening."
+- "Outlet Setapak Town Center likely to overproduce croissants by 14% tomorrow evening."
 - "Blueberry muffin demand has declined for 3 days; reduce prep by 10 units."
 
 ### FR6. Stockout risk alert
 The system shall flag likely shortfalls in bestselling products or ingredients.
 
 #### Example alerts
-- "Morning croissant stockout risk at Outlet Mid Valley."
+- "Morning croissant stockout risk at Outlet Kajang Town."
 - "Milk inventory below safe coverage for tomorrow's drink-pastry combo demand."
 
 ### FR7. Explainability layer

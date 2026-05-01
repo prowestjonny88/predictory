@@ -30,7 +30,7 @@ def test_recommend_replenishment_triggers_butter_reorder_from_croissant_prep():
     db = _build_session()
     target_date = date(2026, 3, 12)
 
-    outlet = Outlet(name="Roti Lane KLCC", code="RL-KLCC")
+    outlet = Outlet(name="Roti Lane Cheras Community Hub", code="RL-CHR")
     sku = SKU(
         name="Butter Croissant",
         code="SKU-CRO",

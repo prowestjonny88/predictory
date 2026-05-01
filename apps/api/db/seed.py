@@ -1,10 +1,10 @@
 """
 Demo data seed script for Predictory — Task 25
 Outlet: Roti Lane Bakery
-Outlets: KLCC, Bangsar, Mid Valley, Bukit Bintang, Damansara
+Outlets: Cheras Community Hub, Setapak Town Center, Shah Alam Seksyen 7, Kajang Town, Klang Riverside
 30 days historical data with:
-  - Bangsar: 15%+ waste rate on croissants
-  - Mid Valley: morning stockout 3+ days/week
+    - Setapak Town Center: 15%+ waste rate on croissants
+    - Kajang Town: morning stockout 3+ days/week
 Run from apps/api directory: python -m db.seed
 """
 
@@ -26,11 +26,11 @@ random.seed(42)
 # ─── Master Data ──────────────────────────────────────────────────────────────
 
 OUTLETS = [
-    {"name": "Roti Lane KLCC",         "code": "RL-KLCC", "address": "Suria KLCC, Kuala Lumpur", "latitude": 3.1579, "longitude": 101.7116},
-    {"name": "Roti Lane Bangsar",      "code": "RL-BGS",  "address": "Bangsar Village II, KL", "latitude": 3.1291, "longitude": 101.6738},
-    {"name": "Roti Lane Mid Valley",   "code": "RL-MV",   "address": "Mid Valley Megamall, KL", "latitude": 3.1174, "longitude": 101.6770},
-    {"name": "Roti Lane Bukit Bintang","code": "RL-BB",   "address": "Bukit Bintang, Kuala Lumpur", "latitude": 3.1468, "longitude": 101.7113},
-    {"name": "Roti Lane Damansara",    "code": "RL-DMS",  "address": "Damansara Uptown, PJ", "latitude": 3.1348, "longitude": 101.6230},
+    {"name": "Roti Lane Cheras Community Hub", "code": "RL-CHR", "address": "Cheras, Kuala Lumpur", "latitude": 3.0815, "longitude": 101.7402},
+    {"name": "Roti Lane Setapak Town Center",  "code": "RL-SET", "address": "Setapak, Kuala Lumpur", "latitude": 3.2050, "longitude": 101.7130},
+    {"name": "Roti Lane Shah Alam Seksyen 7",  "code": "RL-SAS", "address": "Seksyen 7, Shah Alam", "latitude": 3.0738, "longitude": 101.4894},
+    {"name": "Roti Lane Kajang Town",          "code": "RL-KJG", "address": "Kajang, Selangor", "latitude": 2.9930, "longitude": 101.7890},
+    {"name": "Roti Lane Klang Riverside",      "code": "RL-KLG", "address": "Klang, Selangor", "latitude": 3.0449, "longitude": 101.4484},
 ]
 
 SKUS = [
@@ -68,7 +68,7 @@ RECIPE_BOM = {
 }
 
 # Base daily sales per outlet per SKU (units across all dayparts)
-# [KLCC, Bangsar, MidValley, BukitBintang, Damansara]
+# [Cheras, Setapak, ShahAlamSek7, Kajang, Klang]
 BASE_DAILY_SALES = {
     "SKU-CRO": [45, 35, 50, 42, 32],
     "SKU-CMU": [30, 25, 35, 28, 24],
@@ -250,8 +250,8 @@ def seed_sales_and_waste(db, outlets, skus):
     outlet_idx_map = {o.code: idx for idx, o in enumerate(outlets)}
     sku_map = {s.code: s for s in skus}
 
-    BANGSAR_IDX = 1   # Bangsar — high croissant waste
-    MV_IDX = 2        # Mid Valley — morning stockouts
+    SETAPAK_IDX = 1   # Setapak Town Center — high croissant waste
+    KAJANG_IDX = 3    # Kajang Town — morning stockouts
 
     rows_sales = 0
     rows_waste = 0
@@ -273,9 +273,9 @@ def seed_sales_and_waste(db, outlets, skus):
                     daypart_sales[dp] = units
                 total_base = sum(daypart_sales.values())
 
-                # ── Bangsar croissant overprep / waste ──────────────────────
-                # Bangsar preps ~25% more than it sells → 15%+ waste rate after rounding
-                if sku_code == "SKU-CRO" and outlet.code == "RL-BGS":
+                # ── Setapak Town Center croissant overprep / waste ──────────
+                # Setapak preps ~25% more than it sells → 15%+ waste rate after rounding
+                if sku_code == "SKU-CRO" and outlet.code == "RL-SET":
                     prep_total = int(total_base * 1.25)
                     waste_total = prep_total - total_base
                     # Log evening waste (end of day)
@@ -291,9 +291,9 @@ def seed_sales_and_waste(db, outlets, skus):
                         db.add(wl)
                         rows_waste += 1
 
-                # ── Mid Valley morning stockout ─────────────────────────────
+                # ── Kajang Town morning stockout ────────────────────────────
                 # ~4 out of 7 days, morning croissants sell out early
-                if sku_code == "SKU-CRO" and outlet.code == "RL-MV":
+                if sku_code == "SKU-CRO" and outlet.code == "RL-KJG":
                     if current.weekday() in [0, 2, 4, 5]:  # Mon/Wed/Fri/Sat
                         # Artificial oversell (stockout day) — reduce stock to 0 early
                         daypart_sales["morning"] = int(daypart_sales["morning"] * 1.25)

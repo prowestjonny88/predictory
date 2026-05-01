@@ -94,13 +94,13 @@ def test_upload_sales_and_inventory_accept_valid_rows():
         sales_csv = "\n".join(
             [
                 "outlet_code,sku_code,sale_date,daypart,units_sold,revenue",
-                f"RL-KLCC,SKU-CRO,{date.today().isoformat()},morning,25,212.5",
+                f"RL-CHR,SKU-CRO,{date.today().isoformat()},morning,25,212.5",
             ]
         )
         inventory_csv = "\n".join(
             [
                 "outlet_code,sku_code,snapshot_date,snapshot_time,units_on_hand",
-                f"RL-KLCC,SKU-CRO,{date.today().isoformat()},eod,10",
+                f"RL-CHR,SKU-CRO,{date.today().isoformat()},eod,10",
             ]
         )
 
@@ -143,7 +143,7 @@ def test_upload_sales_supports_common_bakery_transaction_headers():
         with TestClient(app) as client:
             resp = client.post(
                 "/api/v1/imports/upload",
-                params={"data_type": "sales", "default_outlet_code": "RL-KLCC"},
+                params={"data_type": "sales", "default_outlet_code": "RL-CHR"},
                 files={"file": ("bakery_tx.csv", tx_csv.encode("utf-8"), "text/csv")},
             )
             assert resp.status_code == 200
@@ -176,7 +176,7 @@ def test_upload_sales_can_auto_create_skus_and_map_daypart_aliases():
                 "/api/v1/imports/upload",
                 params={
                     "data_type": "sales",
-                    "default_outlet_code": "RL-KLCC",
+                    "default_outlet_code": "RL-CHR",
                     "auto_create_skus": True,
                 },
                 files={"file": ("bakery_tx.csv", tx_csv.encode("utf-8"), "text/csv")},
@@ -216,7 +216,7 @@ def test_upload_sales_aggregates_duplicate_transaction_rows_for_same_key():
                 "/api/v1/imports/upload",
                 params={
                     "data_type": "sales",
-                    "default_outlet_code": "RL-KLCC",
+                    "default_outlet_code": "RL-CHR",
                     "auto_create_skus": True,
                 },
                 files={"file": ("bakery_tx.csv", tx_csv.encode("utf-8"), "text/csv")},
@@ -235,7 +235,7 @@ def test_upload_sales_aggregates_duplicate_transaction_rows_for_same_key():
             db.query(SalesFact)
             .join(Outlet, SalesFact.outlet_id == Outlet.id)
             .filter(
-                Outlet.code == "RL-KLCC",
+                Outlet.code == "RL-CHR",
                 SalesFact.sku_id == bread_sku.id,
                 SalesFact.sale_date == date(2016, 10, 30),
                 SalesFact.daypart == "morning",
@@ -355,7 +355,7 @@ def test_upload_sales_reports_unknown_codes_without_committing_rows():
             [
                 "outlet_code,sku_code,sale_date,daypart,units_sold,revenue",
                 f"UNKNOWN,SKU-CRO,{date.today().isoformat()},morning,25,212.5",
-                f"RL-KLCC,UNKNOWN,{date.today().isoformat()},morning,25,212.5",
+                f"RL-CHR,UNKNOWN,{date.today().isoformat()},morning,25,212.5",
             ]
         )
 

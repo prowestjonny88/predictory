@@ -248,6 +248,27 @@ unless mapped explicitly in a serializer.
 
 These contracts should be frozen early so frontend and backend can work independently.
 
+### 4.0 Phase 0 — Contract Freeze (Immediate)
+
+**Owner:** Integration/QA (Member 4) initiates this now.
+
+Lock the exact field names and types so frontend and backend can implement in parallel:
+
+- `p10`, `p50`, `p90`, `recommended_prep` are **integers (unit counts)** and **always present** on each recommendation.
+- Keys are **exact** (no camelCase or alternate names).
+- `p10 <= p50 <= p90` for the same outlet/SKU/daypart; `recommended_prep` is the **suggested prep units** (post batch-size rounding if applicable).
+
+Frozen mini-contract (reference snippet):
+
+```json
+{
+  "p10": 82,
+  "p50": 100,
+  "p90": 125,
+  "recommended_prep": 105
+}
+```
+
 ### 4.1 Latest Daily Plan
 
 ```http
@@ -273,8 +294,8 @@ Response:
   "top_actions": [
     {
       "id": "rec_001",
-      "outlet_id": "klcc_mall",
-      "outlet_name": "KLCC Mall",
+      "outlet_id": "cheras_hub",
+      "outlet_name": "Cheras Community Hub",
       "sku_id": "butter_croissant",
       "sku_name": "Butter Croissant",
       "sku_category": "Pastry",
@@ -344,7 +365,7 @@ Request:
 ```json
 {
   "forecast_run_id": "fr_20260430_001",
-  "note": "School group visiting KLCC tomorrow morning, expect more pastries."
+  "note": "School group visiting Cheras community center tomorrow morning, expect more pastries."
 }
 ```
 
@@ -353,14 +374,14 @@ Response:
 ```json
 {
   "parsed_adjustment": {
-    "outlet_id": "klcc_mall",
+    "outlet_id": "cheras_hub",
     "daypart": "Morning",
     "sku_category": "Pastry",
     "suggested_adjustment_pct": 15,
     "reason": "school group visit",
     "requires_confirmation": true
   },
-  "explanation": "The note indicates additional morning pastry demand at KLCC. Apply only after manager confirmation."
+  "explanation": "The note indicates additional morning pastry demand at Cheras Community Hub. Apply only after manager confirmation."
 }
 ```
 
@@ -376,7 +397,7 @@ Request:
 {
   "forecast_run_id": "fr_20260430_001",
   "adjustment": {
-    "outlet_id": "klcc_mall",
+    "outlet_id": "cheras_hub",
     "daypart": "Morning",
     "sku_category": "Pastry",
     "adjustment_pct": 15,
@@ -982,7 +1003,7 @@ Acceptance criteria:
 Input:
 
 ```text
-School group visiting KLCC tomorrow morning, expect more pastries.
+School group visiting Cheras community center tomorrow morning, expect more pastries.
 ```
 
 Flow:

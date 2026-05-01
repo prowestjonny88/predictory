@@ -88,10 +88,19 @@ def _parse_scenario(text: str) -> dict:
             result["sku_hint"] = keyword
             break
 
-    outlet_keywords = ["klcc", "bangsar", "mid valley", "midvalley", "bukit bintang", "damansara"]
+    outlet_keywords = [
+        "cheras",
+        "setapak",
+        "shah alam",
+        "seksyen 7",
+        "seksyon 7",
+        "kajang",
+        "klang",
+        "klang riverside",
+    ]
     for keyword in outlet_keywords:
         if keyword in text_lower:
-            result["outlet_hint"] = keyword.replace("midvalley", "mid valley")
+            result["outlet_hint"] = keyword
             break
 
     return result
@@ -134,13 +143,13 @@ def run_scenario_simulation(
     intent = _parse_scenario(scenario_text)
     if intent["type"] == "unknown":
         if language == "ms":
-            recommendation = "Senario tidak dapat ditafsir. Cuba: 'kurangkan prep croissant di Bangsar sebanyak 15%'"
+            recommendation = "Senario tidak dapat ditafsir. Cuba: 'kurangkan prep croissant di Setapak sebanyak 15%'"
             interpretation = "Senario tidak dapat dihuraikan. Tiada perubahan disimulasikan."
         elif language == "zh-CN":
-            recommendation = "无法识别该情景。可尝试：'将 Bangsar 的 croissant 备货减少 15%'"
+            recommendation = "无法识别该情景。可尝试：'将 Setapak 的 croissant 备货减少 15%'"
             interpretation = "情景无法解析，因此未模拟任何变化。"
         else:
-            recommendation = "Could not interpret scenario. Try: 'cut croissant prep at Bangsar by 15%'"
+            recommendation = "Could not interpret scenario. Try: 'cut croissant prep at Setapak Town Center by 15%'"
             interpretation = "Scenario could not be parsed. No changes simulated."
         return ScenarioResult(
             scenario_text=scenario_text,

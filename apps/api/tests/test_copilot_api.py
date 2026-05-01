@@ -87,9 +87,9 @@ def test_explain_plan_supports_all_contexts_with_fallback_text():
 
     from db.models import Outlet, SKU
 
-    klcc = db.query(Outlet).filter(Outlet.name.like("%KLCC%")).first()
-    bangsar = db.query(Outlet).filter(Outlet.name.like("%Bangsar%")).first()
-    mid_valley = db.query(Outlet).filter(Outlet.name.like("%Mid Valley%")).first()
+    cheras = db.query(Outlet).filter(Outlet.name.like("%Cheras%")).first()
+    setapak = db.query(Outlet).filter(Outlet.name.like("%Setapak%")).first()
+    kajang = db.query(Outlet).filter(Outlet.name.like("%Kajang%")).first()
     croissant = db.query(SKU).filter(SKU.name == "Butter Croissant").first()
     db.close()
 
@@ -99,11 +99,11 @@ def test_explain_plan_supports_all_contexts_with_fallback_text():
         _override_app_db(SessionLocal)
         with TestClient(app) as client:
             test_cases = [
-                ("forecast", klcc.id, croissant.id),
-                ("prep", klcc.id, croissant.id),
-                ("waste", bangsar.id, croissant.id),
-                ("stockout", mid_valley.id, croissant.id),
-                ("replenishment", klcc.id, croissant.id),
+                ("forecast", cheras.id, croissant.id),
+                ("prep", cheras.id, croissant.id),
+                ("waste", setapak.id, croissant.id),
+                ("stockout", kajang.id, croissant.id),
+                ("replenishment", cheras.id, croissant.id),
             ]
 
             for context_type, outlet_id, sku_id in test_cases:
@@ -309,9 +309,9 @@ def test_run_scenario_handles_expected_inputs_without_db_writes():
     _override_app_db(SessionLocal)
     with TestClient(app) as client:
         scenarios = [
-            "cut croissant prep at Bangsar by 15%",
-            "increase croissant prep at KLCC by 10%",
-            "promo at Mid Valley",
+            "cut croissant prep at Setapak Town Center by 15%",
+            "increase croissant prep at Cheras Community Hub by 10%",
+            "promo at Kajang Town",
             "tell me something vague",
         ]
 
@@ -663,7 +663,7 @@ def test_scenario_supports_non_english_inputs():
         resp = client.post(
             "/api/v1/copilot/run-scenario",
             json={
-                "scenario_text": "Kurangkan prep croissant di Bangsar sebanyak 15%",
+                "scenario_text": "Kurangkan prep croissant di Setapak sebanyak 15%",
                 "target_date": target_date.isoformat(),
                 "language": "ms",
             },

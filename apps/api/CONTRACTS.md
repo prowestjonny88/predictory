@@ -42,9 +42,9 @@ Response:
 [
   {
     "id": 1,
-    "name": "Roti Lane KLCC",
-    "code": "RL-KLCC",
-    "address": "Suria KLCC, Kuala Lumpur",
+    "name": "Roti Lane Cheras Community Hub",
+    "code": "RL-CHR",
+    "address": "Cheras, Kuala Lumpur",
     "is_active": true
   }
 ]
@@ -425,7 +425,7 @@ Response:
   "forecasts": [
     {
       "outlet_id": 1,
-      "outlet_name": "Roti Lane KLCC",
+      "outlet_name": "Roti Lane Cheras Community Hub",
       "sku_id": 1,
       "sku_name": "Butter Croissant",
       "morning": 25.0,
@@ -460,7 +460,7 @@ Response:
   ],
   "waste_alerts": [
     {
-      "outlet_name": "Roti Lane Bangsar",
+      "outlet_name": "Roti Lane Setapak Town Center",
       "sku_name": "Butter Croissant",
       "daypart": "evening",
       "risk_level": "high",
@@ -469,7 +469,7 @@ Response:
   ],
   "stockout_alerts": [
     {
-      "outlet_name": "Roti Lane Mid Valley",
+      "outlet_name": "Roti Lane Kajang Town",
       "sku_name": "Butter Croissant",
       "daypart": "morning",
       "risk_level": "high",
@@ -481,9 +481,9 @@ Response:
     "waste_risk_score": 20,
     "stockout_risk_score": 28,
     "top_actions": [
-      "Reduce Butter Croissant prep at Roti Lane Bangsar (waste risk high)"
+      "Reduce Butter Croissant prep at Roti Lane Setapak Town Center (waste risk high)"
     ],
-    "at_risk_outlets": ["Roti Lane Bangsar", "Roti Lane Mid Valley"]
+    "at_risk_outlets": ["Roti Lane Setapak Town Center", "Roti Lane Kajang Town"]
   }
 }
 ```
@@ -542,9 +542,9 @@ Response:
 
 ```json
 {
-  "explanation": "Forecast for Butter Croissant at Roti Lane KLCC is driven by recent sales and weekday pattern.",
+  "explanation": "Forecast for Butter Croissant at Roti Lane Cheras Community Hub is driven by recent sales and weekday pattern.",
   "context_type": "forecast",
-  "outlet_name": "Roti Lane KLCC",
+  "outlet_name": "Roti Lane Cheras Community Hub",
   "sku_name": "Butter Croissant"
 }
 ```
@@ -575,7 +575,7 @@ Request:
 
 ```json
 {
-  "scenario_text": "cut croissant prep at Bangsar by 15%",
+  "scenario_text": "cut croissant prep at Setapak Town Center by 15%",
   "target_date": "2026-03-12",
   "language": "en"
 }
@@ -585,7 +585,7 @@ Response:
 
 ```json
 {
-  "scenario": "cut croissant prep at Bangsar by 15%",
+  "scenario": "cut croissant prep at Setapak Town Center by 15%",
   "baseline": {},
   "modified": {},
   "delta": {},

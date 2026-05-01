@@ -46,7 +46,7 @@ def _seed_demo_data(session):
     seed_sales_and_waste(session, all_outlets, all_skus)
 
 
-def test_seeded_alerts_flag_bangsar_waste_and_midvalley_stockout():
+def test_seeded_alerts_flag_setapak_waste_and_kajang_stockout():
     SessionLocal = _build_session_factory()
     db = SessionLocal()
     _seed_demo_data(db)
@@ -58,14 +58,14 @@ def test_seeded_alerts_flag_bangsar_waste_and_midvalley_stockout():
     stockout_alerts = detect_stockout_risk(target_date, db)
 
     assert any(
-        ("Bangsar" in a.outlet_name)
+        ("Setapak" in a.outlet_name)
         and (a.sku_name == "Butter Croissant")
         and (a.daypart == "evening")
         and (a.risk_level == "high")
         for a in waste_alerts
     )
     assert any(
-        ("Mid Valley" in a.outlet_name)
+        ("Kajang" in a.outlet_name)
         and (a.sku_name == "Butter Croissant")
         and (a.affected_daypart == "morning")
         for a in stockout_alerts

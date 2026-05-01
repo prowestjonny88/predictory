@@ -33,11 +33,11 @@ SKU_MASTER = {
 }
 
 OUTLET_PROFILES = {
-    "klcc_mall": {"outlet_factor": 1.20},
-    "mid_valley": {"outlet_factor": 1.10},
-    "bangsar": {"outlet_factor": 0.95},
-    "subang": {"outlet_factor": 0.90},
-    "mont_kiara": {"outlet_factor": 1.00},
+    "cheras_hub": {"outlet_factor": 1.10},
+    "setapak_town": {"outlet_factor": 1.00},
+    "shah_alam_sek7": {"outlet_factor": 0.95},
+    "kajang_town": {"outlet_factor": 0.90},
+    "klang_riverside": {"outlet_factor": 0.92},
 }
 
 DAYPART_FACTORS = {"morning": 1.10, "midday": 1.00, "evening": 0.90}

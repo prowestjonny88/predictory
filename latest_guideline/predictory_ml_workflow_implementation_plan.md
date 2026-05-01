@@ -335,9 +335,9 @@ date × outlet_id × sku_id × daypart
 Example:
 
 ```text
-2026-04-30 | KLCC Mall | Butter Croissant | Morning | estimated_true_demand = 80
-2026-04-30 | KLCC Mall | Butter Croissant | Midday  | estimated_true_demand = 60
-2026-04-30 | KLCC Mall | Butter Croissant | Evening | estimated_true_demand = 40
+2026-04-30 | Cheras Community Hub | Butter Croissant | Morning | estimated_true_demand = 80
+2026-04-30 | Cheras Community Hub | Butter Croissant | Midday  | estimated_true_demand = 60
+2026-04-30 | Cheras Community Hub | Butter Croissant | Evening | estimated_true_demand = 40
 ```
 
 ### 2.2 Final Dataset Size
@@ -460,11 +460,11 @@ Use Malaysian realistic archetypes.
 
 | Outlet | Archetype | Demand Behavior |
 |---|---|---|
-| KLCC Mall | Office/mall traffic | Strong weekday morning rush; strong pastries. |
-| Mid Valley Mall | High all-day mall traffic | Stable demand across dayparts; strong weekends. |
-| Bangsar Street | Cafe/social street outlet | Stronger afternoon/evening; more weather-sensitive. |
-| Subang Residential | Neighborhood outlet | Lower but stable baseline; family/weekend pattern. |
-| Mont Kiara Premium | Premium residential | Higher pastry/cake demand; higher margin assumptions. |
+| Cheras Community Hub | Community/transit hub | Strong weekday morning rush; school-event spikes. |
+| Setapak Town Center | Student/working-class corridor | Midday lift; price-sensitive demand. |
+| Shah Alam Seksyen 7 | University/residential district | Afternoon peaks; weather-sensitive. |
+| Kajang Town | Commuter town center | Morning commute demand; weekend bumps. |
+| Klang Riverside | Industrial/port neighborhood | Early morning demand; steady staples. |
 
 Implementation fields:
 
@@ -485,10 +485,10 @@ Example outlet profile JSON:
 
 ```json
 {
-  "outlet_id": "KLCC",
-  "outlet_name": "KLCC Mall",
-  "outlet_type": "mall_office",
-  "base_multiplier": 1.20,
+  "outlet_id": "cheras_hub",
+  "outlet_name": "Cheras Community Hub",
+  "outlet_type": "community_hub",
+  "base_multiplier": 1.10,
   "daypart_multipliers": {
     "morning": 1.25,
     "midday": 1.05,
@@ -661,7 +661,7 @@ Example:
 
 ```text
 French croissant Saturday morning base = 100
-KLCC outlet/daypart factor = 1.20
+Cheras outlet/daypart factor = 1.10
 promo factor = 1.15
 weather factor = 1.00
 noise = 1.00
@@ -947,7 +947,7 @@ Use one-hot encoding in v1 unless team is confident with LightGBM categorical ha
 
 ```text
 date: 2026-04-30
-outlet_id: KLCC
+outlet_id: cheras_hub
 sku_id: butter_croissant
 sku_category: Pastry
 outlet_type: mall_office
@@ -1513,7 +1513,7 @@ Example:
 
 ```json
 {
-  "outlet": "KLCC Mall",
+  "outlet": "Cheras Community Hub",
   "sku": "Butter Croissant",
   "daypart": "Morning",
   "forecast": {
@@ -1551,7 +1551,7 @@ Example:
 Gemini should produce:
 
 ```text
-Prepare 105 butter croissants for KLCC morning. Expected demand is around 100 units, with a high-demand scenario of 125. Because croissant stockouts lose more margin than small leftovers cost, the optimizer recommends preparing slightly above expected demand. This plan requires 4.2 kg of butter, but current stock is only 2.6 kg, so order at least 1.6 kg before production.
+Prepare 105 butter croissants for Cheras Community Hub morning. Expected demand is around 100 units, with a high-demand scenario of 125. Because croissant stockouts lose more margin than small leftovers cost, the optimizer recommends preparing slightly above expected demand. This plan requires 4.2 kg of butter, but current stock is only 2.6 kg, so order at least 1.6 kg before production.
 ```
 
 ### 15.3 Manager Note Parser
@@ -1559,14 +1559,14 @@ Prepare 105 butter croissants for KLCC morning. Expected demand is around 100 un
 Input:
 
 ```text
-School group visiting KLCC tomorrow morning, expect more pastries.
+School group visiting Cheras community center tomorrow morning, expect more pastries.
 ```
 
 Gemini structured output:
 
 ```json
 {
-  "outlet": "KLCC",
+  "outlet": "cheras_hub",
   "daypart": "morning",
   "sku_category": "Pastry",
   "suggested_adjustment_pct": 15,
@@ -1578,7 +1578,7 @@ Gemini structured output:
 UI asks:
 
 ```text
-Apply +15% pastry demand adjustment to KLCC morning?
+Apply +15% pastry demand adjustment to Cheras Community Hub morning?
 [Apply] [Edit] [Ignore]
 ```
 
@@ -2050,7 +2050,7 @@ outlet_base_demand
 Acceptance criteria:
 
 - Row count approaches 32,400 after full generation.
-- KLCC/Mid Valley/Bangsar/Subang/Mont Kiara patterns differ.
+- Cheras/Setapak/Shah Alam/Kajang/Klang patterns differ.
 
 #### Step 2.3 Add Calendar / Weather / Promo
 

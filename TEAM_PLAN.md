@@ -87,11 +87,11 @@ Each person owns **exclusive directories**. No two people edit the same files.
 **Priority:** HIGH · **Dependencies:** Task 2 · **Day 1 Afternoon**
 
 **Measurable deliverables:**
-- [ ] Script generates data for "Roti Lane Bakery" with exactly 5 outlets: KLCC, Bangsar, Mid Valley, Bukit Bintang, Damansara
+- [ ] Script generates data for "Roti Lane Bakery" with exactly 5 outlets: Cheras Community Hub, Setapak Town Center, Shah Alam Seksyen 7, Kajang Town, Klang Riverside
 - [ ] 8+ SKUs seeded including hero SKU "Butter Croissant"
 - [ ] 30 days of historical sales data (~4,500+ SalesFact rows across 5 outlets × 8 SKUs × 3 dayparts × 30 days)
-- [ ] Waste logs show clear overproduction pattern: Bangsar outlet has 15%+ waste rate on croissants
-- [ ] Stockout pattern visible: Mid Valley has morning stockout 3+ days/week
+- [ ] Waste logs show clear overproduction pattern: Setapak Town Center outlet has 15%+ waste rate on croissants
+- [ ] Stockout pattern visible: Kajang Town has morning stockout 3+ days/week
 - [ ] BOM data for all SKUs with 5+ ingredient types (butter, flour, eggs, milk, chocolate, etc.)
 - [ ] Running seed script is idempotent (can be re-run safely)
 
@@ -196,7 +196,7 @@ Each person owns **exclusive directories**. No two people edit the same files.
 - [ ] Combined forecast = 0.4 × weighted_recent + 0.4 × weekday_pattern + 0.2 × 14-day moving average
 - [ ] Daypart split based on historical daypart ratios for that SKU/outlet
 - [ ] ForecastRun + ForecastLine records persisted in `planning` schema
-- [ ] Forecast for croissants at KLCC outlet ± 10% of reasonable range given seed data
+- [ ] Forecast for croissants at Cheras Community Hub outlet ± 10% of reasonable range given seed data
 - [ ] Unit tests pass for all 3 forecast components + combined logic
 
 **Subtasks:**
@@ -250,7 +250,7 @@ Each person owns **exclusive directories**. No two people edit the same files.
 - [ ] Alert triggered when: last 3-day waste rate on SKU >10%
 - [ ] Alert triggered when: evening daypart demand declined for ≥3 consecutive days
 - [ ] Risk levels: `high` (≥2 triggers), `medium` (1 trigger), `low` (none)
-- [ ] Bangsar croissant evening waste correctly flagged as HIGH risk given seed data
+- [ ] Setapak Town Center croissant evening waste correctly flagged as HIGH risk given seed data
 - [ ] Each alert includes structured `reason` field
 
 ---
@@ -263,7 +263,7 @@ Each person owns **exclusive directories**. No two people edit the same files.
 - [ ] Alert triggered when: morning forecast > (current stock + planned prep arriving before 7am)
 - [ ] Alert triggered when: ingredient stock covers <80% of planned production
 - [ ] Bestseller SKUs get priority flagging (lower threshold: 90% coverage = alert)
-- [ ] Mid Valley morning croissant stockout correctly flagged given seed data
+- [ ] Kajang Town morning croissant stockout correctly flagged given seed data
 - [ ] Each alert includes `affected_daypart`, `shortage_qty`, `reason`
 
 ---
@@ -388,7 +388,7 @@ Each person owns **exclusive directories**. No two people edit the same files.
 - [ ] Each alert card shows: SKU, Outlet, Daypart, Risk Level badge, Reason text
 - [ ] Alerts sortable by risk level (High → Low)
 - [ ] Outlet imbalance section with visual comparison
-- [ ] Suggested actions section: "Reduce croissant prep at Bangsar by 14%"
+- [ ] Suggested actions section: "Reduce croissant prep at Setapak Town Center by 14%"
 - [ ] Total items displayed matches backend alert count
 
 ---
@@ -461,7 +461,7 @@ Each person owns **exclusive directories**. No two people edit the same files.
 **Measurable deliverables:**
 - [ ] `POST /copilot/run-scenario` accepts scenario text, returns structured comparison
 - [ ] LangGraph agent with 3 tool definitions: `run_scenario_simulation()`, `get_forecast()`, `get_prep_plan()`
-- [ ] Agent correctly interprets: "cut croissant prep by 15% at KLCC" → modifies prep by -15% for that outlet/SKU
+- [ ] Agent correctly interprets: "cut croissant prep by 15% at Cheras Community Hub" → modifies prep by -15% for that outlet/SKU
 - [ ] Response includes: `baseline_waste`, `modified_waste`, `baseline_stockouts`, `modified_stockouts`, `recommendation`
 - [ ] Agent completes within 15 seconds per scenario
 - [ ] Human-in-the-loop: response is advisory only, does not modify actual plans

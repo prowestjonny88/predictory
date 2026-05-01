@@ -184,7 +184,7 @@ Walk through in this order to tell the best story:
 2. 📈 `/forecast` — Select an outlet, show demand drivers (weather, holidays)
 3. 🥐 `/prep-plan` — Generate plan, override a line, approve
 4. 📦 `/replenishment` — Show urgency indicators and ingredient needs
-5. ⚠️ `/risk-center` — Highlight the Bangsar waste and Mid Valley stockout alerts
+5. ⚠️ `/risk-center` — Highlight the Setapak Town Center waste and Kajang Town stockout alerts
 6. 🤖 `/copilot` — Generate a daily brief and action plan
 7. 🔮 `/scenario-planner` — Run a 30% demand spike scenario
 

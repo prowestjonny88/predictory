@@ -41,9 +41,9 @@ Response:
 
 ```json
 {
-  "explanation": "Forecast for Butter Croissant at Roti Lane KLCC on 2026-03-12: total 94 units across the day, with the strongest pull in the morning. The projection is based on recent sales momentum plus the normal weekday pattern for this outlet and SKU.",
+  "explanation": "Forecast for Butter Croissant at Roti Lane Cheras Community Hub on 2026-03-12: total 94 units across the day, with the strongest pull in the morning. The projection is based on recent sales momentum plus the normal weekday pattern for this outlet and SKU.",
   "context_type": "forecast",
-  "outlet_name": "Roti Lane KLCC",
+  "outlet_name": "Roti Lane Cheras Community Hub",
   "sku_name": "Butter Croissant"
 }
 ```
@@ -63,7 +63,7 @@ Response:
 
 ```json
 {
-  "brief": "Daily brief for 2026-03-12 (Thursday).\n\nTotal predicted sales are 1123 units, with waste risk at 48/100 and stockout risk at 40/100.\n\nTop actions: Reduce Butter Croissant at Roti Lane Bangsar; Stock up Butter Croissant at Roti Lane Mid Valley; Place 1 critical ingredient reorder(s).",
+  "brief": "Daily brief for 2026-03-12 (Thursday).\n\nTotal predicted sales are 1123 units, with waste risk at 48/100 and stockout risk at 40/100.\n\nTop actions: Reduce Butter Croissant at Roti Lane Setapak Town Center; Stock up Butter Croissant at Roti Lane Kajang Town; Place 1 critical ingredient reorder(s).",
   "date": "2026-03-12"
 }
 ```
@@ -74,7 +74,7 @@ Request:
 
 ```json
 {
-  "scenario_text": "cut croissant prep at Bangsar by 15%",
+  "scenario_text": "cut croissant prep at Setapak Town Center by 15%",
   "target_date": "2026-03-12",
   "language": "en"
 }
@@ -97,17 +97,17 @@ Response:
 ```json
 {
   "date": "2026-03-12",
-  "brief": "Operations are broadly ready for service, but Bangsar waste risk and Mid Valley stock coverage need attention.\n\nMain risks are concentrated around Butter Croissant waste at Roti Lane Bangsar, morning stockout exposure at Roti Lane Mid Valley, and one critical ingredient reorder.\n\nTop actions: Reduce Butter Croissant prep at Roti Lane Bangsar by 10%; Increase Butter Croissant morning coverage at Roti Lane Mid Valley by 10%; Reorder Butter now (critical urgency).",
+  "brief": "Operations are broadly ready for service, but Setapak Town Center waste risk and Kajang Town stock coverage need attention.\n\nMain risks are concentrated around Butter Croissant waste at Roti Lane Setapak Town Center, morning stockout exposure at Roti Lane Kajang Town, and one critical ingredient reorder.\n\nTop actions: Reduce Butter Croissant prep at Roti Lane Setapak Town Center by 10%; Increase Butter Croissant morning coverage at Roti Lane Kajang Town by 10%; Reorder Butter now (critical urgency).",
   "fallback_mode": false,
   "top_actions": [
     {
       "action_type": "prep",
-      "action_text": "Reduce Butter Croissant prep at Roti Lane Bangsar by 10%",
+      "action_text": "Reduce Butter Croissant prep at Roti Lane Setapak Town Center by 10%",
       "urgency": "high",
       "estimated_impact": "Reduce waste pressure; recent 3-day waste rate is 15.3%.",
       "target": {
         "outlet_id": 2,
-        "outlet_name": "Roti Lane Bangsar",
+        "outlet_name": "Roti Lane Setapak Town Center",
         "sku_id": 1,
         "sku_name": "Butter Croissant",
         "ingredient_id": null,
@@ -131,7 +131,7 @@ Response:
 
 ```json
 {
-  "scenario": "cut croissant prep at Bangsar by 15%",
+  "scenario": "cut croissant prep at Setapak Town Center by 15%",
   "baseline": {
     "waste_alerts": 6,
     "stockout_alerts": 5
@@ -144,7 +144,7 @@ Response:
     "waste_change": -1,
     "stockout_change": 0
   },
-  "recommendation": "Proceed with caution for Butter Croissant at Roti Lane Bangsar. Recommended reduction: 10% to balance waste and availability.",
-  "interpretation": "Reducing prep for Butter Croissant at Roti Lane Bangsar by 15% could remove 1 waste alert(s) but may introduce about 0 additional stockout risk(s)."
+  "recommendation": "Proceed with caution for Butter Croissant at Roti Lane Setapak Town Center. Recommended reduction: 10% to balance waste and availability.",
+  "interpretation": "Reducing prep for Butter Croissant at Roti Lane Setapak Town Center by 15% could remove 1 waste alert(s) but may introduce about 0 additional stockout risk(s)."
 }
 ```
