@@ -40,6 +40,8 @@ const en = {
   "actionType.risk": "Risk",
   "actionType.rebalance": "Rebalance",
   "nav.dashboard": "Dashboard",
+  "nav.catalog": "SKU Catalog",
+  "nav.dailyPlanning": "Daily Planning",
   "nav.forecast": "Forecast",
   "nav.prepPlan": "Prep Plan",
   "nav.replenishment": "Replenishment",
