@@ -47,7 +47,7 @@ const en = {
   "nav.stock": "Current Stock",
   "nav.scenarioPlanner": "Scenario Planner",
   "nav.copilot": "AI Copilot",
-  "nav.footer": "Predictory v1 · ASEAN demo build",
+  "nav.footer": "Predictory v2 · ASEAN demo build",
   "language.label": "Language",
   "language.english": "English",
   "language.malay": "Bahasa Melayu",
