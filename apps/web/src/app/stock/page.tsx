@@ -56,7 +56,7 @@ export default function StockPage() {
                     onChange={(e) => setOutletId(e.target.value)}
                     className="rounded-md border border-neutral-300 bg-white px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
                 >
-                    <option value="all">{t("forecast.allOutlets", "All Outlets")}</option>
+                    <option value="all">{t("common.allOutlets", "All Outlets")}</option>
                     {outlets.map((outlet) => (
                         <option key={outlet.id} value={String(outlet.id)}>
                             {outlet.name}
@@ -69,7 +69,7 @@ export default function StockPage() {
                 <section>
                     <div className="flex items-center justify-between mb-4">
                         <h2 className="text-sm font-bold uppercase tracking-wide text-neutral-600 pl-1">
-                            Outlet Inventory
+                            {t("stock.outletInventory", "Outlet Inventory")}
                         </h2>
                     </div>
 
@@ -77,10 +77,10 @@ export default function StockPage() {
                         <table className="w-full text-sm">
                             <thead>
                                 <tr className="border-b border-neutral-200 bg-neutral-50/80 text-left text-xs font-semibold uppercase tracking-wider text-neutral-500">
-                                    <th className="px-5 py-4">Product Name</th>
-                                    <th className="px-5 py-4">Outlet</th>
-                                    <th className="px-5 py-4">Snapshot Time</th>
-                                    <th className="px-5 py-4 text-right">Units On Hand</th>
+                                    <th className="px-5 py-4">{t("stock.productName", "Product Name")}</th>
+                                    <th className="px-5 py-4">{t("stock.outlet", "Outlet")}</th>
+                                    <th className="px-5 py-4">{t("stock.snapshotTime", "Snapshot Time")}</th>
+                                    <th className="px-5 py-4 text-right">{t("stock.unitsOnHand", "Units On Hand")}</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-neutral-100">
@@ -95,7 +95,7 @@ export default function StockPage() {
                                 ) : latestInventory.length === 0 ? (
                                     <tr>
                                         <td colSpan={4} className="px-5 py-12 text-center text-sm text-neutral-400">
-                                            No stock data available.
+                                            {t("stock.noStockData", "No stock data available.")}
                                         </td>
                                     </tr>
                                 ) : (
@@ -103,7 +103,7 @@ export default function StockPage() {
                                         <tr key={item.id} className="transition-colors hover:bg-neutral-50/60 group">
                                             <td className="px-5 py-4 font-medium text-neutral-900">{item.sku_name}</td>
                                             <td className="px-5 py-4 text-neutral-600">
-                                                {outlets.find((o) => o.id === item.outlet_id)?.name ?? `Outlet ${item.outlet_id}`}
+                                                {outlets.find((o) => o.id === item.outlet_id)?.name ?? `${t("common.outlet", "Outlet")} ${item.outlet_id}`}
                                             </td>
                                             <td className="px-5 py-4 text-neutral-500 text-xs">
                                                 {item.snapshot_date} • <span className="uppercase text-amber-600">{item.snapshot_time}</span>
@@ -112,12 +112,12 @@ export default function StockPage() {
                                                 {item.units_on_hand}
                                                 {item.units_on_hand === 0 && (
                                                     <span className="ml-2 inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-medium text-red-700 ring-1 ring-inset ring-red-600/10">
-                                                        Out of stock
+                                                        {t("stock.outOfStock", "Out of stock")}
                                                     </span>
                                                 )}
                                                 {item.units_on_hand > 0 && item.units_on_hand <= 5 && (
                                                     <span className="ml-2 inline-flex items-center rounded-full bg-orange-50 px-2 py-0.5 text-[10px] font-medium text-orange-700 ring-1 ring-inset ring-orange-600/10">
-                                                        Low
+                                                        {t("stock.lowStock", "Low")}
                                                     </span>
                                                 )}
                                             </td>
@@ -132,7 +132,7 @@ export default function StockPage() {
                 <section>
                     <div className="flex items-center justify-between mb-4">
                         <h2 className="text-sm font-bold uppercase tracking-wide text-neutral-600 pl-1">
-                            Base Ingredients
+                            {t("stock.baseIngredients", "Base Ingredients")}
                         </h2>
                     </div>
 
@@ -140,10 +140,10 @@ export default function StockPage() {
                         <table className="w-full text-sm">
                             <thead>
                                 <tr className="border-b border-neutral-200 bg-neutral-50/80 text-left text-xs font-semibold uppercase tracking-wider text-neutral-500">
-                                    <th className="px-5 py-4">Ingredient Name</th>
-                                    <th className="px-5 py-4">Outlet</th>
-                                    <th className="px-5 py-4">Snapshot Time</th>
-                                    <th className="px-5 py-4 text-right">Stock On Hand</th>
+                                    <th className="px-5 py-4">{t("stock.ingredientName", "Ingredient Name")}</th>
+                                    <th className="px-5 py-4">{t("stock.outlet", "Outlet")}</th>
+                                    <th className="px-5 py-4">{t("stock.snapshotTime", "Snapshot Time")}</th>
+                                    <th className="px-5 py-4 text-right">{t("stock.stockOnHand", "Stock On Hand")}</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-neutral-100">
@@ -158,22 +158,22 @@ export default function StockPage() {
                                 ) : ingredients.length === 0 ? (
                                     <tr>
                                         <td colSpan={4} className="px-5 py-12 text-center text-sm text-neutral-400">
-                                            No ingredient data available.
+                                            {t("stock.noIngredientData", "No ingredient data available.")}
                                         </td>
                                     </tr>
                                 ) : (
                                     ingredients.map((item) => (
                                         <tr key={item.id} className="transition-colors hover:bg-neutral-50/60 group">
                                             <td className="px-5 py-4 font-medium text-neutral-900">{item.name}</td>
-                                            <td className="px-5 py-4 text-neutral-600">Central Warehouse</td>
+                                            <td className="px-5 py-4 text-neutral-600">{t("stock.centralWarehouse", "Central Warehouse")}</td>
                                             <td className="px-5 py-4 text-neutral-500 text-xs">
-                                                {new Date().toISOString().split("T")[0]} • <span className="uppercase text-amber-600">LIVE</span>
+                                                {new Date().toISOString().split("T")[0]} • <span className="uppercase text-amber-600">{t("stock.live", "LIVE")}</span>
                                             </td>
                                             <td className="px-5 py-4 text-right font-semibold tabular-nums text-neutral-800">
                                                 {item.stock_on_hand?.toFixed(2) ?? "-"} <span className="text-neutral-500 text-xs font-normal ml-1">{item.unit}</span>
                                                 {(item.stock_on_hand ?? 0) < (item.reorder_point ?? 0) && (
                                                     <span className="ml-2 inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-medium text-red-700 ring-1 ring-inset ring-red-600/10">
-                                                        Needs Reorder
+                                                        {t("stock.needsReorder", "Needs Reorder")}
                                                     </span>
                                                 )}
                                             </td>

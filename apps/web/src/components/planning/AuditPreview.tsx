@@ -1,4 +1,5 @@
 import { Badge } from "@/components/ui/badge";
+import { useLanguage } from "@/components/i18n/LanguageProvider";
 
 export interface AuditEventPreview {
   id: string;
@@ -13,8 +14,9 @@ interface Props {
 }
 
 export default function AuditPreview({ events }: Props) {
+  const { t } = useLanguage();
   if (events.length === 0) {
-    return <p className="text-xs text-neutral-500">No audit events recorded yet.</p>;
+    return <p className="text-xs text-neutral-500">{t("planning.audit.noEvents", "No audit events recorded yet.")}</p>;
   }
 
   return (
@@ -26,7 +28,7 @@ export default function AuditPreview({ events }: Props) {
             {event.reason && <p className="text-xs text-neutral-500">{event.reason}</p>}
           </div>
           <div className="text-right">
-            <Badge variant="outline">Final {event.final_prep}</Badge>
+            <Badge variant="outline">{t("planning.audit.final", "Final")} {event.final_prep}</Badge>
             <p className="text-[10px] text-neutral-400">{event.timestamp}</p>
           </div>
         </div>

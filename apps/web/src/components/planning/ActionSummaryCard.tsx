@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { useLanguage } from "@/components/i18n/LanguageProvider";
 
 interface SummaryAction {
   label: string;
@@ -14,11 +15,12 @@ interface Props {
 }
 
 export default function ActionSummaryCard({ title, items, subtext }: Props) {
+  const { t } = useLanguage();
   return (
     <Card className="border-amber-200 bg-gradient-to-br from-amber-50 via-white to-white">
       <CardHeader className="flex items-center justify-between">
         <CardTitle className="text-base text-neutral-900">{title}</CardTitle>
-        <Badge variant="info">Action summary</Badge>
+        <Badge variant="info">{t("planning.actionSummary.badge", "Action summary")}</Badge>
       </CardHeader>
       <CardContent className="grid gap-3 md:grid-cols-2">
         {items.map((item) => (

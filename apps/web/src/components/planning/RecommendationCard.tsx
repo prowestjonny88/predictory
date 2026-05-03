@@ -2,6 +2,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import UncertaintyBar from "@/components/planning/UncertaintyBar";
+import { useLanguage } from "@/components/i18n/LanguageProvider";
+import { translateDaypart, translateStatus } from "@/lib/i18n";
 import type { DailyPlanTopAction } from "@/lib/api/planning";
 
 interface Props {
@@ -10,6 +12,7 @@ interface Props {
 }
 
 export default function RecommendationCard({ item, onOpen }: Props) {
+  const { t, language } = useLanguage();
   return (
     <Card className="p-4">
       <div className="flex flex-col gap-3">
@@ -17,11 +20,11 @@ export default function RecommendationCard({ item, onOpen }: Props) {
           <div>
             <p className="text-xs uppercase tracking-wide text-neutral-500">{item.outlet_name}</p>
             <h3 className="text-base font-semibold text-neutral-900">{item.sku_name}</h3>
-            <p className="text-xs text-neutral-500">{item.daypart} · {item.sku_category}</p>
+            <p className="text-xs text-neutral-500">{translateDaypart(language, item.daypart.toLowerCase())} · {item.sku_category}</p>
           </div>
           <div className="flex items-center gap-2">
-            <Badge variant="outline">{item.status.replace("_", " ")}</Badge>
-            <Badge variant="high">RM {item.financial_exposure.stockout_exposure_rm}</Badge>
+            <Badge variant="outline">{translateStatus(language, item.status)}</Badge>
+            <Badge variant="high">{t("common.rm", "RM")} {item.financial_exposure.stockout_exposure_rm}</Badge>
           </div>
         </div>
 
@@ -34,15 +37,15 @@ export default function RecommendationCard({ item, onOpen }: Props) {
 
         <div className="grid gap-2 md:grid-cols-3">
           <div className="rounded-lg border border-neutral-100 bg-neutral-50 p-3">
-            <p className="text-xs text-neutral-500">Opening stock</p>
+            <p className="text-xs text-neutral-500">{t("planning.recommendation.openingStock", "Opening stock")}</p>
             <p className="text-sm font-semibold text-neutral-900">{item.opening_stock}</p>
           </div>
           <div className="rounded-lg border border-neutral-100 bg-neutral-50 p-3">
-            <p className="text-xs text-neutral-500">Recommended prep</p>
+            <p className="text-xs text-neutral-500">{t("planning.recommendation.recommendedPrep", "Recommended prep")}</p>
             <p className="text-sm font-semibold text-neutral-900">{item.recommended_prep}</p>
           </div>
           <div className="rounded-lg border border-neutral-100 bg-neutral-50 p-3">
-            <p className="text-xs text-neutral-500">Batch size</p>
+            <p className="text-xs text-neutral-500">{t("planning.recommendation.batchSize", "Batch size")}</p>
             <p className="text-sm font-semibold text-neutral-900">{item.batch_size}</p>
           </div>
         </div>
@@ -53,10 +56,10 @@ export default function RecommendationCard({ item, onOpen }: Props) {
 
         <div className="flex items-center justify-between">
           <div className="text-xs text-neutral-500">
-            Waste cost RM {item.waste_cost.toFixed(2)} · Stockout cost RM {item.stockout_cost.toFixed(2)}
+            {t("planning.recommendation.wasteCost", "Waste cost")} {t("common.rm", "RM")} {item.waste_cost.toFixed(2)} · {t("planning.recommendation.stockoutCost", "Stockout cost")} {t("common.rm", "RM")} {item.stockout_cost.toFixed(2)}
           </div>
           <Button variant="secondary" size="sm" onClick={() => onOpen(item)}>
-            Review decision
+            {t("planning.recommendation.reviewDecision", "Review decision")}
           </Button>
         </div>
       </div>

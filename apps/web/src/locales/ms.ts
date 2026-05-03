@@ -177,6 +177,10 @@ const ms = {
   "risk.noOutletData": "Tiada data cawangan.",
   "risk.suggestedActions": "Tindakan Disyorkan",
   "risk.allClear": "Semua terkawal. Tiada tindakan diperlukan.",
+  "risk.action.reduceCriticalWaste": "Kurangkan prep {{sku}} di {{outlet}} dengan segera",
+  "risk.action.reviewHighWaste": "Semak {{sku}} di {{outlet}} - {{rate}}% kadar pembaziran",
+  "risk.action.increaseCriticalStockout": "Tingkatkan alokasi {{sku}} di {{outlet}} untuk {{daypart}}",
+  "risk.action.monitorHighStockout": "Pantau stok {{sku}} di {{outlet}} untuk {{daypart}}",
   "copilot.title": "Kopilot AI",
   "copilot.dailyBrief": "Ringkasan Harian",
   "copilot.dailyBriefHelp": "Jana ringkasan bahasa biasa tentang ramalan, risiko dan langkah seterusnya.",
@@ -315,6 +319,75 @@ const ms = {
   "charts.runForecastHint": "Jalankan ramalan untuk melihat carta di bawah",
   "scenario.emptyTitle": "Jalankan senario untuk melihat analisis impak",
   "scenario.emptySubtitle": "Pilih senario pantas di atas atau terangkan sendiri, kemudian klik Jalankan Senario untuk memodelkan kesan seterusnya terhadap pembaziran, kehabisan stok, dan jumlah persediaan."
+  ,"stock.outletInventory": "Inventori Cawangan"
+  ,"stock.productName": "Nama Produk"
+  ,"stock.outlet": "Cawangan"
+  ,"stock.snapshotTime": "Masa Snapshot"
+  ,"stock.unitsOnHand": "Unit Dipegang"
+  ,"stock.noStockData": "Tiada data stok tersedia."
+  ,"stock.outOfStock": "Habis stok"
+  ,"stock.lowStock": "Rendah"
+  ,"stock.baseIngredients": "Bahan Asas"
+  ,"stock.ingredientName": "Nama Bahan"
+  ,"stock.stockOnHand": "Stok Dipegang"
+  ,"stock.noIngredientData": "Tiada data bahan tersedia."
+  ,"stock.centralWarehouse": "Gudang Pusat"
+  ,"stock.live": "LANGSUNG"
+  ,"stock.needsReorder": "Perlu Pesan Semula"
+  ,"forecast.mathDetails": "Butiran matematik ramalan"
+  ,"forecast.signalTotals": "Jumlah isyarat"
+  ,"forecast.weightedRecent": "Terkini berwajaran"
+  ,"forecast.weekdayPattern": "Corak hari bekerja"
+  ,"forecast.avg14d": "Purata 14 hari"
+  ,"forecast.adjustments": "Pelarasan"
+  ,"forecast.baselineTotal": "Jumlah asas"
+  ,"forecast.contextAdjustment": "Pelarasan konteks"
+  ,"forecast.finalTotal": "Jumlah akhir"
+  ,"forecast.daypartSplit": "Pembahagian sesi"
+  ,"forecast.drivers": "Pemacu"
+  ,"forecast.holiday": "Cuti"
+  ,"forecast.weather": "Cuaca"
+  ,"forecast.unavailable": "Tidak tersedia"
+  ,"forecast.manualOverrides": "Override manual"
+  ,"forecast.stockoutRecovery": "Pemulihan kehabisan stok"
+  ,"forecast.days": "hari"
+  ,"forecast.reasonTags": "Tag sebab"
+  ,"planning.actionSummary.badge": "Ringkasan tindakan"
+  ,"planning.audit.noEvents": "Tiada acara audit direkodkan lagi."
+  ,"planning.audit.final": "Akhir"
+  ,"planning.modelBadgeLabel": "Lencana model"
+  ,"planning.validation": "Pengesahan"
+  ,"planning.wape": "WAPE"
+  ,"planning.coverage": "Liputan"
+  ,"planning.viewEvidence": "Lihat bukti"
+  ,"planning.recommendation.openingStock": "Stok awal"
+  ,"planning.recommendation.recommendedPrep": "Persediaan disyorkan"
+  ,"planning.recommendation.batchSize": "Saiz kelompok"
+  ,"planning.recommendation.wasteCost": "Kos pembaziran"
+  ,"planning.recommendation.stockoutCost": "Kos kehabisan stok"
+  ,"planning.recommendation.reviewDecision": "Semak keputusan"
+  ,"planning.replenishment.title": "Perincian pengisian semula"
+  ,"planning.replenishment.empty": "Pilih cadangan untuk melihat keperluan dan kekurangan bahan."
+  ,"planning.replenishment.noShortages": "Tiada kekurangan bahan dikesan."
+  ,"planning.replenishment.required": "Diperlukan"
+  ,"planning.replenishment.short": "Kurang"
+  ,"planning.replenishment.currentStock": "Stok semasa"
+  ,"planning.modelEvidence.title": "Bukti model"
+  ,"planning.modelEvidence.note": "Status model: prototaip MLOps. Disahkan pada tetingkap demo gaya POS."
+  ,"planning.status": "Status"
+  ,"planning.engine": "Enjin"
+  ,"planning.version": "Versi"
+  ,"planning.bias": "Bias"
+  ,"planning.p10p90Coverage": "Liputan p10-p90"
+  ,"planning.mismatchDelta": "Delta kos ketidakpadanan"
+  ,"planning.uncertainty.p10": "p10"
+  ,"planning.uncertainty.p50": "p50"
+  ,"planning.uncertainty.p90": "p90"
+  ,"planning.uncertainty.recommended": "disyorkan"
+  ,"common.rm": "RM"
+  ,"common.status.pending_approval": "Menunggu kelulusan"
+  ,"copilot.readyTitle": "Copilot AI anda sudah sedia"
+  ,"copilot.readySubtitle": "Hasilkan Ringkasan Harian untuk ringkasan dalam bahasa mudah, atau Pelan Tindakan untuk cadangan berstruktur dan diberi keutamaan bagi hari ini."
 } as const;
 
 export default ms;

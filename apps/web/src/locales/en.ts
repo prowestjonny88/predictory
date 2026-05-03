@@ -178,6 +178,10 @@ const en = {
   "risk.noOutletData": "No outlet data available.",
   "risk.suggestedActions": "Suggested Actions",
   "risk.allClear": "All clear. No actions needed.",
+  "risk.action.reduceCriticalWaste": "Reduce {{sku}} prep at {{outlet}} immediately",
+  "risk.action.reviewHighWaste": "Review {{sku}} at {{outlet}} - {{rate}}% waste rate",
+  "risk.action.increaseCriticalStockout": "Increase {{sku}} allocation at {{outlet}} for {{daypart}}",
+  "risk.action.monitorHighStockout": "Monitor {{sku}} stock at {{outlet}} for {{daypart}}",
   "copilot.title": "AI Copilot",
   "copilot.dailyBrief": "Daily Brief",
   "copilot.dailyBriefHelp": "Generate a plain-language summary of forecast, risks, and recommended next steps.",
@@ -316,6 +320,75 @@ const en = {
   "charts.runForecastHint": "Run a forecast to see the charts below",
   "scenario.emptyTitle": "Run a scenario to see the impact analysis",
   "scenario.emptySubtitle": "Choose a quick scenario above or describe your own, then click Run Scenario to model the downstream effects on waste, stockout, and prep volumes."
+  ,"stock.outletInventory": "Outlet Inventory"
+  ,"stock.productName": "Product Name"
+  ,"stock.outlet": "Outlet"
+  ,"stock.snapshotTime": "Snapshot Time"
+  ,"stock.unitsOnHand": "Units On Hand"
+  ,"stock.noStockData": "No stock data available."
+  ,"stock.outOfStock": "Out of stock"
+  ,"stock.lowStock": "Low"
+  ,"stock.baseIngredients": "Base Ingredients"
+  ,"stock.ingredientName": "Ingredient Name"
+  ,"stock.stockOnHand": "Stock On Hand"
+  ,"stock.noIngredientData": "No ingredient data available."
+  ,"stock.centralWarehouse": "Central Warehouse"
+  ,"stock.live": "LIVE"
+  ,"stock.needsReorder": "Needs Reorder"
+  ,"forecast.mathDetails": "Forecast math details"
+  ,"forecast.signalTotals": "Signal totals"
+  ,"forecast.weightedRecent": "Weighted recent"
+  ,"forecast.weekdayPattern": "Weekday pattern"
+  ,"forecast.avg14d": "14d average"
+  ,"forecast.adjustments": "Adjustments"
+  ,"forecast.baselineTotal": "Baseline total"
+  ,"forecast.contextAdjustment": "Context adjustment"
+  ,"forecast.finalTotal": "Final total"
+  ,"forecast.daypartSplit": "Daypart split"
+  ,"forecast.drivers": "Drivers"
+  ,"forecast.holiday": "Holiday"
+  ,"forecast.weather": "Weather"
+  ,"forecast.unavailable": "Unavailable"
+  ,"forecast.manualOverrides": "Manual overrides"
+  ,"forecast.stockoutRecovery": "Stockout recovery"
+  ,"forecast.days": "day(s)"
+  ,"forecast.reasonTags": "Reason tags"
+  ,"planning.actionSummary.badge": "Action summary"
+  ,"planning.audit.noEvents": "No audit events recorded yet."
+  ,"planning.audit.final": "Final"
+  ,"planning.modelBadgeLabel": "Model badge"
+  ,"planning.validation": "Validation"
+  ,"planning.wape": "WAPE"
+  ,"planning.coverage": "Coverage"
+  ,"planning.viewEvidence": "View evidence"
+  ,"planning.recommendation.openingStock": "Opening stock"
+  ,"planning.recommendation.recommendedPrep": "Recommended prep"
+  ,"planning.recommendation.batchSize": "Batch size"
+  ,"planning.recommendation.wasteCost": "Waste cost"
+  ,"planning.recommendation.stockoutCost": "Stockout cost"
+  ,"planning.recommendation.reviewDecision": "Review decision"
+  ,"planning.replenishment.title": "Replenishment breakdown"
+  ,"planning.replenishment.empty": "Select a recommendation to see ingredient needs and shortages."
+  ,"planning.replenishment.noShortages": "No ingredient shortages detected."
+  ,"planning.replenishment.required": "Required"
+  ,"planning.replenishment.short": "Short"
+  ,"planning.replenishment.currentStock": "Current stock"
+  ,"planning.modelEvidence.title": "Model evidence"
+  ,"planning.modelEvidence.note": "Model status: MLOps prototype. Validated on POS-style demo window."
+  ,"planning.status": "Status"
+  ,"planning.engine": "Engine"
+  ,"planning.version": "Version"
+  ,"planning.bias": "Bias"
+  ,"planning.p10p90Coverage": "p10-p90 coverage"
+  ,"planning.mismatchDelta": "Mismatch cost delta"
+  ,"planning.uncertainty.p10": "p10"
+  ,"planning.uncertainty.p50": "p50"
+  ,"planning.uncertainty.p90": "p90"
+  ,"planning.uncertainty.recommended": "recommended"
+  ,"common.rm": "RM"
+  ,"common.status.pending_approval": "Pending approval"
+  ,"copilot.readyTitle": "Your AI Copilot is ready"
+  ,"copilot.readySubtitle": "Generate a Daily Brief for a plain-language summary, or an Action Plan for structured, prioritised recommendations for today."
 } as const;
 
 export default en;

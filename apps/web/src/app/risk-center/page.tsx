@@ -279,23 +279,20 @@ export default function RiskCenterPage() {
       if (alert.risk_level === "critical") {
         actions.push({
           id: `waste-critical-${alert.outlet_id}-${alert.sku_id}`,
-          text:
-            language === "ms"
-              ? `Kurangkan prep ${alert.sku_name} di ${alert.outlet_name} dengan segera`
-              : language === "zh-CN"
-                ? `立即减少 ${alert.outlet_name} 的 ${alert.sku_name} 备货`
-                : `Reduce ${alert.sku_name} prep at ${alert.outlet_name} immediately`,
+          text: t("risk.action.reduceCriticalWaste", "Reduce {{sku}} prep at {{outlet}} immediately", {
+            sku: alert.sku_name,
+            outlet: alert.outlet_name,
+          }),
           priority: "urgent",
         });
       } else if (alert.risk_level === "high") {
         actions.push({
           id: `waste-high-${alert.outlet_id}-${alert.sku_id}`,
-          text:
-            language === "ms"
-              ? `Semak ${alert.sku_name} di ${alert.outlet_name} - ${(alert.waste_rate * 100).toFixed(0)}% kadar pembaziran`
-              : language === "zh-CN"
-                ? `检查 ${alert.outlet_name} 的 ${alert.sku_name} - 浪费率 ${(alert.waste_rate * 100).toFixed(0)}%`
-                : `Review ${alert.sku_name} at ${alert.outlet_name} - ${(alert.waste_rate * 100).toFixed(0)}% waste rate`,
+          text: t("risk.action.reviewHighWaste", "Review {{sku}} at {{outlet}} - {{rate}}% waste rate", {
+            sku: alert.sku_name,
+            outlet: alert.outlet_name,
+            rate: (alert.waste_rate * 100).toFixed(0),
+          }),
           priority: "normal",
         });
       }
@@ -305,23 +302,29 @@ export default function RiskCenterPage() {
       if (alert.risk_level === "critical") {
         actions.push({
           id: `stockout-critical-${alert.outlet_id}-${alert.sku_id}`,
-          text:
-            language === "ms"
-              ? `Tingkatkan alokasi ${alert.sku_name} di ${alert.outlet_name} untuk ${translateDaypart(language, alert.affected_daypart)}`
-              : language === "zh-CN"
-                ? `提高 ${alert.outlet_name} 在${translateDaypart(language, alert.affected_daypart)}的 ${alert.sku_name} 配置`
-                : `Increase ${alert.sku_name} allocation at ${alert.outlet_name} for ${alert.affected_daypart}`,
+          text: t(
+            "risk.action.increaseCriticalStockout",
+            "Increase {{sku}} allocation at {{outlet}} for {{daypart}}",
+            {
+              sku: alert.sku_name,
+              outlet: alert.outlet_name,
+              daypart: translateDaypart(language, alert.affected_daypart),
+            }
+          ),
           priority: "urgent",
         });
       } else if (alert.risk_level === "high") {
         actions.push({
           id: `stockout-high-${alert.outlet_id}-${alert.sku_id}`,
-          text:
-            language === "ms"
-              ? `Pantau stok ${alert.sku_name} di ${alert.outlet_name} untuk ${translateDaypart(language, alert.affected_daypart)}`
-              : language === "zh-CN"
-                ? `监控 ${alert.outlet_name} 在${translateDaypart(language, alert.affected_daypart)}的 ${alert.sku_name} 库存`
-                : `Monitor ${alert.sku_name} stock at ${alert.outlet_name} for ${alert.affected_daypart}`,
+          text: t(
+            "risk.action.monitorHighStockout",
+            "Monitor {{sku}} stock at {{outlet}} for {{daypart}}",
+            {
+              sku: alert.sku_name,
+              outlet: alert.outlet_name,
+              daypart: translateDaypart(language, alert.affected_daypart),
+            }
+          ),
           priority: "normal",
         });
       }
