@@ -16,6 +16,7 @@ import {
 import { Store, ShoppingBag } from "lucide-react";
 
 import { api } from "@/lib/api";
+import { useLanguage } from "@/components/i18n/LanguageProvider";
 import type { Outlet, SKU } from "@/types";
 
 type TrendViewMode = "yearly" | "monthly";
@@ -86,6 +87,7 @@ function pseudoRandom(seed: number) {
 }
 
 function YearlyOutletChart({ outlets, mode }: { outlets: Outlet[]; mode: TrendViewMode }) {
+    const { t } = useLanguage();
     const labels = getLabelsForMode(mode);
     const currentIndex = getCurrentIndexForMode(mode);
 
@@ -140,9 +142,13 @@ function YearlyOutletChart({ outlets, mode }: { outlets: Outlet[]; mode: TrendVi
                 <Store className="h-4 w-4 text-emerald-500" />
                 <div className="flex-1">
                     <h3 className="text-sm font-semibold text-neutral-800">
-                        {mode === "yearly" ? "1-Year Outlet Sales Trend" : "1-Month Outlet Sales Trend"}
+                                                {mode === "yearly"
+                                                    ? t("charts.outletTrend.yearly", "1-Year Outlet Sales Trend")
+                                                    : t("charts.outletTrend.monthly", "1-Month Outlet Sales Trend")}
                     </h3>
-                    <p className="text-xs text-neutral-400">Previous sales matched with predictive forecasting</p>
+                                        <p className="text-xs text-neutral-400">
+                                            {t("charts.trendSubtitle", "Previous sales matched with predictive forecasting")}
+                                        </p>
                 </div>
             </div>
             <div className="p-5 w-full h-[320px] min-h-[320px]">
@@ -153,12 +159,24 @@ function YearlyOutletChart({ outlets, mode }: { outlets: Outlet[]; mode: TrendVi
                         <YAxis tick={{ fontSize: 11, fill: "#9CA3AF" }} axisLine={false} tickLine={false} width={40} />
                         <Tooltip
                             contentStyle={{ borderRadius: "10px", border: "1px solid #E5E7EB", boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.08)", fontSize: 12 }}
-                            formatter={(value, name) => [
-                                `${value} units`,
-                                String(name).replace("_past", " (Actual)").replace("_future", " (Predicted)")
-                            ]}
+                                                        formatter={(value, name) => [
+                                                                `${value} ${t("common.units", "units")}`,
+                                                                String(name)
+                                                                    .replace("_past", ` (${t("common.actual", "Actual")})`)
+                                                                    .replace("_future", ` (${t("common.predicted", "Predicted")})`)
+                                                        ]}
                         />
-                        <ReferenceLine x={labels[currentIndex]} stroke="#9CA3AF" strokeDasharray="3 3" label={{ position: 'insideTopRight', value: 'Today', fill: '#9CA3AF', fontSize: 11 }} />
+                                                <ReferenceLine
+                                                    x={labels[currentIndex]}
+                                                    stroke="#9CA3AF"
+                                                    strokeDasharray="3 3"
+                                                    label={{
+                                                        position: "insideTopRight",
+                                                        value: t("common.today", "Today"),
+                                                        fill: "#9CA3AF",
+                                                        fontSize: 11,
+                                                    }}
+                                                />
                         <Legend
                             wrapperStyle={{ fontSize: 11, paddingTop: 10 }}
                             iconType="circle"
@@ -203,6 +221,7 @@ function YearlyOutletChart({ outlets, mode }: { outlets: Outlet[]; mode: TrendVi
 }
 
 function YearlyProductChart({ skus, outlets, mode }: { skus: SKU[], outlets: Outlet[]; mode: TrendViewMode }) {
+    const { t } = useLanguage();
     const [selectedOutletId, setSelectedOutletId] = useState<string>("all");
     const labels = getLabelsForMode(mode);
     const currentIndex = getCurrentIndexForMode(mode);
@@ -256,16 +275,20 @@ function YearlyProductChart({ skus, outlets, mode }: { skus: SKU[], outlets: Out
                 <ShoppingBag className="h-4 w-4 text-amber-500" />
                 <div className="flex-1">
                     <h3 className="text-sm font-semibold text-neutral-800">
-                        {mode === "yearly" ? "1-Year Product Sales Trend" : "1-Month Product Sales Trend"}
+                                                {mode === "yearly"
+                                                    ? t("charts.productTrend.yearly", "1-Year Product Sales Trend")
+                                                    : t("charts.productTrend.monthly", "1-Month Product Sales Trend")}
                     </h3>
-                    <p className="text-xs text-neutral-400">Previous sales matched with predictive forecasting</p>
+                                        <p className="text-xs text-neutral-400">
+                                            {t("charts.trendSubtitle", "Previous sales matched with predictive forecasting")}
+                                        </p>
                 </div>
                 <select
                     value={selectedOutletId}
                     onChange={(e) => setSelectedOutletId(e.target.value)}
                     className="rounded-md border border-neutral-200 bg-neutral-50 px-3 py-1.5 text-xs font-medium text-neutral-700 focus:outline-none focus:ring-2 focus:ring-amber-400 transition-colors"
                 >
-                    <option value="all">All Outlets</option>
+                    <option value="all">{t("common.allOutlets", "All Outlets")}</option>
                     {outlets.map((o) => (
                         <option key={o.id} value={String(o.id)}>
                             {o.name}
@@ -281,12 +304,24 @@ function YearlyProductChart({ skus, outlets, mode }: { skus: SKU[], outlets: Out
                         <YAxis tick={{ fontSize: 11, fill: "#9CA3AF" }} axisLine={false} tickLine={false} width={40} />
                         <Tooltip
                             contentStyle={{ borderRadius: "10px", border: "1px solid #E5E7EB", boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.08)", fontSize: 12 }}
-                            formatter={(value, name) => [
-                                `${value} units`,
-                                String(name).replace("_past", " (Actual)").replace("_future", " (Predicted)")
-                            ]}
+                                                        formatter={(value, name) => [
+                                                                `${value} ${t("common.units", "units")}`,
+                                                                String(name)
+                                                                    .replace("_past", ` (${t("common.actual", "Actual")})`)
+                                                                    .replace("_future", ` (${t("common.predicted", "Predicted")})`)
+                                                        ]}
                         />
-                        <ReferenceLine x={labels[currentIndex]} stroke="#9CA3AF" strokeDasharray="3 3" label={{ position: 'insideTopRight', value: 'Today', fill: '#9CA3AF', fontSize: 11 }} />
+                                                <ReferenceLine
+                                                    x={labels[currentIndex]}
+                                                    stroke="#9CA3AF"
+                                                    strokeDasharray="3 3"
+                                                    label={{
+                                                        position: "insideTopRight",
+                                                        value: t("common.today", "Today"),
+                                                        fill: "#9CA3AF",
+                                                        fontSize: 11,
+                                                    }}
+                                                />
                         <Legend
                             wrapperStyle={{ fontSize: 11, paddingTop: 10 }}
                             iconType="circle"
@@ -330,6 +365,7 @@ function YearlyProductChart({ skus, outlets, mode }: { skus: SKU[], outlets: Out
 }
 
 export default function YearlyTrendsCharts() {
+    const { t } = useLanguage();
     const [mode, setMode] = useState<TrendViewMode>("yearly");
 
     const outletsQuery = useQuery<Outlet[]>({
@@ -372,7 +408,7 @@ export default function YearlyTrendsCharts() {
                                 : "text-neutral-600 hover:bg-neutral-100"
                         }`}
                     >
-                        Yearly
+                        {t("common.yearly", "Yearly")}
                     </button>
                     <button
                         onClick={() => setMode("monthly")}
@@ -382,7 +418,7 @@ export default function YearlyTrendsCharts() {
                                 : "text-neutral-600 hover:bg-neutral-100"
                         }`}
                     >
-                        Monthly
+                        {t("common.monthly", "Monthly")}
                     </button>
                 </div>
             </div>

@@ -13,7 +13,9 @@ import RecommendationCard from "@/components/planning/RecommendationCard";
 import ReplenishmentBreakdown from "@/components/planning/ReplenishmentBreakdown";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useLanguage } from "@/components/i18n/LanguageProvider";
 import { planningApi, type DailyPlanLatestResponse, type DailyPlanTopAction, type ManagerNoteResponse } from "@/lib/api/planning";
+import { translateDaypart } from "@/lib/i18n";
 import { todayISO } from "@/lib/utils";
 
 const MOCK_PLAN: DailyPlanLatestResponse = {
@@ -139,11 +141,27 @@ const MOCK_NOTE_RESPONSE: ManagerNoteResponse = {
     "The note indicates additional morning pastry demand at KLCC. Apply only after manager confirmation.",
 };
 
-function buildExplanation(item: DailyPlanTopAction) {
-  return `Prepare ${item.recommended_prep} ${item.sku_name} for ${item.outlet_name} ${item.daypart}. Expected demand is around ${item.p50}, with a high scenario of ${item.p90}. Stockout cost is higher than waste cost, so prep sits slightly above median demand.`;
+function buildExplanation(
+  item: DailyPlanTopAction,
+  t: (key: string, fallback?: string, values?: Record<string, string | number>) => string,
+  language: "en" | "ms" | "zh-CN"
+) {
+  return t(
+    "planning.explanation",
+    "Prepare {{prep}} {{sku}} for {{outlet}} {{daypart}}. Expected demand is around {{p50}}, with a high scenario of {{p90}}. Stockout cost is higher than waste cost, so prep sits slightly above median demand.",
+    {
+      prep: item.recommended_prep,
+      sku: item.sku_name,
+      outlet: item.outlet_name,
+      daypart: translateDaypart(language, item.daypart.toLowerCase()),
+      p50: item.p50,
+      p90: item.p90,
+    }
+  );
 }
 
 export default function DailyPlanningPage() {
+  const { t, language } = useLanguage();
   const [planDate] = useState(todayISO);
   const [plan, setPlan] = useState<DailyPlanLatestResponse>(MOCK_PLAN);
   const [loading, setLoading] = useState(true);
@@ -205,26 +223,30 @@ export default function DailyPlanningPage() {
 
     return [
       {
-        label: "Top prep action",
+        label: t("planning.summary.topPrep", "Top prep action"),
         value: topPrep
           ? `${topPrep.recommended_prep} ${topPrep.sku_name} at ${topPrep.outlet_name}`
-          : "No actions",
+          : t("planning.summary.noActions", "No actions"),
       },
       {
-        label: "Top reorder action",
+        label: t("planning.summary.topReorder", "Top reorder action"),
         value: topShortage
           ? `${topShortage.line.ingredient_name} +${topShortage.line.shortage_qty} ${topShortage.line.unit}`
-          : "No shortages detected",
+          : t("planning.summary.noShortages", "No shortages detected"),
       },
       {
-        label: "Top risk",
+        label: t("planning.summary.topRisk", "Top risk"),
         value: topRisk
           ? `${topRisk.outlet_name} ${topRisk.sku_name} (RM ${topRisk.financial_exposure.stockout_exposure_rm})`
-          : "No risks detected",
+          : t("planning.summary.noRisks", "No risks detected"),
       },
       {
-        label: "Mismatch cost",
-        value: `${Math.abs(plan.metrics.estimated_mismatch_cost_delta_pct * 100).toFixed(0)}% reduction on demo window`,
+        label: t("planning.summary.mismatchCost", "Mismatch cost"),
+        value: t(
+          "planning.summary.mismatchValue",
+          "{{percent}}% reduction on demo window",
+          { percent: Math.abs(plan.metrics.estimated_mismatch_cost_delta_pct * 100).toFixed(0) }
+        ),
       },
     ];
   }, [plan.metrics.estimated_mismatch_cost_delta_pct, visibleActions]);
@@ -258,7 +280,12 @@ export default function DailyPlanningPage() {
       setPlan(latest);
       setSelectedAction(latest.top_actions[0] ?? null);
     } catch (_error) {
-      setStatusMessage("Regenerate request queued (demo mode). Using cached run.");
+      setStatusMessage(
+        t(
+          "planning.status.regenerateQueued",
+          "Regenerate request queued (demo mode). Using cached run."
+        )
+      );
     }
   }
 
@@ -299,7 +326,11 @@ export default function DailyPlanningPage() {
           p50: Math.round(item.p50 * factor),
           p90: Math.round(item.p90 * factor),
           recommended_prep: Math.round(item.recommended_prep * factor),
-          reason_summary: `${item.reason_summary} Manager note applied (+${adjustment.suggested_adjustment_pct}%).`,
+          reason_summary: `${item.reason_summary} ${t(
+            "planning.managerNoteApplied",
+            "Manager note applied (+{{percent}}%).",
+            { percent: adjustment.suggested_adjustment_pct }
+          )}`,
         };
       }
       return item;
@@ -353,12 +384,12 @@ export default function DailyPlanningPage() {
       ),
     }));
     setDrawerOpen(false);
-    setStatusMessage("Decision recorded.");
+    setStatusMessage(t("planning.status.decisionRecorded", "Decision recorded."));
   }
 
   function renderActionList(items: DailyPlanTopAction[]) {
     if (items.length === 0) {
-      return <p className="text-sm text-neutral-500">No actions for this filter.</p>;
+      return <p className="text-sm text-neutral-500">{t("planning.noActionsFilter", "No actions for this filter.")}</p>;
     }
     return (
       <div className="grid gap-4 lg:grid-cols-2">
@@ -385,15 +416,15 @@ export default function DailyPlanningPage() {
           "radial-gradient(circle at top right, rgba(251, 191, 36, 0.25), transparent 40%), radial-gradient(circle at 20% 20%, rgba(14, 165, 233, 0.15), transparent 35%), #f8fafc",
       }}
     >
-      <Header title="Daily Planning Workspace" date={planDate}>
+      <Header title={t("planning.title", "Daily Planning Workspace")} date={planDate}>
         <div className="flex flex-wrap items-center gap-2">
           <select
             className="rounded-md border border-neutral-200 bg-white px-3 py-1 text-xs"
             value={role}
             onChange={(event) => setRole(event.target.value)}
           >
-            <option value="global">Global planner</option>
-            <option value="outlet_manager">Outlet manager</option>
+            <option value="global">{t("planning.role.global", "Global planner")}</option>
+            <option value="outlet_manager">{t("planning.role.outlet", "Outlet manager")}</option>
           </select>
           {role === "outlet_manager" && (
             <select
@@ -409,20 +440,23 @@ export default function DailyPlanningPage() {
             </select>
           )}
           <Button variant="outline" size="sm" onClick={handleRegenerate}>
-            Regenerate plan
+            {t("planning.regenerate", "Regenerate plan")}
           </Button>
         </div>
       </Header>
 
       <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-6 md:px-8">
         <ActionSummaryCard
-          title="Tomorrow action summary"
+          title={t("planning.actionSummary.title", "Tomorrow action summary")}
           items={actionSummaryItems}
-          subtext="This view prioritizes financially optimal prep and replenishment decisions based on LightGBM demand forecasting."
+          subtext={t(
+            "planning.actionSummary.subtext",
+            "This view prioritizes financially optimal prep and replenishment decisions based on LightGBM demand forecasting."
+          )}
         />
 
         <ModelBadge
-          engineName="LightGBM MLOps prototype"
+          engineName={t("planning.modelBadge", "LightGBM MLOps prototype")}
           validationWindow={plan.validation_window}
           wape={plan.metrics.wape}
           coverage={plan.metrics.p10_p90_coverage}
@@ -437,15 +471,21 @@ export default function DailyPlanningPage() {
 
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 className="text-lg font-semibold text-neutral-900">Recommendations</h2>
-            <p className="text-xs text-neutral-500">Showing {visibleActions.length} actions</p>
+            <h2 className="text-lg font-semibold text-neutral-900">
+              {t("planning.recommendations", "Recommendations")}
+            </h2>
+            <p className="text-xs text-neutral-500">
+              {t("planning.showingActions", "Showing {{count}} actions", { count: visibleActions.length })}
+            </p>
           </div>
           <FilterTabs value={filter} onChange={setFilter} />
         </div>
 
         {loading ? (
           <Card>
-            <CardContent className="text-sm text-neutral-500">Loading latest plan...</CardContent>
+            <CardContent className="text-sm text-neutral-500">
+              {t("planning.loadingPlan", "Loading latest plan...")}
+            </CardContent>
           </Card>
         ) : (
           <div className="space-y-4">
@@ -483,10 +523,10 @@ export default function DailyPlanningPage() {
         {selectedAction && (
           <Card className="border-dashed">
             <CardHeader>
-              <CardTitle>Gemini explanation (grounded)</CardTitle>
+              <CardTitle>{t("planning.geminiExplanation", "Gemini explanation (grounded)")}</CardTitle>
             </CardHeader>
             <CardContent className="text-sm text-neutral-600">
-              {buildExplanation(selectedAction)}
+              {buildExplanation(selectedAction, t, language)}
             </CardContent>
           </Card>
         )}

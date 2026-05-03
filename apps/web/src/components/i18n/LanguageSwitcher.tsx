@@ -3,10 +3,10 @@
 import { useLanguage } from "@/components/i18n/LanguageProvider";
 import type { LanguageCode } from "@/types";
 
-const OPTIONS: Array<{ value: LanguageCode; label: string }> = [
-  { value: "en", label: "English (Malaysia/Singapore)" },
-  { value: "ms", label: "Bahasa Melayu (Malaysia/Brunei)" },
-  { value: "zh-CN", label: "Chinese Simplified (Singapore)" },
+const OPTIONS: Array<{ value: LanguageCode; labelKey: string; fallback: string }> = [
+  { value: "en", labelKey: "language.englishFull", fallback: "English (Malaysia/Singapore)" },
+  { value: "ms", labelKey: "language.malayFull", fallback: "Bahasa Melayu (Malaysia/Brunei)" },
+  { value: "zh-CN", labelKey: "language.chineseFull", fallback: "Chinese Simplified (Singapore)" },
 ];
 
 interface Props {
@@ -27,7 +27,7 @@ export default function LanguageSwitcher({ compact = false }: Props) {
       >
         {OPTIONS.map((option) => (
           <option key={option.value} value={option.value}>
-            {option.label}
+            {t(option.labelKey, option.fallback)}
           </option>
         ))}
       </select>

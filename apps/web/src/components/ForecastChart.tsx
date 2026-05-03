@@ -12,6 +12,7 @@ import {
   YAxis,
 } from "recharts";
 
+import { useLanguage } from "@/components/i18n/LanguageProvider";
 import type { ForecastLine } from "@/types";
 
 interface ForecastDisplayLine extends ForecastLine {
@@ -25,6 +26,7 @@ interface Props {
 const DAYPART_COLORS = ["#FCD34D", "#F59E0B", "#D97706"];
 
 export default function ForecastChart({ lines }: Props) {
+  const { t } = useLanguage();
   if (!lines || lines.length === 0) return null;
 
   // Aggregate total per SKU (top 8 for readability)
@@ -42,7 +44,7 @@ export default function ForecastChart({ lines }: Props) {
   return (
     <div className="rounded-xl border border-neutral-200 bg-white p-5 shadow-sm">
       <h3 className="mb-4 text-xs font-semibold uppercase tracking-wide text-neutral-500">
-        Forecasted Units by SKU
+        {t("charts.forecastedUnitsBySku", "Forecasted Units by SKU")}
       </h3>
       <div className="h-52 w-full">
         <ResponsiveContainer width="100%" height="100%">
@@ -74,7 +76,10 @@ export default function ForecastChart({ lines }: Props) {
                 boxShadow: "0 1px 2px 0 rgb(0 0 0 / 0.05)",
                 fontSize: 12,
               }}
-            formatter={(value) => [`${value} units`, "Forecast"]}
+            formatter={(value) => [
+              `${value} ${t("common.units", "units")}`,
+              t("common.forecast", "Forecast"),
+            ]}
             />
             <Bar dataKey="total" radius={[0, 4, 4, 0]} maxBarSize={20}>
               {data.map((_, i) => (

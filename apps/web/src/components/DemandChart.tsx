@@ -23,14 +23,16 @@ export default function DemandChart({ forecasts }: Props) {
   if (!forecasts || forecasts.length === 0) {
     return (
       <div className="flex h-64 items-center justify-center rounded-xl border border-neutral-200 bg-white shadow-sm">
-        <span className="text-sm text-neutral-400">No forecast data available for chart.</span>
+        <span className="text-sm text-neutral-400">
+          {t("charts.noForecastChart", "No forecast data available for chart.")}
+        </span>
       </div>
     );
   }
 
   // Aggregate by outlet
   const aggregated = forecasts.reduce((acc, curr) => {
-    const key = curr.outlet_name || "Unknown";
+    const key = curr.outlet_name || t("common.unknown", "Unknown");
     if (!acc[key]) {
       acc[key] = {
         name: key,
@@ -50,7 +52,7 @@ export default function DemandChart({ forecasts }: Props) {
   return (
     <div className="rounded-xl border border-neutral-200 bg-white p-5 shadow-sm">
       <h3 className="mb-4 text-xs font-semibold uppercase tracking-wide text-neutral-500">
-        Predicted Demand by Outlet
+        {t("charts.predictedDemandByOutlet", "Predicted Demand by Outlet")}
       </h3>
       <div className="h-64 w-full">
         <ResponsiveContainer width="100%" height="100%">

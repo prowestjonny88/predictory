@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/components/i18n/LanguageProvider";
 
 export type FilterKey = "top" | "outlet" | "sku" | "risk";
 
@@ -15,6 +16,7 @@ const tabs: { key: FilterKey; label: string }[] = [
 ];
 
 export default function FilterTabs({ value, onChange }: Props) {
+  const { t } = useLanguage();
   return (
     <div className="inline-flex flex-wrap gap-2 rounded-full border border-neutral-200 bg-white p-1">
       {tabs.map((tab) => (
@@ -28,7 +30,10 @@ export default function FilterTabs({ value, onChange }: Props) {
           )}
           onClick={() => onChange(tab.key)}
         >
-          {tab.label}
+          {t(
+            `planning.filter.${tab.key}`,
+            tab.label
+          )}
         </button>
       ))}
     </div>

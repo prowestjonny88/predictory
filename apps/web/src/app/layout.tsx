@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import Sidebar from "@/components/Sidebar";
+import SkipLink from "@/components/i18n/SkipLink";
 
 import "./globals.css";
 import Providers from "./providers";
@@ -19,9 +20,7 @@ export default function RootLayout({
     <html lang="en">
       <body className="flex min-h-screen bg-neutral-50">
         <Providers>
-          <a href="#main-content" className="skip-link">
-            Skip to main content
-          </a>
+          <SkipLink />
           <Sidebar />
           <main id="main-content" className="flex-1 overflow-auto pb-20 md:ml-60 md:pb-0">
             {children}

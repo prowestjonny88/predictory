@@ -188,10 +188,13 @@ export default function ScenarioPlannerPage() {
           <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-neutral-200 bg-white py-16 text-center">
             <GitBranch className="h-10 w-10 text-neutral-200" />
             <p className="text-sm font-medium text-neutral-500">
-              Run a scenario to see the impact analysis
+              {t("scenario.emptyTitle", "Run a scenario to see the impact analysis")}
             </p>
             <p className="text-xs text-neutral-400 max-w-xs">
-              Choose a quick scenario above or describe your own, then click Run Scenario to model the downstream effects on waste, stockout, and prep volumes.
+              {t(
+                "scenario.emptySubtitle",
+                "Choose a quick scenario above or describe your own, then click Run Scenario to model the downstream effects on waste, stockout, and prep volumes."
+              )}
             </p>
           </div>
         )}

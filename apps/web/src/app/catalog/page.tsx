@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import Header from "@/components/Header";
+import { useLanguage } from "@/components/i18n/LanguageProvider";
 import { api } from "@/lib/api";
 import type { SKU } from "@/types";
 
@@ -18,6 +19,7 @@ function formatUnitCost(price: number) {
 }
 
 export default function CatalogPage() {
+  const { t } = useLanguage();
   const skusQuery = useQuery<SKU[]>({
     queryKey: ["skus"],
     queryFn: api.skus,
@@ -28,31 +30,39 @@ export default function CatalogPage() {
 
   return (
     <div className="min-h-screen">
-      <Header title="SKU Catalog" />
+      <Header title={t("catalog.title", "SKU Catalog")} />
 
       <main className="max-w-5xl space-y-4 p-6">
         <div className="rounded-xl border border-neutral-200 bg-white p-4 shadow-sm">
-          <h2 className="text-sm font-semibold text-neutral-800">Items and prices</h2>
+          <h2 className="text-sm font-semibold text-neutral-800">
+            {t("catalog.section.itemsPrices", "Items and prices")}
+          </h2>
           <p className="text-xs text-neutral-500">
-            Unit cost is derived as unit price x {UNIT_COST_RATIO.toFixed(2)} for demo purposes.
+            {t(
+              "catalog.section.unitCostHelper",
+              "Unit cost is derived as unit price x {{ratio}} for demo purposes.",
+              { ratio: UNIT_COST_RATIO.toFixed(2) }
+            )}
           </p>
         </div>
 
         {skusQuery.isLoading && (
           <div className="rounded-xl border border-neutral-200 bg-white p-6 text-sm text-neutral-500">
-            Loading SKUs...
+            {t("catalog.loadingSkus", "Loading SKUs...")}
           </div>
         )}
 
         {skusQuery.error && (
           <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-            {skusQuery.error instanceof Error ? skusQuery.error.message : "Failed to load SKUs"}
+            {skusQuery.error instanceof Error
+              ? skusQuery.error.message
+              : t("catalog.failedSkus", "Failed to load SKUs")}
           </div>
         )}
 
         {!skusQuery.isLoading && rows.length === 0 && (
           <div className="rounded-xl border border-neutral-200 bg-white p-6 text-sm text-neutral-500">
-            No SKU data found.
+            {t("catalog.emptySkus", "No SKU data found.")}
           </div>
         )}
 
@@ -61,14 +71,14 @@ export default function CatalogPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-neutral-200 bg-neutral-50 text-left text-xs font-semibold uppercase tracking-wide text-neutral-500">
-                  <th className="px-4 py-3">SKU</th>
-                  <th className="px-4 py-3">Category</th>
-                  <th className="px-4 py-3">Code</th>
-                  <th className="px-4 py-3 text-right">Unit Price</th>
-                  <th className="px-4 py-3 text-right">Unit cost</th>
-                  <th className="px-4 py-3 text-right">Freshness (hrs)</th>
-                  <th className="px-4 py-3 text-center">Bestseller</th>
-                  <th className="px-4 py-3 text-center">Active</th>
+                  <th className="px-4 py-3">{t("catalog.table.sku", "SKU")}</th>
+                  <th className="px-4 py-3">{t("catalog.table.category", "Category")}</th>
+                  <th className="px-4 py-3">{t("catalog.table.code", "Code")}</th>
+                  <th className="px-4 py-3 text-right">{t("catalog.table.unitPrice", "Unit Price")}</th>
+                  <th className="px-4 py-3 text-right">{t("catalog.table.unitCost", "Unit cost")}</th>
+                  <th className="px-4 py-3 text-right">{t("catalog.table.freshness", "Freshness (hrs)")}</th>
+                  <th className="px-4 py-3 text-center">{t("catalog.table.bestseller", "Bestseller")}</th>
+                  <th className="px-4 py-3 text-center">{t("catalog.table.active", "Active")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-100">
@@ -85,10 +95,10 @@ export default function CatalogPage() {
                     </td>
                     <td className="px-4 py-3 text-right text-neutral-600">{sku.freshness_hours}</td>
                     <td className="px-4 py-3 text-center text-neutral-600">
-                      {sku.is_bestseller ? "Yes" : "No"}
+                      {sku.is_bestseller ? t("common.yes", "Yes") : t("common.no", "No")}
                     </td>
                     <td className="px-4 py-3 text-center text-neutral-600">
-                      {sku.is_active ? "Yes" : "No"}
+                      {sku.is_active ? t("common.yes", "Yes") : t("common.no", "No")}
                     </td>
                   </tr>
                 ))}

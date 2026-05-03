@@ -14,6 +14,7 @@ import {
 } from "recharts";
 import { BarChart2, Maximize2, Minimize2 } from "lucide-react";
 
+import { useLanguage } from "@/components/i18n/LanguageProvider";
 import type { DailyPlanForecastLine } from "@/types";
 
 interface Props {
@@ -43,15 +44,19 @@ const DAYPART_COLORS = {
 // ── Chart 1: Filter by Outlet → bars per SKU ────────────────────────────────
 
 function OutletChart({ forecasts }: { forecasts: DailyPlanForecastLine[] }) {
+  const { t } = useLanguage();
   const outlets = useMemo(() => {
     const seen = new Map<number, string>();
     for (const f of forecasts) {
       if (!seen.has(f.outlet_id)) {
-        seen.set(f.outlet_id, f.outlet_name ?? `Outlet ${f.outlet_id}`);
+        seen.set(
+          f.outlet_id,
+          f.outlet_name ?? `${t("common.outlet", "Outlet")} ${f.outlet_id}`
+        );
       }
     }
     return Array.from(seen.entries()).map(([id, name]) => ({ id, name }));
-  }, [forecasts]);
+  }, [forecasts, t]);
 
   const [selectedOutletId, setSelectedOutletId] = useState<number | "all">("all");
   const [expanded, setExpanded] = useState(false);
@@ -89,8 +94,12 @@ function OutletChart({ forecasts }: { forecasts: DailyPlanForecastLine[] }) {
       <div className="flex items-center gap-3 border-b border-neutral-100 px-5 py-4">
         <BarChart2 className="h-4 w-4 text-amber-500" />
         <div className="flex-1">
-          <h3 className="text-sm font-semibold text-neutral-800">Forecast by Outlet</h3>
-          <p className="text-xs text-neutral-400">Predicted demand per SKU, broken down by daypart</p>
+          <h3 className="text-sm font-semibold text-neutral-800">
+            {t("charts.forecastByOutlet.title", "Forecast by Outlet")}
+          </h3>
+          <p className="text-xs text-neutral-400">
+            {t("charts.forecastByOutlet.subtitle", "Predicted demand per SKU, broken down by daypart")}
+          </p>
         </div>
         {/* Outlet dropdown */}
         <select
@@ -100,7 +109,7 @@ function OutletChart({ forecasts }: { forecasts: DailyPlanForecastLine[] }) {
           }
           className="rounded-md border border-neutral-200 bg-neutral-50 px-3 py-1.5 text-xs font-medium text-neutral-700 focus:outline-none focus:ring-2 focus:ring-amber-400 transition-colors hover:border-amber-300"
         >
-          <option value="all">All Outlets</option>
+          <option value="all">{t("common.allOutlets", "All Outlets")}</option>
           {outlets.map((o) => (
             <option key={o.id} value={o.id}>
               {o.name}
@@ -111,7 +120,7 @@ function OutletChart({ forecasts }: { forecasts: DailyPlanForecastLine[] }) {
         <button
           onClick={() => setExpanded((v) => !v)}
           className="rounded-md p-1.5 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-600 transition-colors"
-          title={expanded ? "Collapse" : "Expand"}
+          title={expanded ? t("common.collapse", "Collapse") : t("common.expand", "Expand")}
         >
           {expanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
         </button>
@@ -121,7 +130,7 @@ function OutletChart({ forecasts }: { forecasts: DailyPlanForecastLine[] }) {
       <div className="flex-1 p-5">
         {chartData.length === 0 ? (
           <div className="flex h-48 items-center justify-center text-sm text-neutral-400">
-            No forecast data available
+            {t("charts.noForecastData", "No forecast data available")}
           </div>
         ) : (
           <div className={expanded ? "h-full" : "h-64"}>
@@ -152,7 +161,7 @@ function OutletChart({ forecasts }: { forecasts: DailyPlanForecastLine[] }) {
                     fontSize: 12,
                     padding: "8px 12px",
                   }}
-                  formatter={(value) => [`${value} units`]}
+                  formatter={(value) => [`${value} ${t("common.units", "units")}`]}
                 />
                 <Legend
                   verticalAlign="top"
@@ -161,9 +170,21 @@ function OutletChart({ forecasts }: { forecasts: DailyPlanForecastLine[] }) {
                   iconType="circle"
                   iconSize={6}
                 />
-                <Bar dataKey="morning" name="Morning" stackId="a" fill={DAYPART_COLORS.morning} radius={[0, 0, 0, 0]} />
-                <Bar dataKey="midday" name="Midday" stackId="a" fill={DAYPART_COLORS.midday} />
-                <Bar dataKey="evening" name="Evening" stackId="a" fill={DAYPART_COLORS.evening} radius={[4, 4, 0, 0]} />
+                <Bar
+                  dataKey="morning"
+                  name={t("common.daypart.morning", "Morning")}
+                  stackId="a"
+                  fill={DAYPART_COLORS.morning}
+                  radius={[0, 0, 0, 0]}
+                />
+                <Bar dataKey="midday" name={t("common.daypart.midday", "Midday")} stackId="a" fill={DAYPART_COLORS.midday} />
+                <Bar
+                  dataKey="evening"
+                  name={t("common.daypart.evening", "Evening")}
+                  stackId="a"
+                  fill={DAYPART_COLORS.evening}
+                  radius={[4, 4, 0, 0]}
+                />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -184,15 +205,16 @@ function OutletChart({ forecasts }: { forecasts: DailyPlanForecastLine[] }) {
 // ── Chart 2: Filter by SKU → bars per Outlet ────────────────────────────────
 
 function ItemChart({ forecasts }: { forecasts: DailyPlanForecastLine[] }) {
+  const { t } = useLanguage();
   const skus = useMemo(() => {
     const seen = new Map<number, string>();
     for (const f of forecasts) {
       if (!seen.has(f.sku_id)) {
-        seen.set(f.sku_id, f.sku_name ?? `SKU ${f.sku_id}`);
+        seen.set(f.sku_id, f.sku_name ?? `${t("common.sku", "SKU")} ${f.sku_id}`);
       }
     }
     return Array.from(seen.entries()).map(([id, name]) => ({ id, name }));
-  }, [forecasts]);
+  }, [forecasts, t]);
 
   const [selectedSkuId, setSelectedSkuId] = useState<number | "all">("all");
   const [expanded, setExpanded] = useState(false);
@@ -200,10 +222,10 @@ function ItemChart({ forecasts }: { forecasts: DailyPlanForecastLine[] }) {
   const outletNames = useMemo(() => {
     const names = new Set<string>();
     for (const f of forecasts) {
-      names.add(f.outlet_name ?? `Outlet ${f.outlet_id}`);
+      names.add(f.outlet_name ?? `${t("common.outlet", "Outlet")} ${f.outlet_id}`);
     }
     return Array.from(names);
-  }, [forecasts]);
+  }, [forecasts, t]);
 
   const chartData = useMemo(() => {
     const filtered =
@@ -233,8 +255,12 @@ function ItemChart({ forecasts }: { forecasts: DailyPlanForecastLine[] }) {
       <div className="flex items-center gap-3 border-b border-neutral-100 px-5 py-4">
         <BarChart2 className="h-4 w-4 text-blue-500" />
         <div className="flex-1">
-          <h3 className="text-sm font-semibold text-neutral-800">Forecast by Item</h3>
-          <p className="text-xs text-neutral-400">Total predicted units per outlet for selected SKU</p>
+          <h3 className="text-sm font-semibold text-neutral-800">
+            {t("charts.forecastByItem.title", "Forecast by Item")}
+          </h3>
+          <p className="text-xs text-neutral-400">
+            {t("charts.forecastByItem.subtitle", "Total predicted units per outlet for selected SKU")}
+          </p>
         </div>
         {/* SKU dropdown */}
         <select
@@ -244,7 +270,7 @@ function ItemChart({ forecasts }: { forecasts: DailyPlanForecastLine[] }) {
           }
           className="rounded-md border border-neutral-200 bg-neutral-50 px-3 py-1.5 text-xs font-medium text-neutral-700 focus:outline-none focus:ring-2 focus:ring-amber-400 transition-colors hover:border-amber-300"
         >
-          <option value="all">All Items</option>
+          <option value="all">{t("common.allItems", "All Items")}</option>
           {skus.map((s) => (
             <option key={s.id} value={s.id}>
               {s.name}
@@ -255,7 +281,7 @@ function ItemChart({ forecasts }: { forecasts: DailyPlanForecastLine[] }) {
         <button
           onClick={() => setExpanded((v) => !v)}
           className="rounded-md p-1.5 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-600 transition-colors"
-          title={expanded ? "Collapse" : "Expand"}
+          title={expanded ? t("common.collapse", "Collapse") : t("common.expand", "Expand")}
         >
           {expanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
         </button>
@@ -265,7 +291,7 @@ function ItemChart({ forecasts }: { forecasts: DailyPlanForecastLine[] }) {
       <div className="flex-1 p-5">
         {chartData.length === 0 ? (
           <div className="flex h-48 items-center justify-center text-sm text-neutral-400">
-            No forecast data available
+            {t("charts.noForecastData", "No forecast data available")}
           </div>
         ) : (
           <div className={expanded ? "h-full" : "h-64"}>
@@ -296,9 +322,12 @@ function ItemChart({ forecasts }: { forecasts: DailyPlanForecastLine[] }) {
                     fontSize: 12,
                     padding: "8px 12px",
                   }}
-                  formatter={(value) => [`${value} units`, "Forecast"]}
+                  formatter={(value) => [
+                    `${value} ${t("common.units", "units")}`,
+                    t("common.forecast", "Forecast"),
+                  ]}
                 />
-                <Bar dataKey="total" name="Total Units" radius={[4, 4, 0, 0]} maxBarSize={48}>
+                <Bar dataKey="total" name={t("charts.totalUnits", "Total Units")} radius={[4, 4, 0, 0]} maxBarSize={48}>
                   {chartData.map((_, i) => (
                     <Cell key={i} fill={COLORS[i % COLORS.length]} />
                   ))}
@@ -323,6 +352,7 @@ function ItemChart({ forecasts }: { forecasts: DailyPlanForecastLine[] }) {
 // ── Main export ──────────────────────────────────────────────────────────────
 
 export default function ForecastInsightCharts({ forecasts, isLoading }: Props) {
+  const { t } = useLanguage();
   if (isLoading) {
     return (
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
@@ -337,8 +367,10 @@ export default function ForecastInsightCharts({ forecasts, isLoading }: Props) {
     return (
       <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-neutral-200 bg-white py-12 text-center">
         <BarChart2 className="h-8 w-8 text-neutral-200" />
-        <p className="text-sm font-medium text-neutral-400">No forecast data for this date</p>
-        <p className="text-xs text-neutral-400">Run a forecast to see the charts below</p>
+        <p className="text-sm font-medium text-neutral-400">
+          {t("charts.noForecastForDate", "No forecast data for this date")}
+        </p>
+        <p className="text-xs text-neutral-400">{t("charts.runForecastHint", "Run a forecast to see the charts below")}</p>
       </div>
     );
   }
