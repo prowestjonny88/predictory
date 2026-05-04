@@ -76,7 +76,7 @@ export default function ApprovalDrawer({ open, item, auditEvents, onClose, onSub
               {t("planning.decision.title", "Decision drawer")}
             </h3>
             <p className="text-xs text-neutral-500">
-              {item.outlet_name} · {item.sku_name} · {translateDaypart(language, item.daypart.toLowerCase())}
+              {item.outlet_name} / {item.sku_name} / {translateDaypart(language, item.daypart.toLowerCase())}
             </p>
           </div>
           <Button variant="ghost" size="sm" onClick={onClose}>
@@ -108,6 +108,39 @@ export default function ApprovalDrawer({ open, item, auditEvents, onClose, onSub
 
           <div className="rounded-lg border border-neutral-100 bg-neutral-50 p-3 text-xs text-neutral-600">
             {item.reason_summary}
+          </div>
+
+          <div className="rounded-lg border border-sky-100 bg-sky-50 p-3 text-xs text-sky-900">
+            <p className="font-semibold">{t("planning.decision.geminiExplanation", "Gemini explanation")}</p>
+            <p className="mt-1">
+              {item.explanation ??
+                t(
+                  "planning.decision.groundedFallback",
+                  "Explanation is grounded in the saved forecast range, current stock, prep quantity, and ingredient impact shown here."
+                )}
+            </p>
+          </div>
+
+          <div className="rounded-lg border border-neutral-100 p-3">
+            <p className="text-xs uppercase tracking-wide text-neutral-500">
+              {t("planning.decision.ingredientImpact", "Ingredient impact")}
+            </p>
+            {item.replenishment.length === 0 ? (
+              <p className="mt-2 text-xs text-neutral-500">
+                {t("planning.decision.noIngredientShortage", "No ingredient shortage is tied to this recommendation.")}
+              </p>
+            ) : (
+              <div className="mt-2 space-y-2">
+                {item.replenishment.map((line) => (
+                  <div key={line.ingredient_id} className="flex items-center justify-between rounded-md bg-neutral-50 px-2 py-1 text-xs">
+                    <span className="font-medium text-neutral-800">{line.ingredient_name}</span>
+                    <span className="text-neutral-600">
+                      {line.required_qty} {line.unit} needed / reorder {line.reorder_qty} {line.unit}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="space-y-2">

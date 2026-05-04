@@ -1,0 +1,214 @@
+import random
+from datetime import date
+
+from fastapi.testclient import TestClient
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
+
+from db.database import Base, get_db
+from db.models import DecisionAuditEvent, Ingredient, PrepPlan
+from db.seed import seed_master_data, seed_sales_and_waste
+from main import app
+
+
+def _build_session_factory():
+    engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(bind=engine)
+    return sessionmaker(bind=engine, autocommit=False, autoflush=False)
+
+
+def _seed_demo_data(session):
+    random.seed(42)
+    seed_master_data(session)
+    from db.models import Outlet, SKU
+
+    all_outlets = session.query(Outlet).all()
+    all_skus = session.query(SKU).all()
+    seed_sales_and_waste(session, all_outlets, all_skus)
+
+
+def _client_with_seeded_db():
+    SessionLocal = _build_session_factory()
+    db = SessionLocal()
+    _seed_demo_data(db)
+    db.close()
+
+    def override_get_db():
+        session = SessionLocal()
+        try:
+            yield session
+        finally:
+            session.close()
+
+    app.dependency_overrides[get_db] = override_get_db
+    return TestClient(app), SessionLocal
+
+
+def test_admin_model_contract_uses_accepted_artifact_metrics(monkeypatch):
+    client, _ = _client_with_seeded_db()
+    monkeypatch.setenv("ADMIN_API_TOKEN", "secret")
+    try:
+        latest = client.get("/api/v1/admin/models/latest")
+        assert latest.status_code == 200
+        payload = latest.json()
+        assert payload["model_version"] == "lightgbm_p50_v1"
+        assert payload["validation_window"] == "2022-09-01 to 2022-09-30"
+        assert payload["metrics"]["wape"] == 0.38011723175212897
+
+        assert client.post("/api/v1/admin/models/train").status_code == 401
+        assert client.post("/api/v1/admin/models/train", headers={"Authorization": "Bearer wrong"}).status_code == 403
+
+        train = client.post("/api/v1/admin/models/train", headers={"Authorization": "Bearer secret"})
+        assert train.status_code == 200
+        assert train.json()["status"] == "manual_artifact_registered"
+    finally:
+        app.dependency_overrides.clear()
+        client.close()
+
+
+def test_forecast_run_contract_generates_versioned_saved_runs():
+    client, _ = _client_with_seeded_db()
+    target = date.today().isoformat()
+    try:
+        first = client.post(f"/api/v1/forecast-runs/generate?target_date={target}")
+        second = client.post(f"/api/v1/forecast-runs/generate?target_date={target}")
+        assert first.status_code == 200
+        assert second.status_code == 200
+        assert first.json()["forecast_run_id"].endswith("_001")
+        assert second.json()["forecast_run_id"].endswith("_002")
+
+        latest = client.get(f"/api/v1/forecast-runs/latest?forecast_date={target}")
+        assert latest.status_code == 200
+        latest_id = latest.json()["forecast_run_id"]
+        assert latest_id == second.json()["forecast_run_id"]
+
+        lines = client.get(f"/api/v1/forecast-runs/{latest_id}/lines")
+        assert lines.status_code == 200
+        assert len(lines.json()) > 0
+    finally:
+        app.dependency_overrides.clear()
+        client.close()
+
+
+def test_prep_replenishment_and_decision_contracts_write_audit_and_refresh_replenishment():
+    client, SessionLocal = _client_with_seeded_db()
+    target = date.today().isoformat()
+    try:
+        daily = client.get(f"/api/v1/api/daily-plan/{target}")
+        assert daily.status_code == 200
+
+        prep = client.get(f"/api/v1/prep-plans/latest?date={target}")
+        assert prep.status_code == 200
+        plan = prep.json()
+        line_id = plan["lines"][0]["id"]
+        plan_id = plan["id"]
+
+        missing_reason = client.post(
+            f"/api/v1/prep-plans/{plan_id}/edit",
+            json={"line_id": line_id, "final_prep": 4, "operator_reason": ""},
+        )
+        assert missing_reason.status_code == 422
+
+        edit = client.post(
+            f"/api/v1/prep-plans/{plan_id}/edit",
+            json={"line_id": line_id, "final_prep": 4, "operator_reason": "Manager adjustment"},
+        )
+        assert edit.status_code == 200
+        assert edit.json()["audit_event_ids"]
+
+        repl = client.get(f"/api/v1/replenishment/latest?date={target}")
+        assert repl.status_code == 200
+        assert repl.json()["lines"]
+
+        db = SessionLocal()
+        assert db.query(DecisionAuditEvent).count() >= 1
+        db.close()
+    finally:
+        app.dependency_overrides.clear()
+        client.close()
+
+
+def test_approve_and_reject_contracts_are_audited():
+    client, SessionLocal = _client_with_seeded_db()
+    target = date.today().isoformat()
+    try:
+        client.get(f"/api/v1/api/daily-plan/{target}")
+        prep = client.get(f"/api/v1/prep-plans/latest?date={target}").json()
+
+        before_stock = client.get(f"/api/v1/replenishment/latest?date={target}").json()
+        approve = client.post(
+            f"/api/v1/prep-plans/{prep['id']}/approve",
+            json={"approved_by": "ops-manager", "operator_reason": "Ready for service"},
+        )
+        assert approve.status_code == 200
+        assert approve.json()["status"] == "approved"
+        assert approve.json()["audit_event_ids"]
+
+        db = SessionLocal()
+        assert db.query(PrepPlan).filter(PrepPlan.id == prep["id"]).first().status == "approved"
+        assert db.query(Ingredient).count() > 0
+        db.close()
+
+        client.post(f"/api/v1/forecast-runs/generate?target_date={target}")
+        latest_run = client.get(f"/api/v1/forecast-runs/latest?forecast_date={target}").json()
+        client.get(f"/api/v1/prep-plans/{latest_run['forecast_run_id']}")
+        latest_prep = client.get(f"/api/v1/prep-plans/latest?date={target}").json()
+        reject = client.post(
+            f"/api/v1/prep-plans/{latest_prep['id']}/reject",
+            json={"operator_reason": "Ingredient delivery delayed", "rejected_by": "ops-manager"},
+        )
+        assert reject.status_code in (200, 409)
+        assert before_stock["lines"]
+    finally:
+        app.dependency_overrides.clear()
+        client.close()
+
+
+def test_copilot_manager_note_contract_requires_confirmation_and_preserves_grounding():
+    client, _ = _client_with_seeded_db()
+    target = date.today().isoformat()
+    try:
+        client.get(f"/api/v1/api/daily-plan/{target}")
+        run_id = client.get(f"/api/v1/forecast-runs/latest?forecast_date={target}").json()["forecast_run_id"]
+        prep = client.get(f"/api/v1/prep-plans/latest?date={target}").json()
+        recommendation_id = prep["lines"][0]["id"]
+
+        explain = client.post(
+            "/api/v1/copilot/explain-recommendation",
+            json={"recommendation_id": recommendation_id},
+        )
+        assert explain.status_code == 200
+        assert explain.json()["evidence"]["recommended_prep"] >= 0
+
+        parse = client.post(
+            "/api/v1/copilot/parse-manager-note",
+            json={
+                "forecast_run_id": run_id,
+                "note": "Increase morning Pastry prep at KLCC Mall by 10%",
+            },
+        )
+        assert parse.status_code == 200
+        parsed = parse.json()["parsed_adjustment"]
+        assert parsed["requires_confirmation"] is True
+
+        blocked = client.post(
+            "/api/v1/copilot/apply-note-adjustment",
+            json={"forecast_run_id": run_id, "confirmed": False, "adjustment": parsed},
+        )
+        assert blocked.status_code == 409
+
+        applied = client.post(
+            "/api/v1/copilot/apply-note-adjustment",
+            json={"forecast_run_id": run_id, "confirmed": True, "adjustment": parsed},
+        )
+        assert applied.status_code == 200
+        assert applied.json()["updated_line_ids"]
+        assert applied.json()["audit_event_ids"]
+    finally:
+        app.dependency_overrides.clear()
+        client.close()

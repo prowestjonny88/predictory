@@ -16,6 +16,7 @@ from forecasting.router import router as forecasting_router
 from planning.router import router as planning_router
 from alerts.router import router as alerts_router
 from copilot.router import router as copilot_router
+from admin.router import router as admin_router
 
 
 @asynccontextmanager
@@ -71,3 +72,4 @@ app.include_router(forecasting_router, prefix="/api/v1", tags=["forecasting"])
 app.include_router(planning_router,    prefix="/api/v1", tags=["planning"])
 app.include_router(alerts_router,      prefix="/api/v1", tags=["alerts"])
 app.include_router(copilot_router,     prefix="/api/v1", tags=["copilot"])
+app.include_router(admin_router,       prefix="/api/v1", tags=["admin"])

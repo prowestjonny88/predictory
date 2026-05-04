@@ -164,14 +164,24 @@ def _generate_forecast_run_id(db: Session, target_date: date) -> str:
 
 def _get_or_create_model_run(db: Session) -> ModelRun:
     latest = db.query(ModelRun).order_by(desc(ModelRun.created_at)).first()
-    if latest:
+    model_info = load_model_for_inference()
+    metrics = model_info.get("metrics") or {}
+    artifact_version = metrics.get("model_version", "lightgbm_p50_v1")
+    engine_name = model_info.get("engine_name", "baseline_heuristic")
+
+    if latest and latest.model_version == artifact_version:
+        if not latest.metrics or latest.metrics.get("placeholder"):
+            latest.metrics = metrics
+            latest.engine_name = engine_name
+            db.add(latest)
+            db.flush()
         return latest
 
     model_run = ModelRun(
-        model_version="lightgbm_p50_v1",
-        engine_name="lightgbm_mlops_prototype",
+        model_version=artifact_version,
+        engine_name=engine_name,
         status="active",
-        metrics={"placeholder": True},
+        metrics=metrics,
     )
     db.add(model_run)
     db.flush()
@@ -331,7 +341,6 @@ def forecast_demand(
 def run_forecast_for_date(target_date: date, db: Session) -> ForecastRun:
     from db.models import Outlet, SKU
 
-    model_info = load_model_for_inference()
     model_run = _get_or_create_model_run(db)
 
     run = ForecastRun(
@@ -339,7 +348,7 @@ def run_forecast_for_date(target_date: date, db: Session) -> ForecastRun:
         forecast_date=target_date,
         model_run_id=model_run.id,
         status="completed",
-        engine_name=model_info["engine_name"],
+        engine_name="weighted_blend_backend",
         model_version=model_run.model_version,
     )
     db.add(run)

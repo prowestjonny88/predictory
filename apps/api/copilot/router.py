@@ -11,6 +11,7 @@ from typing import Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
+from sqlalchemy import desc
 from sqlalchemy.orm import Session
 
 from alerts.stockout import detect_stockout_risk
@@ -26,14 +27,12 @@ from copilot.prompts import (
 )
 from copilot.scenario import run_scenario_simulation
 from db.database import get_db
-from db.models import ForecastRun, Outlet, PrepPlan, ReplenishmentPlan, SKU
+from db.models import DecisionAuditEvent, ForecastRun, Outlet, PrepPlan, PrepPlanLine, ReplenishmentPlan, SKU
+from planning.replenishment import recommend_replenishment
 
 router = APIRouter()
 
-DEFAULT_OPENAI_MODEL = "gpt-4o-mini"
 DEFAULT_GEMINI_MODEL = "gemini/gemini-2.5-flash"
-DEFAULT_VERTEX_GEMINI_MODEL = "vertex_ai/gemini-1.5-pro"
-GEMINI_API_BASE = "https://generativelanguage.googleapis.com"
 SupportedLanguage = Literal["en", "ms", "zh-CN"]
 WEEKDAY_LABELS = {
     "en": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
@@ -51,24 +50,17 @@ def _get_env(*names: str) -> Optional[str]:
 
 
 def _resolve_litellm_config() -> tuple[str, dict]:
-    explicit_model = os.getenv("LITELLM_MODEL")
-    if explicit_model:
-        return explicit_model, {}
-
-    if os.getenv("VERTEXAI_PROJECT") and os.getenv("VERTEXAI_LOCATION"):
-        return os.getenv("GEMINI_MODEL", DEFAULT_VERTEX_GEMINI_MODEL), {}
-
     gemini_api_key = _get_env("GEMINI_API_KEY", "GOOGLE_API_KEY")
-    if gemini_api_key:
-        return (
-            os.getenv("GEMINI_MODEL", DEFAULT_GEMINI_MODEL),
-            {
-                "api_key": gemini_api_key,
-                "api_base": os.getenv("GEMINI_API_BASE", GEMINI_API_BASE),
-            },
-        )
-
-    return DEFAULT_OPENAI_MODEL, {}
+    if not gemini_api_key:
+        raise RuntimeError("GEMINI_API_KEY is not configured")
+    extra_kwargs = {"api_key": gemini_api_key}
+    gemini_api_base = os.getenv("GEMINI_API_BASE")
+    if gemini_api_base:
+        extra_kwargs["api_base"] = gemini_api_base
+    return (
+        os.getenv("GEMINI_MODEL", DEFAULT_GEMINI_MODEL),
+        extra_kwargs,
+    )
 
 
 def _extract_text(response) -> str:
@@ -236,7 +228,7 @@ def _get_latest_replenishment_plan(plan_date: date_type, db: Session):
     return (
         db.query(ReplenishmentPlan)
         .filter(ReplenishmentPlan.plan_date == plan_date)
-        .order_by(ReplenishmentPlan.created_at.desc())
+        .order_by(desc(ReplenishmentPlan.created_at), desc(ReplenishmentPlan.id))
         .first()
     )
 
@@ -317,6 +309,303 @@ class DailyActionsResponse(BaseModel):
     rebalance_suggestions: list[AgentAction] = Field(default_factory=list)
 
 
+class ExplainRecommendationRequest(BaseModel):
+    recommendation_id: Optional[int] = None
+    forecast_run_id: Optional[str] = None
+    outlet_id: Optional[int] = None
+    sku_id: Optional[int] = None
+    daypart: Optional[str] = None
+    language: str = "en"
+
+
+class ExplainRecommendationResponse(BaseModel):
+    explanation: str
+    evidence: dict
+    source_type: Literal["deterministic", "llm_rephrased"]
+
+
+class ManagerNoteRequest(BaseModel):
+    forecast_run_id: str
+    note: str
+
+
+class ParsedAdjustment(BaseModel):
+    outlet_id: str
+    daypart: str
+    sku_category: str
+    suggested_adjustment_pct: float
+    reason: str
+    requires_confirmation: bool
+
+
+class ManagerNoteResponse(BaseModel):
+    parsed_adjustment: ParsedAdjustment
+    explanation: str
+
+
+class ApplyNoteAdjustmentRequest(BaseModel):
+    forecast_run_id: str
+    confirmed: bool = False
+    adjustment: ParsedAdjustment
+
+
+class ApplyNoteAdjustmentResponse(BaseModel):
+    forecast_run_id: str
+    status: str
+    message: str
+    updated_line_ids: list[int]
+    audit_event_ids: list[int]
+    replenishment_plan_id: Optional[int]
+
+
+def _latest_forecast_by_public_id(forecast_run_id: str, db: Session) -> Optional[ForecastRun]:
+    query = db.query(ForecastRun).filter(ForecastRun.forecast_run_id == forecast_run_id)
+    run = query.first()
+    if not run and forecast_run_id.isdigit():
+        run = db.query(ForecastRun).filter(ForecastRun.id == int(forecast_run_id)).first()
+    return run
+
+
+def _latest_prep_for_run(forecast_run: ForecastRun, db: Session) -> Optional[PrepPlan]:
+    return (
+        db.query(PrepPlan)
+        .filter(PrepPlan.plan_date == forecast_run.forecast_date)
+        .order_by(desc(PrepPlan.created_at), desc(PrepPlan.id))
+        .first()
+    )
+
+
+def _refresh_replenishment_for_date(plan_date: date_type, db: Session) -> Optional[ReplenishmentPlan]:
+    for plan in (
+        db.query(ReplenishmentPlan)
+        .filter(ReplenishmentPlan.plan_date == plan_date)
+        .all()
+    ):
+        db.delete(plan)
+    db.commit()
+    return recommend_replenishment(plan_date, db)
+
+
+def _infer_adjustment_pct(note: str) -> float:
+    import re
+
+    lower = note.lower()
+    match = re.search(r"([+-]?\d+(?:\.\d+)?)\s*%", lower)
+    if match:
+        value = float(match.group(1))
+        if any(word in lower for word in ("reduce", "cut", "less", "turun", "kurang", "decrease")) and value > 0:
+            return -value
+        return value
+    if any(word in lower for word in ("reduce", "cut", "less", "turun", "kurang", "decrease")):
+        return -10.0
+    if any(word in lower for word in ("increase", "more", "extra", "naik", "tambah", "boost")):
+        return 10.0
+    return 0.0
+
+
+def _infer_manager_note_target(note: str, forecast_run: ForecastRun, db: Session) -> tuple[str, str, str]:
+    lower = note.lower()
+    outlets = db.query(Outlet).all()
+    skus = db.query(SKU).all()
+
+    outlet_name = next((outlet.name for outlet in outlets if outlet.name.lower() in lower), None)
+    if outlet_name is None and forecast_run.lines:
+        outlet = db.query(Outlet).filter(Outlet.id == forecast_run.lines[0].outlet_id).first()
+        outlet_name = outlet.name if outlet else ""
+
+    daypart = next((value for value in ("morning", "midday", "evening") if value in lower), "morning")
+
+    sku_category = next((sku.category for sku in skus if sku.category.lower() in lower), None)
+    if sku_category is None:
+        sku_category = next((sku.category for sku in skus if sku.name.lower() in lower), None)
+    if sku_category is None and forecast_run.lines:
+        sku = db.query(SKU).filter(SKU.id == forecast_run.lines[0].sku_id).first()
+        sku_category = sku.category if sku else ""
+
+    return outlet_name or "", daypart, sku_category or ""
+
+
+def _line_forecast_values(line: PrepPlanLine, forecast_run: ForecastRun) -> tuple[float, float, float]:
+    forecast_line = next(
+        (
+            candidate
+            for candidate in forecast_run.lines
+            if candidate.outlet_id == line.outlet_id and candidate.sku_id == line.sku_id
+        ),
+        None,
+    )
+    if forecast_line:
+        p50 = float(getattr(forecast_line, line.daypart, forecast_line.total))
+    else:
+        p50 = float(line.recommended_units)
+    return round(max(0, p50 * 0.8), 2), round(p50, 2), round(max(p50, p50 * 1.25), 2)
+
+
+@router.post("/copilot/explain-recommendation", response_model=ExplainRecommendationResponse)
+def explain_recommendation(body: ExplainRecommendationRequest, db: Session = Depends(get_db)):
+    language = _normalize_language(body.language)
+    line = None
+    forecast_run = None
+
+    if body.recommendation_id is not None:
+        line = db.query(PrepPlanLine).filter(PrepPlanLine.id == body.recommendation_id).first()
+        if not line:
+            raise HTTPException(status_code=404, detail="Recommendation not found")
+        forecast_run = (
+            db.query(ForecastRun)
+            .filter(ForecastRun.forecast_date == line.plan.plan_date)
+            .order_by(desc(ForecastRun.created_at), desc(ForecastRun.id))
+            .first()
+        )
+    else:
+        if not body.forecast_run_id or body.outlet_id is None or body.sku_id is None:
+            raise HTTPException(status_code=422, detail="Provide recommendation_id or forecast_run_id/outlet_id/sku_id")
+        forecast_run = _latest_forecast_by_public_id(body.forecast_run_id, db)
+        if not forecast_run:
+            raise HTTPException(status_code=404, detail="Forecast run not found")
+        prep_plan = _latest_prep_for_run(forecast_run, db)
+        line = next(
+            (
+                candidate
+                for candidate in (prep_plan.lines if prep_plan else [])
+                if candidate.outlet_id == body.outlet_id
+                and candidate.sku_id == body.sku_id
+                and (body.daypart is None or candidate.daypart == body.daypart)
+            ),
+            None,
+        )
+        if not line:
+            raise HTTPException(status_code=404, detail="Recommendation not found")
+
+    outlet = db.query(Outlet).filter(Outlet.id == line.outlet_id).first()
+    sku = db.query(SKU).filter(SKU.id == line.sku_id).first()
+    p10, p50, p90 = _line_forecast_values(line, forecast_run) if forecast_run else (0.0, float(line.recommended_units), 0.0)
+    final_units = line.edited_units if line.edited_units is not None else line.recommended_units
+    evidence = {
+        "forecast_run_id": forecast_run.forecast_run_id if forecast_run else None,
+        "outlet_id": line.outlet_id,
+        "outlet_name": outlet.name if outlet else "",
+        "sku_id": line.sku_id,
+        "sku_name": sku.name if sku else "",
+        "daypart": line.daypart,
+        "p10": p10,
+        "p50": p50,
+        "p90": p90,
+        "recommended_prep": line.recommended_units,
+        "final_prep": final_units,
+        "current_stock": line.current_stock,
+        "status": line.status,
+    }
+    fallback = (
+        f"{evidence['sku_name']} at {evidence['outlet_name']} for {line.daypart}: "
+        f"p50 demand is {p50}, current stock is {line.current_stock}, and recommended prep is "
+        f"{line.recommended_units}. This explanation uses only saved forecast and prep-plan data."
+    )
+    prompt = (
+        f"{_language_prompt_prefix(language)}\n\n"
+        "Explain this prep recommendation using only the provided JSON evidence. "
+        "Do not create or change any numbers.\n\n"
+        f"{evidence}"
+    )
+    explanation = _call_llm(prompt, fallback)
+    return ExplainRecommendationResponse(
+        explanation=explanation,
+        evidence=evidence,
+        source_type="llm_rephrased" if explanation != fallback else "deterministic",
+    )
+
+
+@router.post("/copilot/parse-manager-note", response_model=ManagerNoteResponse)
+def parse_manager_note(body: ManagerNoteRequest, db: Session = Depends(get_db)):
+    forecast_run = _latest_forecast_by_public_id(body.forecast_run_id, db)
+    if not forecast_run:
+        raise HTTPException(status_code=404, detail="Forecast run not found")
+    outlet_name, daypart, sku_category = _infer_manager_note_target(body.note, forecast_run, db)
+    adjustment_pct = _infer_adjustment_pct(body.note)
+    reason = body.note.strip()[:240] or "Manager note"
+    parsed = ParsedAdjustment(
+        outlet_id=outlet_name,
+        daypart=daypart,
+        sku_category=sku_category,
+        suggested_adjustment_pct=adjustment_pct,
+        reason=reason,
+        requires_confirmation=True,
+    )
+    return ManagerNoteResponse(
+        parsed_adjustment=parsed,
+        explanation="Suggested adjustment parsed from the manager note. No prep or replenishment quantity has been changed yet.",
+    )
+
+
+@router.post("/copilot/apply-note-adjustment", response_model=ApplyNoteAdjustmentResponse)
+def apply_note_adjustment(body: ApplyNoteAdjustmentRequest, db: Session = Depends(get_db)):
+    if not body.confirmed:
+        raise HTTPException(status_code=409, detail="Manager confirmation is required before applying note adjustments")
+    forecast_run = _latest_forecast_by_public_id(body.forecast_run_id, db)
+    if not forecast_run:
+        raise HTTPException(status_code=404, detail="Forecast run not found")
+    prep_plan = _latest_prep_for_run(forecast_run, db)
+    if not prep_plan:
+        raise HTTPException(status_code=404, detail="Prep plan not found for forecast run")
+
+    outlet_map = {outlet.id: outlet for outlet in db.query(Outlet).all()}
+    sku_map = {sku.id: sku for sku in db.query(SKU).all()}
+    factor = 1 + (body.adjustment.suggested_adjustment_pct / 100.0)
+    matching_lines = [
+        line
+        for line in prep_plan.lines
+        if outlet_map.get(line.outlet_id)
+        and outlet_map[line.outlet_id].name == body.adjustment.outlet_id
+        and line.daypart.lower() == body.adjustment.daypart.lower()
+        and sku_map.get(line.sku_id)
+        and sku_map[line.sku_id].category == body.adjustment.sku_category
+    ]
+    if not matching_lines:
+        raise HTTPException(status_code=404, detail="No prep lines match the manager-note adjustment")
+
+    updated_line_ids: list[int] = []
+    audit_event_ids: list[int] = []
+    for line in matching_lines:
+        base_qty = line.edited_units if line.edited_units is not None else line.recommended_units
+        final_prep = max(0, round(base_qty * factor))
+        line.edited_units = final_prep
+        line.status = "edited"
+        db.add(line)
+        p10, p50, p90 = _line_forecast_values(line, forecast_run)
+        event = DecisionAuditEvent(
+            forecast_run_id=forecast_run.forecast_run_id,
+            model_version=forecast_run.model_version,
+            engine_name=forecast_run.engine_name,
+            outlet_id=line.outlet_id,
+            sku_id=line.sku_id,
+            daypart=line.daypart,
+            p10=p10,
+            p50=p50,
+            p90=p90,
+            recommended_prep=line.recommended_units,
+            final_prep=final_prep,
+            operator_action="edited",
+            operator_reason=body.adjustment.reason,
+            gemini_note_adjustment_applied=True,
+            gemini_note_summary=body.adjustment.reason,
+        )
+        db.add(event)
+        db.flush()
+        updated_line_ids.append(line.id)
+        audit_event_ids.append(event.id)
+
+    db.commit()
+    replenishment_plan = _refresh_replenishment_for_date(prep_plan.plan_date, db)
+    return ApplyNoteAdjustmentResponse(
+        forecast_run_id=forecast_run.forecast_run_id,
+        status="applied",
+        message="Manager-note adjustment applied after explicit confirmation.",
+        updated_line_ids=updated_line_ids,
+        audit_event_ids=audit_event_ids,
+        replenishment_plan_id=replenishment_plan.id if replenishment_plan else None,
+    )
+
+
 @router.post("/copilot/explain-plan", response_model=ExplainPlanResponse)
 def explain_plan(body: ExplainPlanRequest, db: Session = Depends(get_db)):
     language = _normalize_language(body.language)
@@ -331,7 +620,7 @@ def explain_plan(body: ExplainPlanRequest, db: Session = Depends(get_db)):
         fc_run = (
             db.query(ForecastRun)
             .filter(ForecastRun.forecast_date == body.plan_date)
-            .order_by(ForecastRun.created_at.desc())
+            .order_by(desc(ForecastRun.created_at), desc(ForecastRun.id))
             .first()
         )
         line = next(
@@ -440,7 +729,7 @@ def explain_plan(body: ExplainPlanRequest, db: Session = Depends(get_db)):
         prep_plan = (
             db.query(PrepPlan)
             .filter(PrepPlan.plan_date == body.plan_date)
-            .order_by(PrepPlan.created_at.desc())
+            .order_by(desc(PrepPlan.created_at), desc(PrepPlan.id))
             .first()
         )
         lines = [
@@ -615,7 +904,7 @@ def generate_daily_brief(body: DailyBriefRequest, db: Session = Depends(get_db))
     fc_run = (
         db.query(ForecastRun)
         .filter(ForecastRun.forecast_date == brief_date)
-        .order_by(ForecastRun.created_at.desc())
+        .order_by(desc(ForecastRun.created_at), desc(ForecastRun.id))
         .first()
     )
     total_sales = round(sum(line.total for line in (fc_run.lines if fc_run else [])), 0)

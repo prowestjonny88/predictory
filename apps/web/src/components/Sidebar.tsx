@@ -3,14 +3,11 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  LayoutDashboard,
   TrendingUp,
   ClipboardList,
   ShoppingCart,
-  AlertTriangle,
   Bot,
   ChefHat,
-  GitBranch,
   Package,
 } from "lucide-react";
 import { useLanguage } from "@/components/i18n/LanguageProvider";
@@ -18,8 +15,6 @@ import LanguageSwitcher from "@/components/i18n/LanguageSwitcher";
 import { cn } from "@/lib/utils";
 
 const NAV = [
-  { href: "/dashboard", labelKey: "nav.dashboard", fallback: "Dashboard", icon: LayoutDashboard },
-  { href: "/catalog", labelKey: "nav.catalog", fallback: "SKU Catalog", icon: Package },
   { href: "/daily-planning", labelKey: "nav.dailyPlanning", fallback: "Daily Planning", icon: ClipboardList },
   { href: "/forecast", labelKey: "nav.forecast", fallback: "Forecast", icon: TrendingUp },
   { href: "/prep-plan", labelKey: "nav.prepPlan", fallback: "Prep Plan", icon: ClipboardList },
@@ -29,24 +24,7 @@ const NAV = [
     fallback: "Replenishment",
     icon: ShoppingCart,
   },
-  {
-    href: "/risk-center",
-    labelKey: "nav.riskCenter",
-    fallback: "Risk Centre",
-    icon: AlertTriangle,
-  },
-  {
-    href: "/stock",
-    labelKey: "nav.stock",
-    fallback: "Current Stock",
-    icon: Package,
-  },
-  {
-    href: "/scenario-planner",
-    labelKey: "nav.scenarioPlanner",
-    fallback: "Scenario Planner",
-    icon: GitBranch,
-  },
+  { href: "/catalog", labelKey: "nav.catalog", fallback: "SKU Catalog", icon: Package },
   { href: "/copilot", labelKey: "nav.copilot", fallback: "AI Copilot", icon: Bot },
 ];
 

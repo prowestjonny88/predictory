@@ -11,17 +11,12 @@ If `language` is omitted, the backend defaults to `en`.
 
 ## Provider config
 
-LiteLLM provider selection is environment-driven:
+Copilot uses Gemini through LiteLLM:
 
-- Google AI Studio / Gemini API key
-  - `GEMINI_API_KEY=...`
-  - optional: `GEMINI_MODEL=gemini/gemini-2.5-flash`
-- Vertex AI Gemini
-  - `VERTEXAI_PROJECT=your-project`
-  - `VERTEXAI_LOCATION=us-central1`
-  - optional: `GEMINI_MODEL=vertex_ai/gemini-1.5-pro`
-- Explicit override
-  - `LITELLM_MODEL=...`
+- `GEMINI_API_KEY=...`
+- optional: `GEMINI_MODEL=gemini/gemini-2.5-flash`
+
+If `GEMINI_API_KEY` is missing or the provider call fails, endpoints return deterministic fallback text rather than invented numbers.
 
 ## `POST /api/v1/copilot/explain-plan`
 

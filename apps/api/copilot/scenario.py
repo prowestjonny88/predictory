@@ -88,16 +88,7 @@ def _parse_scenario(text: str) -> dict:
             result["sku_hint"] = keyword
             break
 
-    outlet_keywords = [
-        "cheras",
-        "setapak",
-        "shah alam",
-        "seksyen 7",
-        "seksyon 7",
-        "kajang",
-        "klang",
-        "klang riverside",
-    ]
+    outlet_keywords = ["klcc", "bangsar", "mid valley", "mont kiara", "subang"]
     for keyword in outlet_keywords:
         if keyword in text_lower:
             result["outlet_hint"] = keyword

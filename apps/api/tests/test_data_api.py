@@ -235,7 +235,7 @@ def test_upload_sales_aggregates_duplicate_transaction_rows_for_same_key():
             db.query(SalesFact)
             .join(Outlet, SalesFact.outlet_id == Outlet.id)
             .filter(
-                Outlet.code == "RL-CHR",
+                    Outlet.code == "klcc_mall",
                 SalesFact.sku_id == bread_sku.id,
                 SalesFact.sale_date == date(2016, 10, 30),
                 SalesFact.daypart == "morning",

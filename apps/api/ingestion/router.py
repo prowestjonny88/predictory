@@ -38,6 +38,21 @@ DAYPART_ALIASES = {
     "pm": "evening",
 }
 
+OUTLET_CODE_ALIASES = {
+    "RL-CHR": "klcc_mall",
+    "RL-SET": "bangsar_street",
+    "RL-SAS": "mid_valley_mall",
+    "RL-KJG": "mont_kiara_premium",
+    "RL-KLG": "subang_residential",
+}
+
+SKU_CODE_ALIASES = {
+    "SKU-CRO": "butter_croissant",
+    "SKU-BMU": "blueberry_muffin",
+    "SKU-FRT": "fruit_tart",
+    "SKU-SDL": "country_sourdough",
+}
+
 HEADER_ALIASES = {
     "item": "sku_name",
     "items": "sku_name",
@@ -229,6 +244,16 @@ def _next_available_code(base_name: str, existing_codes: set[str]) -> str:
         suffix += 1
 
 
+def _canonical_outlet_code(code: str) -> str:
+    code = code.strip()
+    return OUTLET_CODE_ALIASES.get(code, code)
+
+
+def _canonical_sku_code(code: str) -> str:
+    code = code.strip()
+    return SKU_CODE_ALIASES.get(code, code)
+
+
 def _import_sales(
     rows: list[dict],
     db: Session,
@@ -247,7 +272,7 @@ def _import_sales(
 
     default_outlet_id = None
     if default_outlet_code:
-        default_outlet_id = outlets.get(default_outlet_code.strip())
+        default_outlet_id = outlets.get(_canonical_outlet_code(default_outlet_code))
         if not default_outlet_id:
             raise HTTPException(
                 status_code=422,
@@ -258,10 +283,10 @@ def _import_sales(
 
     for i, row in enumerate(rows):
         try:
-            outlet_code = row.get("outlet_code", "").strip()
+            outlet_code = _canonical_outlet_code(row.get("outlet_code", ""))
             outlet_id = outlets.get(outlet_code) if outlet_code else default_outlet_id
 
-            sku_code = row.get("sku_code", "").strip()
+            sku_code = _canonical_sku_code(row.get("sku_code", ""))
             raw_sku_name = row.get("sku_name", "").strip()
             sku_name = raw_sku_name.lower()
             sku_id = skus.get(sku_code) if sku_code else sku_names.get(sku_name)
@@ -359,8 +384,8 @@ def _import_inventory(rows: list[dict], db: Session) -> tuple[int, list[str]]:
 
     for i, row in enumerate(rows):
         try:
-            outlet_id = outlets.get(row.get("outlet_code", "").strip())
-            sku_id = skus.get(row.get("sku_code", "").strip())
+            outlet_id = outlets.get(_canonical_outlet_code(row.get("outlet_code", "")))
+            sku_id = skus.get(_canonical_sku_code(row.get("sku_code", "")))
             if not outlet_id or not sku_id:
                 errors.append(f"Row {i+2}: unknown outlet_code or sku_code")
                 continue

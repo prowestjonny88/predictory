@@ -14,12 +14,14 @@ from typing import Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from pydantic import BaseModel, Field
+from sqlalchemy import desc
 from sqlalchemy.orm import Session
 
 from db.database import get_db
 from db.models import AuditEvent, ForecastLine, ForecastOverride, ForecastRun, Outlet, SKU
 from forecasting.context import build_forecast_context
 from forecasting.engine import run_forecast_for_date
+from services.forecast_runs import get_forecast_run_by_any_id, get_latest_forecast_run
 
 router = APIRouter()
 
@@ -41,10 +43,33 @@ class ForecastLineOut(BaseModel):
 
 class ForecastRunOut(BaseModel):
     id: int
+    forecast_run_id: str
     forecast_date: date
+    model_run_id: Optional[int]
+    engine_name: str
+    model_version: str
     status: str
     lines: list[ForecastLineOut]
     model_config = {"from_attributes": True}
+
+
+class ForecastRunSummaryOut(BaseModel):
+    id: int
+    forecast_run_id: str
+    forecast_date: date
+    model_run_id: Optional[int]
+    engine_name: str
+    model_version: str
+    status: str
+    line_count: int
+    model_config = {"from_attributes": True}
+
+
+class ForecastGenerateOut(BaseModel):
+    forecast_run_id: str
+    status: str
+    forecast_date: date
+    line_count: int
 
 
 class AdjustmentRequest(BaseModel):
@@ -151,6 +176,64 @@ def trigger_forecast(
     return run_forecast_for_date(target_date, db)
 
 
+def _forecast_summary(run: ForecastRun) -> ForecastRunSummaryOut:
+    return ForecastRunSummaryOut(
+        id=run.id,
+        forecast_run_id=run.forecast_run_id,
+        forecast_date=run.forecast_date,
+        model_run_id=run.model_run_id,
+        engine_name=run.engine_name,
+        model_version=run.model_version,
+        status=run.status,
+        line_count=len(run.lines),
+    )
+
+
+@router.post("/forecast-runs/generate", response_model=ForecastGenerateOut)
+def generate_contract_forecast_run(
+    target_date: date = Query(default=None),
+    db: Session = Depends(get_db),
+):
+    if target_date is None:
+        from datetime import date as date_mod
+
+        target_date = date_mod.today()
+    run = run_forecast_for_date(target_date, db)
+    return ForecastGenerateOut(
+        forecast_run_id=run.forecast_run_id,
+        status=run.status,
+        forecast_date=run.forecast_date,
+        line_count=len(run.lines),
+    )
+
+
+@router.get("/forecast-runs/latest", response_model=ForecastRunSummaryOut)
+def latest_contract_forecast_run(
+    forecast_date: Optional[date] = Query(None),
+    db: Session = Depends(get_db),
+):
+    run = get_latest_forecast_run(forecast_date, db)
+    if not run:
+        raise HTTPException(status_code=404, detail="Forecast run not found")
+    return _forecast_summary(run)
+
+
+@router.get("/forecast-runs/{forecast_run_id}", response_model=ForecastRunOut)
+def get_contract_forecast_run(forecast_run_id: str, db: Session = Depends(get_db)):
+    run = get_forecast_run_by_any_id(forecast_run_id, db)
+    if not run:
+        raise HTTPException(status_code=404, detail="Forecast run not found")
+    return run
+
+
+@router.get("/forecast-runs/{forecast_run_id}/lines", response_model=list[ForecastLineOut])
+def get_contract_forecast_run_lines(forecast_run_id: str, db: Session = Depends(get_db)):
+    run = get_forecast_run_by_any_id(forecast_run_id, db)
+    if not run:
+        raise HTTPException(status_code=404, detail="Forecast run not found")
+    return run.lines
+
+
 @router.get("/forecasts", response_model=list[ForecastRunOut])
 def get_forecasts(
     forecast_date: Optional[date] = Query(None),
@@ -160,7 +243,7 @@ def get_forecasts(
     query = db.query(ForecastRun)
     if forecast_date:
         query = query.filter(ForecastRun.forecast_date == forecast_date)
-    runs = query.order_by(ForecastRun.created_at.desc()).limit(10).all()
+    runs = query.order_by(desc(ForecastRun.created_at), desc(ForecastRun.id)).limit(10).all()
 
     if outlet_id:
         for run in runs:

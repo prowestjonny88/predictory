@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import Header from "@/components/Header";
 import ActionSummaryCard from "@/components/planning/ActionSummaryCard";
@@ -16,130 +16,28 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useLanguage } from "@/components/i18n/LanguageProvider";
 import { planningApi, type DailyPlanLatestResponse, type DailyPlanTopAction, type ManagerNoteResponse } from "@/lib/api/planning";
 import { translateDaypart } from "@/lib/i18n";
-import { todayISO } from "@/lib/utils";
 
-const MOCK_PLAN: DailyPlanLatestResponse = {
-  forecast_run_id: "fr_20260430_001",
-  model_run_id: "mr_lightgbm_p50_v1",
+const EMPTY_PLAN: DailyPlanLatestResponse = {
+  forecast_run_id: "",
+  model_run_id: "",
   model_version: "lightgbm_p50_v1",
   engine_name: "lightgbm_mlops_prototype",
-  model_status: "MLOps prototype",
-  validation_window: "last_30_demo_days",
+  model_status: "Loading",
+  validation_window: "2022-09-01 to 2022-09-30",
   metrics: {
-    wape: 0.168,
-    bias: -0.021,
-    p10_p90_coverage: 0.78,
+    wape: 0.38011723175212897,
+    bias: -0.04164149684340122,
+    p10_p90_coverage: 0.8153703703703704,
     estimated_mismatch_cost_delta_pct: -0.12,
   },
-  top_actions: [
-    {
-      id: "rec_001",
-      outlet_id: "klcc_mall",
-      outlet_name: "KLCC Mall",
-      sku_id: "butter_croissant",
-      sku_name: "Butter Croissant",
-      sku_category: "Pastry",
-      daypart: "Morning",
-      p10: 82,
-      p50: 100,
-      p90: 125,
-      opening_stock: 5,
-      recommended_prep: 105,
-      batch_size: 5,
-      waste_cost: 3.4,
-      stockout_cost: 5.1,
-      financial_exposure: {
-        stockout_exposure_rm: 132,
-        waste_exposure_rm: 38,
-      },
-      reason_summary:
-        "Stockout cost is higher than waste cost, so prep is slightly above expected demand.",
-      replenishment: [
-        {
-          ingredient_id: "butter",
-          ingredient_name: "Butter",
-          required_qty: 4.2,
-          current_stock: 2.6,
-          shortage_qty: 1.6,
-          unit: "kg",
-        },
-      ],
-      status: "pending_approval",
-    },
-    {
-      id: "rec_002",
-      outlet_id: "bangsar",
-      outlet_name: "Bangsar Street",
-      sku_id: "fruit_tart",
-      sku_name: "Fruit Tart",
-      sku_category: "Dessert",
-      daypart: "Evening",
-      p10: 24,
-      p50: 36,
-      p90: 50,
-      opening_stock: 2,
-      recommended_prep: 38,
-      batch_size: 4,
-      waste_cost: 5.2,
-      stockout_cost: 7.8,
-      financial_exposure: {
-        stockout_exposure_rm: 86,
-        waste_exposure_rm: 44,
-      },
-      reason_summary:
-        "Dessert demand is weather-sensitive; prep is balanced to limit waste while avoiding evening stockouts.",
-      replenishment: [
-        {
-          ingredient_id: "berries",
-          ingredient_name: "Fresh berries",
-          required_qty: 2.3,
-          current_stock: 1.2,
-          shortage_qty: 1.1,
-          unit: "kg",
-        },
-      ],
-      status: "pending_approval",
-    },
-    {
-      id: "rec_003",
-      outlet_id: "mid_valley",
-      outlet_name: "Mid Valley Mall",
-      sku_id: "ham_sandwich",
-      sku_name: "Ham & Cheese Sandwich",
-      sku_category: "Savory",
-      daypart: "Midday",
-      p10: 42,
-      p50: 60,
-      p90: 80,
-      opening_stock: 6,
-      recommended_prep: 58,
-      batch_size: 6,
-      waste_cost: 4.0,
-      stockout_cost: 6.4,
-      financial_exposure: {
-        stockout_exposure_rm: 94,
-        waste_exposure_rm: 28,
-      },
-      reason_summary:
-        "Midday savory demand is stable; prep follows median demand with batch rounding.",
-      replenishment: [],
-      status: "pending_approval",
-    },
-  ],
+  top_actions: [],
 };
 
-const MOCK_NOTE_RESPONSE: ManagerNoteResponse = {
-  parsed_adjustment: {
-    outlet_id: "KLCC Mall",
-    daypart: "Morning",
-    sku_category: "Pastry",
-    suggested_adjustment_pct: 15,
-    reason: "school group visit",
-    requires_confirmation: true,
-  },
-  explanation:
-    "The note indicates additional morning pastry demand at KLCC. Apply only after manager confirmation.",
-};
+function tomorrowISO() {
+  const date = new Date();
+  date.setDate(date.getDate() + 1);
+  return date.toISOString().split("T")[0];
+}
 
 function buildExplanation(
   item: DailyPlanTopAction,
@@ -162,11 +60,11 @@ function buildExplanation(
 
 export default function DailyPlanningPage() {
   const { t, language } = useLanguage();
-  const [planDate] = useState(todayISO);
-  const [plan, setPlan] = useState<DailyPlanLatestResponse>(MOCK_PLAN);
+  const [planDate] = useState(tomorrowISO);
+  const [plan, setPlan] = useState<DailyPlanLatestResponse>(EMPTY_PLAN);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<FilterKey>("top");
-  const [selectedAction, setSelectedAction] = useState<DailyPlanTopAction | null>(MOCK_PLAN.top_actions[0]);
+  const [selectedAction, setSelectedAction] = useState<DailyPlanTopAction | null>(null);
   const [evidenceOpen, setEvidenceOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [auditEvents, setAuditEvents] = useState<
@@ -176,31 +74,34 @@ export default function DailyPlanningPage() {
   const [outletFilter, setOutletFilter] = useState("KLCC Mall");
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
+  const loadLatestPlan = useCallback(async () => {
+    setLoading(true);
+    const response = await planningApi.latestPlan(planDate);
+    setPlan(response);
+    setSelectedAction((current) => {
+      if (current) {
+        return response.top_actions.find((item) => item.id === current.id) ?? response.top_actions[0] ?? null;
+      }
+      return response.top_actions[0] ?? null;
+    });
+    setOutletFilter((current) => {
+      const outlets = new Set(response.top_actions.map((item) => item.outlet_name));
+      return outlets.has(current) ? current : response.top_actions[0]?.outlet_name ?? current;
+    });
+    setLoading(false);
+  }, [planDate]);
+
   useEffect(() => {
     let active = true;
-    async function load() {
-      try {
-        const response = await planningApi.latestPlan(planDate);
-        if (active) {
-          setPlan(response);
-          setSelectedAction(response.top_actions[0] ?? null);
-        }
-      } catch (_error) {
-        if (active) {
-          setPlan(MOCK_PLAN);
-          setSelectedAction(MOCK_PLAN.top_actions[0] ?? null);
-        }
-      } finally {
-        if (active) {
-          setLoading(false);
-        }
+    loadLatestPlan().catch(() => {
+      if (active) {
+        setLoading(false);
       }
-    }
-    load();
+    });
     return () => {
       active = false;
     };
-  }, [planDate]);
+  }, [loadLatestPlan]);
 
   const visibleActions = useMemo(() => {
     if (role === "outlet_manager") {
@@ -249,7 +150,7 @@ export default function DailyPlanningPage() {
         ),
       },
     ];
-  }, [plan.metrics.estimated_mismatch_cost_delta_pct, visibleActions]);
+  }, [plan.metrics.estimated_mismatch_cost_delta_pct, t, visibleActions]);
 
   const groupedByOutlet = useMemo(() => {
     const map = new Map<string, DailyPlanTopAction[]>();
@@ -276,9 +177,7 @@ export default function DailyPlanningPage() {
     try {
       const response = await planningApi.regeneratePlan({ date: planDate, reason: "manual_demo_refresh" });
       setStatusMessage(response.message);
-      const latest = await planningApi.latestPlan(planDate);
-      setPlan(latest);
-      setSelectedAction(latest.top_actions[0] ?? null);
+      await loadLatestPlan();
     } catch (_error) {
       setStatusMessage(
         t(
@@ -293,24 +192,39 @@ export default function DailyPlanningPage() {
     try {
       return await planningApi.parseManagerNote({ forecast_run_id: plan.forecast_run_id, note });
     } catch (_error) {
-      return MOCK_NOTE_RESPONSE;
+      const action = selectedAction ?? plan.top_actions[0];
+      return {
+        parsed_adjustment: {
+          outlet_id: action?.outlet_name ?? "",
+          daypart: action?.daypart ?? "morning",
+          sku_category: action?.sku_category ?? "Bakery",
+          suggested_adjustment_pct: 10,
+          reason: note,
+          requires_confirmation: true,
+        },
+        explanation:
+          "Suggested adjustment parsed in demo fallback. No prep or replenishment quantity is changed until Apply is confirmed.",
+      };
     }
   }
 
   async function handleApply(adjustment: ManagerNoteResponse["parsed_adjustment"]) {
+    let backendApplied = false;
     try {
       await planningApi.applyManagerNote({
         forecast_run_id: plan.forecast_run_id,
-        adjustment: {
-          outlet_id: adjustment.outlet_id,
-          daypart: adjustment.daypart,
-          sku_category: adjustment.sku_category,
-          adjustment_pct: adjustment.suggested_adjustment_pct,
-          reason: adjustment.reason,
-        },
+        confirmed: true,
+        adjustment,
       });
+      backendApplied = true;
+      await loadLatestPlan();
+      setStatusMessage(t("planning.status.noteApplied", "Manager note applied after confirmation."));
     } catch (_error) {
-      // Demo fallback only.
+      backendApplied = false;
+    }
+
+    if (backendApplied) {
+      return;
     }
 
     const factor = 1 + adjustment.suggested_adjustment_pct / 100;
@@ -350,12 +264,26 @@ export default function DailyPlanningPage() {
       return;
     }
     try {
-      await planningApi.submitDecision(selectedAction.id, {
+      const response = await planningApi.submitDecision(selectedAction, {
         operator_action: payload.action,
         final_prep: payload.finalPrep,
-        operator_reason: payload.reason,
+        operator_reason: payload.reason || "Approved in Daily Planning Workspace",
         role: role === "outlet_manager" ? "outlet_manager" : "planner",
       });
+      await loadLatestPlan();
+      setAuditEvents((current) => [
+        {
+          id: `${response.audit_event_ids[0] ?? selectedAction.id}`,
+          action: payload.action,
+          final_prep: payload.finalPrep,
+          reason: payload.reason,
+          timestamp: new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }),
+        },
+        ...current,
+      ]);
+      setDrawerOpen(false);
+      setStatusMessage(t("planning.status.decisionRecorded", "Decision recorded and audit log created."));
+      return;
     } catch (_error) {
       // Demo fallback only.
     }
@@ -387,6 +315,27 @@ export default function DailyPlanningPage() {
     setStatusMessage(t("planning.status.decisionRecorded", "Decision recorded."));
   }
 
+  async function handleOpenRecommendation(item: DailyPlanTopAction) {
+    setSelectedAction(item);
+    setDrawerOpen(true);
+    if (!item.explanation && item.plan_id) {
+      try {
+        const response = await planningApi.explainRecommendation(item.id);
+        setPlan((current) => ({
+          ...current,
+          top_actions: current.top_actions.map((candidate) =>
+            candidate.id === item.id ? { ...candidate, explanation: response.explanation } : candidate
+          ),
+        }));
+        setSelectedAction((current) =>
+          current?.id === item.id ? { ...current, explanation: response.explanation } : current
+        );
+      } catch (_error) {
+        // Local deterministic explanation remains available.
+      }
+    }
+  }
+
   function renderActionList(items: DailyPlanTopAction[]) {
     if (items.length === 0) {
       return <p className="text-sm text-neutral-500">{t("planning.noActionsFilter", "No actions for this filter.")}</p>;
@@ -397,10 +346,7 @@ export default function DailyPlanningPage() {
           <RecommendationCard
             key={item.id}
             item={item}
-            onOpen={(selected) => {
-              setSelectedAction(selected);
-              setDrawerOpen(true);
-            }}
+            onOpen={handleOpenRecommendation}
           />
         ))}
       </div>
@@ -527,6 +473,11 @@ export default function DailyPlanningPage() {
             </CardHeader>
             <CardContent className="text-sm text-neutral-600">
               {buildExplanation(selectedAction, t, language)}
+              {selectedAction.explanation && (
+                <p className="mt-3 border-t border-neutral-100 pt-3 text-neutral-700">
+                  {selectedAction.explanation}
+                </p>
+              )}
             </CardContent>
           </Card>
         )}

@@ -20,7 +20,9 @@ export default function RecommendationCard({ item, onOpen }: Props) {
           <div>
             <p className="text-xs uppercase tracking-wide text-neutral-500">{item.outlet_name}</p>
             <h3 className="text-base font-semibold text-neutral-900">{item.sku_name}</h3>
-            <p className="text-xs text-neutral-500">{translateDaypart(language, item.daypart.toLowerCase())} · {item.sku_category}</p>
+            <p className="text-xs text-neutral-500">
+              {translateDaypart(language, item.daypart.toLowerCase())} / {item.sku_category}
+            </p>
           </div>
           <div className="flex items-center gap-2">
             <Badge variant="outline">{translateStatus(language, item.status)}</Badge>
@@ -54,9 +56,27 @@ export default function RecommendationCard({ item, onOpen }: Props) {
           {item.reason_summary}
         </div>
 
-        <div className="flex items-center justify-between">
+        <div className="rounded-lg border border-sky-100 bg-sky-50 p-3 text-xs text-sky-900">
+          <p className="font-semibold">{t("planning.recommendation.why", "Why this recommendation?")}</p>
+          <p className="mt-1">
+            {item.explanation ??
+              t(
+                "planning.recommendation.groundedWhy",
+                "Uses saved forecast range {{p10}}-{{p90}}, opening stock {{stock}}, and prep {{prep}}. Gemini explains these numbers only.",
+                {
+                  p10: item.p10,
+                  p90: item.p90,
+                  stock: item.opening_stock,
+                  prep: item.recommended_prep,
+                }
+              )}
+          </p>
+        </div>
+
+        <div className="flex items-center justify-between gap-3">
           <div className="text-xs text-neutral-500">
-            {t("planning.recommendation.wasteCost", "Waste cost")} {t("common.rm", "RM")} {item.waste_cost.toFixed(2)} · {t("planning.recommendation.stockoutCost", "Stockout cost")} {t("common.rm", "RM")} {item.stockout_cost.toFixed(2)}
+            {t("planning.recommendation.wasteCost", "Waste cost")} {t("common.rm", "RM")} {item.waste_cost.toFixed(2)} /{" "}
+            {t("planning.recommendation.stockoutCost", "Stockout cost")} {t("common.rm", "RM")} {item.stockout_cost.toFixed(2)}
           </div>
           <Button variant="secondary" size="sm" onClick={() => onOpen(item)}>
             {t("planning.recommendation.reviewDecision", "Review decision")}

@@ -1,295 +1,227 @@
-# 🍞 Predictory — AI-Powered Bakery Intelligence Platform
+# Predictory - AI-Powered Bakery Intelligence Platform
 
-> **Reduce waste. Prevent stockouts. Bake smarter.**
+Predictory is an AI-assisted prep and replenishment copilot for multi-outlet bakery-cafe chains. It converts historical sales, inventory, and operational context into next-day action plans by outlet, SKU, and daypart.
 
-Predictory is an AI-assisted prep and replenishment copilot for multi-outlet bakery-cafe chains. It turns historical sales and inventory data into next-day action plans — by outlet, by SKU, by daypart.
-
----
-
-## 🎓 Hackathon Submission
+## Hackathon Submission
 
 | Field | Details |
 |---|---|
-| **Team Name** | CHAT GPT |
-| **Case Study** | #8 — AI for Inclusive MSME Growth |
-| **Project Name** | Predictory — AI-Powered Bakery Intelligence Platform |
-| **SDG Alignment** | 🌱 SDG 12 (Responsible Consumption) · 🏭 SDG 9 (Industry & Innovation) |
+| Team Name | CHAT GPT |
+| Case Study | #8 - AI for Inclusive MSME Growth |
+| Project Name | Predictory - AI-Powered Bakery Intelligence Platform |
+| SDG Alignment | SDG 12 Responsible Consumption; SDG 9 Industry and Innovation |
 
-### 👥 Team Members
+## Team Members
 
 | ID | Role | Name |
 |---|---|---|
 | P1 | Infra Lead | LAU WEI ZHONG |
 | P2 | Data Engineer | TAN JUN YONG |
-| P3 | Planning Engine *(Team Leader)* | TAN KANG ZHENG |
+| P3 | Planning Engine, Team Leader | TAN KANG ZHENG |
 | P4 | Frontend Engineer | TAN SZE YUNG |
 | P5 | AI/LLM Engineer | NG HONG JON |
 
----
+## What Predictory Solves
 
-## 📎 Submission Links
+Bakery-cafe chains already track sales and inventory, but daily production planning is still often manual. Predictory helps reduce overproduction, prevent stockouts, improve outlet allocation, and convert ingredient planning into auditable manager actions.
 
-| Resource | Link |
-|---|---|
-| 📄 **Project Report** | [PDF](./docs/Final_Report.pdf) · [Predictory_Report.md](./docs/Predictory_Report.md) |
-| 🎬 **Demo Video** | ▶️ _[YouTube Link](https://youtu.be/JBPmZhmIVvc)_ |
-
----
-
-## 🚀 What Predictory Solves
-
-Bakery-cafe chains already track sales and inventory, but daily production planning is still often manual. That leads to:
-
-- 🗑️ Overproduction and end-of-day waste
-- ❌ Stockouts during morning and lunch peaks
-- 🏭 Inconsistent outlet allocation from central kitchen
-- 💸 Excess ingredient purchasing
-- ⏱️ Wasted labor and oven capacity
-
-Predictory closes that gap by converting operational data into **next-day, outlet-level, daypart-aware action plans**.
-
----
-
-## ✨ Core Features
+## Core Features
 
 | Feature | Description |
 |---|---|
-| 📊 **Executive Dashboard** | KPI cards, risk scores, and interactive forecast charts at a glance |
-| 🔮 **Demand Forecasting** | Outlet × SKU × daypart forecasts with holiday, weather, and promo adjustments |
-| 🥐 **Prep Planning** | AI-generated prep quantities with human-in-the-loop editing and approval |
-| 📦 **Replenishment** | BOM-driven ingredient reorder actions with urgency classification |
-| ⚠️ **Risk Centre** | Proactive waste hotspot and stockout alerts before service begins |
-| 🤖 **AI Copilot** | Daily brief, prioritized actions, and what-if scenario simulation |
-| 🌍 **Multilingual** | English · Bahasa Melayu · 简体中文 |
+| Daily Planning | Main demo surface for forecast-backed prep recommendations, approval, edit, reject, and audit flow. |
+| Demand Forecasting | Outlet x SKU x daypart forecasts with operational context. |
+| Prep Planning | Recommended prep quantities with human-in-the-loop adjustments. |
+| Replenishment | BOM-driven ingredient needs, shortage, reorder quantity, urgency, and driving SKUs. |
+| AI Copilot | Gemini-powered explanations, daily brief support, and manager note parsing. |
+| Multilingual | English, Bahasa Melayu, and Simplified Chinese response support. |
 
----
-
-## 🧱 Tech Stack
+## Tech Stack
 
 | Layer | Technologies |
 |---|---|
-| 🖥️ **Frontend** | Next.js 14, React 18, TypeScript, Tailwind CSS, TanStack Query, Recharts |
-| ⚙️ **Backend** | FastAPI, SQLAlchemy 2.x, Alembic, Pydantic v2, Uvicorn |
-| 🧠 **AI Layer** | LiteLLM, LangGraph, Google Gemini 2.5 (via API) |
-| 🗄️ **Database** | PostgreSQL *(prod)* · SQLite *(local demo)* |
-| 📊 **Data** | Pandas, NumPy, python-dateutil |
+| Frontend | Next.js 14, React 18, TypeScript, Tailwind CSS, TanStack Query, Recharts |
+| Backend | FastAPI, SQLAlchemy 2.x, Alembic, Pydantic v2, Uvicorn |
+| AI Layer | LiteLLM with Google Gemini API |
+| Database | SQLite for local demo; PostgreSQL for deployment |
+| ML/Data | LightGBM, Pandas, NumPy, scikit-learn |
 
----
-
-## 🗂️ Repo Structure
+## Repo Structure
 
 ```text
 apps/
-  api/        ← FastAPI backend (models, migrations, forecasting, copilot, tests)
-  web/        ← Next.js frontend (dashboard, forecast, prep, risk, copilot)
+  api/        FastAPI backend, migrations, forecasting, planning, copilot, tests
+  web/        Next.js frontend
 
-docs/
-  Predictory_Report.md   ← Full technical report
-  Predictory_Report.pdf
-  screenshot/            ← UI screenshots for report
-
-Root docs:
-  docs/prd.md
-  docs/architecture.md
-  docs/documentation.md
-  TEAM_PLAN.md
+backend/models/              Accepted ML artifacts
+apps/web/public/demo-data/   Accepted frontend demo artifacts
+docs/demo/                   Demo runbook and manual checklist
+scripts/ml_pipeline/         Lightweight reproducible ML pipeline
+scripts/smoke_test_demo_flow.py
 ```
 
----
+## Local Setup
 
-## 🛠️ Local Setup
+### 1. Configure Environment
 
-### Prerequisites
+Create the root `.env` file from `.env.example`:
 
-- 🐍 Python 3.12+
-- 🟢 Node.js 20+
-- 📦 `corepack` (bundled with Node.js 16.9+)
+```powershell
+Copy-Item .env.example .env -Force
+```
 
----
-
-### Step 1 — Configure Environment
-
-Create the root `.env` file (copy from `.env.example`):
+For local demo, use:
 
 ```env
 DATABASE_URL=sqlite:///./predictory.db
-ENVIRONMENT=development
-ALLOWED_ORIGINS=http://localhost:3000,http://localhost:3001
-
-GOOGLE_API_KEY=your_google_ai_studio_key
+GEMINI_API_KEY=your_google_ai_studio_key
 GEMINI_MODEL=gemini/gemini-2.5-flash
-
-WEATHER_FETCH_ENABLED=true
-WEATHER_TIMEOUT_SECONDS=2
-HOLIDAY_DEFAULT_COUNTRY=MY
+SECRET_KEY=change-me-in-production-use-openssl-rand-hex-32
+ENVIRONMENT=development
+ADMIN_API_TOKEN=change-me-local-admin-token
+ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5500,http://127.0.0.1:5500
+NEXT_PUBLIC_API_URL=http://localhost:8000
+API_BASE_URL=http://localhost:8000/api/v1
 ```
 
-> 💡 **No Gemini key?** The app still works — copilot endpoints fall back to deterministic text output.  
-> 🌤️ **Weather** uses [Open-Meteo](https://open-meteo.com/) — no API key needed.  
-> 📅 **Holidays** are seeded via the seed script — no API key needed.
+The backend is configured for Gemini only. OpenAI, Anthropic, Vertex, and generic `LITELLM_MODEL` placeholders are intentionally not used.
 
----
-
-### Step 2 — Run the Backend
+### 2. Run Backend
 
 ```powershell
 cd apps/api
-
-python -m venv .venv
+py -m venv .venv
 .\.venv\Scripts\Activate.ps1
-python -m pip install -r requirements.txt
-
+py -m pip install -r requirements.txt
 alembic upgrade head
-python -m db.seed
-
+py -m db.seed
 uvicorn main:app --reload --port 8000
 ```
 
-✅ **Check it's running:**
-- Health check: `http://localhost:8000/health`
-- Swagger UI: `http://localhost:8000/docs`
+Check:
 
-> ℹ️ `http://localhost:8000/` returning `{"detail":"Not Found"}` is expected — use `/health` or `/docs`.
+```text
+http://localhost:8000/health
+http://localhost:8000/docs
+```
 
----
+### 3. Run Frontend
 
-### Step 3 — Run the Frontend
+In another terminal:
 
 ```powershell
 cd apps/web
-
-# Create env config
 Set-Content .env.local "NEXT_PUBLIC_API_URL=http://localhost:8000"
-
-# Enable pnpm if not already active
-corepack enable
-corepack prepare pnpm@latest --activate
-
-# Install and run
-pnpm install
-pnpm dev
+npm.cmd install
+npm.cmd run dev
 ```
 
-> Or use `corepack pnpm install` and `corepack pnpm dev` if `pnpm` isn't on PATH.
+Open:
 
-🌐 Frontend: **`http://localhost:3000`**
+```text
+http://localhost:3000/daily-planning
+```
 
----
+The root route redirects to `/daily-planning`.
 
-## 🎬 Recommended Demo Flow
+### 4. Run Demo Smoke Test
 
-Walk through in this order to tell the best story:
+With the backend running:
 
-1. 🏠 `/dashboard` — Executive overview, KPI cards, interactive charts
-2. 📈 `/forecast` — Select an outlet, show demand drivers (weather, holidays)
-3. 🥐 `/prep-plan` — Generate plan, override a line, approve
-4. 📦 `/replenishment` — Show urgency indicators and ingredient needs
-5. ⚠️ `/risk-center` — Highlight the Setapak Town Center waste and Kajang Town stockout alerts
-6. 🤖 `/copilot` — Generate a daily brief and action plan
-7. 🔮 `/scenario-planner` — Run a 30% demand spike scenario
-
----
-
-## 🧪 Testing
-
-**Backend:**
 ```powershell
-.\.venv\Scripts\python -m pytest -q apps/api/tests
+py scripts\smoke_test_demo_flow.py
 ```
 
-**Frontend:**
+Optional overrides:
+
+```powershell
+$env:API_BASE_URL="http://localhost:8000/api/v1"
+$env:SMOKE_TARGET_DATE="2026-05-06"
+py scripts\smoke_test_demo_flow.py
+```
+
+## Recommended Demo Flow
+
+1. `/daily-planning` - Review forecast, prep cards, model evidence, and recommended actions.
+2. Recommendation drawer - Explain p10/p50/p90, operational reason, and ingredient impact.
+3. Manager note panel - Parse a note, confirm the structured assumption, then apply the adjustment.
+4. Approval drawer - Edit or approve the prep line with a reason and show the audit-backed result.
+5. `/replenishment` - Show ingredient need, stock on hand, shortage, reorder quantity, urgency, and driving SKUs.
+6. `/forecast` or `/prep-plan` - Use only as supporting detail if the audience asks for the underlying run or plan.
+
+## ML Artifacts vs Live Backend Forecasts
+
+The accepted ML pipeline predictions are committed as demo artifacts under `apps/web/public/demo-data/`. Those files contain the LightGBM Step 12 forecast and optimization payload for `2022-10-01`.
+
+The live FastAPI demo still generates operational forecast runs from the local SQLite seed data. That path uses the backend `weighted_blend_backend` forecast engine so managers can create, edit, approve, reject, audit, and refresh replenishment against real database rows. The backend loads accepted ML artifacts for model registry and quality metrics, but full LightGBM feature-row inference is not yet wired into `forecasting.engine`.
+
+Use the frontend fallback/demo payload when you need to show the exact accepted ML-pipeline predictions. Use the live backend route when you need to show the interactive API workflow.
+
+## Testing
+
+Backend:
+
+```powershell
+py -m compileall apps\api
+py -m pytest apps\api\tests -p no:cacheprovider
+```
+
+Frontend:
+
 ```powershell
 cd apps/web
-npm run typecheck
-npm run lint
+npm.cmd run typecheck
+npm.cmd run build
 ```
 
----
+Smoke test:
 
-## 🔧 Troubleshooting
+```powershell
+py scripts\smoke_test_demo_flow.py
+```
 
-<details>
-<summary><strong>Alembic fails — "Can't load plugin: sqlalchemy.dialects:driver"</strong></summary>
+## Troubleshooting
 
-**Cause:** `DATABASE_URL` is missing or not set.  
-**Fix:** Add to root `.env`:
+### Backend tries to connect to `ep-xxxx.neon.tech`
+
+Your `.env` is using the placeholder Postgres URL. For local testing, set:
+
 ```env
 DATABASE_URL=sqlite:///./predictory.db
 ```
-</details>
 
-<details>
-<summary><strong>Alembic fails — tables already exist</strong></summary>
+### Gemini copilot does not respond
 
-**Fix:** Delete the old DB and re-migrate:
+Verify the backend sees the Gemini config:
+
 ```powershell
-Remove-Item .\predictory.db -Force -ErrorAction SilentlyContinue
-Remove-Item .\apps\api\predictory.db -Force -ErrorAction SilentlyContinue
 cd apps/api
-alembic upgrade head
-python -m db.seed
+.\.venv\Scripts\python.exe -c "from copilot.router import _resolve_litellm_config; print(_resolve_litellm_config()[0])"
 ```
-</details>
 
-<details>
-<summary><strong>Frontend can't connect to backend</strong></summary>
+Expected:
+
+```text
+gemini/gemini-2.5-flash
+```
+
+Then restart `uvicorn`; environment changes are not picked up by an already-running server process.
+
+### Frontend cannot connect to backend
 
 Check `apps/web/.env.local`:
+
 ```env
 NEXT_PUBLIC_API_URL=http://localhost:8000
 ```
-</details>
 
-<details>
-<summary><strong>pnpm not recognized</strong></summary>
+## Reference Docs
 
-```powershell
-corepack enable
-corepack prepare pnpm@latest --activate
-# or: npm install -g pnpm
-```
-</details>
-
-<details>
-<summary><strong>Next.js build fails with "spawn EPERM" on Windows/OneDrive</strong></summary>
-
-Use dev mode only — this is a local Windows/OneDrive file-locking issue:
-```powershell
-pnpm dev   # ✅ use this
-pnpm build # ❌ may fail locally
-```
-</details>
-
----
-
-## 🤖 AI Disclosure
-
-This project was developed with a multi-layered AI stack, which is fully disclosed below as required by the hackathon rules.
-
-| Category | Tool | How It Was Used |
-|---|---|---|
-| 🧠 **Production AI** | Google Gemini 2.5 (via LiteLLM) | Powers the in-app Daily Brief, Daily Actions, and scenario explanations |
-| 🛠️ **Development** | Google Gemini (Web), Antigravity | Project orchestration, UI design, terminal automation, code review |
-| 💻 **Coding** | GitHub Copilot, OpenAI Codex | Code generation, boilerplate, debugging across React/FastAPI |
-| 🔍 **Research** | Perplexity AI, ChatGPT (GPT-5.4 Pro) | Competitor analysis, SDG alignment, Malaysia food waste statistics |
-| 🎨 **Assets** | NotebookLM (summaries), image generation tools | Pitch deck infographics, tech stack visuals |
-| 📋 **Collaboration** | Notion AI | Team documentation and meeting notes |
-
-> ⚠️ **Note:** Google Gemini is also embedded in the application backend as the AI inference provider via LiteLLM. Its use is both a development tool AND a core product component.
-
----
-
-## 📚 Reference Docs
-
-- 📋 [Product Requirements (PRD)](./docs/prd.md)
-- 🏗️ [Architecture Notes](./docs/architecture.md)
-- 📖 [Documentation](./docs/documentation.md)
-- 👥 [Team Plan](./TEAM_PLAN.md)
-- 📄 [Project Report](./docs/Predictory_Report.md)
-- 🔌 [API Contracts](./apps/api/CONTRACTS.md)
-- 🤖 [Copilot Examples](./apps/api/copilot/EXAMPLES.md)
-- 🌱 [Seed Script](./apps/api/db/seed.py)
-
----
-
-<p align="center">Made with ☕ and 🤖 by Team <strong>CHAT GPT</strong> · Hackathon 2026</p>
+- [Product Requirements](./docs/prd.md)
+- [Architecture Notes](./docs/architecture.md)
+- [Documentation](./docs/documentation.md)
+- [Project Report](./docs/Predictory_Report.md)
+- [API Contracts](./apps/api/CONTRACTS.md)
+- [Copilot Examples](./apps/api/copilot/EXAMPLES.md)
+- [Demo Runbook](./docs/demo/runbook.md)
+- [Manual Demo Checklist](./docs/demo/manual_demo_checklist.md)

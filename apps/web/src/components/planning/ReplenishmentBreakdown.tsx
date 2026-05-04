@@ -50,6 +50,9 @@ export default function ReplenishmentBreakdown({ item }: Props) {
             <p className="mt-2 text-xs text-neutral-500">
               {t("planning.replenishment.currentStock", "Current stock")}: {line.current_stock} {line.unit}
             </p>
+            <p className="mt-1 text-xs text-neutral-500">
+              {t("planning.replenishment.reorder", "Reorder need")}: {line.reorder_qty} {line.unit}
+            </p>
           </div>
         ))}
       </CardContent>
