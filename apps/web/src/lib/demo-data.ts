@@ -31,6 +31,30 @@ interface DemoForecastPayload {
   forecastLines: DemoForecastLine[];
 }
 
+interface DemoDecisionContextPayload {
+  forecastDate: string;
+  pipelineSummary: {
+    target: string;
+    forecastModel: string;
+    forecastModelVersion: string;
+    forecastRows: number;
+    optimizerRows: number;
+    p10Total: number;
+    p50Total: number;
+    p90Total: number;
+    recommendedPrepTotal: number;
+    expectedCostTotal: number;
+    savingVsP50Total: number;
+    savingVsP90Total: number;
+  };
+  modelQuality: {
+    validationWape: number;
+    validationBias: number;
+    wapeImprovementVsBaseline: number;
+    bandCoverageP10P90: number;
+  };
+}
+
 interface DemoForecastLine {
   forecastLineId: string;
   forecastDate: string;
@@ -112,6 +136,10 @@ async function loadForecastPayload() {
 
 async function loadRecommendationPayload() {
   return fetchDemoJson<DemoRecommendationPayload>("recommendation_cards.json");
+}
+
+async function loadDecisionContextPayload() {
+  return fetchDemoJson<DemoDecisionContextPayload>("llm_decision_context.json");
 }
 
 export async function demoOutlets(): Promise<Outlet[]> {
@@ -198,6 +226,7 @@ export async function demoForecastRuns(outletId?: string): Promise<ForecastRun[]
 export async function demoDailyPlan(): Promise<DailyPlan> {
   const payload = await loadForecastPayload();
   const cards = await loadRecommendationPayload();
+  const context = await loadDecisionContextPayload();
   const outletCodes = uniqueSorted(payload.forecastLines, (line) => line.outlet.id).map((line) => line.outlet.id);
   const skuCodes = uniqueSorted(payload.forecastLines, (line) => line.sku.id).map((line) => line.sku.id);
 
@@ -240,7 +269,7 @@ export async function demoDailyPlan(): Promise<DailyPlan> {
     waste_alerts: highWaste.map((line) => toAlert(line, "waste")),
     stockout_alerts: highStockout.map((line) => toAlert(line, "stockout")),
     summary: {
-      total_predicted_sales: payload.summary.recommended_prep_total,
+      total_predicted_sales: context.pipelineSummary.p50Total,
       waste_risk_score: Math.round(payload.summary.recommended_expected_waste_units_total / 5),
       stockout_risk_score: Math.round(payload.summary.recommended_expected_stockout_units_total / 4),
       top_actions: cards.cards.slice(0, 5).map((card) => card.title),
@@ -252,6 +281,7 @@ export async function demoDailyPlan(): Promise<DailyPlan> {
 export async function demoLatestPlan(): Promise<DailyPlanLatestResponse> {
   const forecastPayload = await loadForecastPayload();
   const recommendationPayload = await loadRecommendationPayload();
+  const contextPayload = await loadDecisionContextPayload();
   const lineMap = new Map(forecastPayload.forecastLines.map((line) => [line.forecastLineId, line]));
 
   const top_actions: DailyPlanTopAction[] = recommendationPayload.cards.slice(0, 12).map((card) => {
@@ -289,13 +319,13 @@ export async function demoLatestPlan(): Promise<DailyPlanLatestResponse> {
     model_version: "lightgbm_p50_v1",
     engine_name: "lightgbm_mlops_prototype",
     model_status: "demo_artifact",
-    validation_window: "artifact_bundle_step_12",
+    validation_window: "2022-09-01 to 2022-09-30",
     metrics: {
-      wape: 0.168,
-      bias: -0.021,
-      p10_p90_coverage: 0.78,
+      wape: contextPayload.modelQuality.validationWape,
+      bias: contextPayload.modelQuality.validationBias,
+      p10_p90_coverage: contextPayload.modelQuality.bandCoverageP10P90,
       estimated_mismatch_cost_delta_pct:
-        -forecastPayload.summary.cost_saving_vs_p50_total /
+        -contextPayload.pipelineSummary.savingVsP50Total /
         Math.max(forecastPayload.summary.p50_expected_cost_total ?? 1, 1),
     },
     top_actions,
