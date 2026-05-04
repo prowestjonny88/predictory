@@ -81,12 +81,13 @@ def get_model_artifacts() -> ModelArtifacts:
     """Get or create the global model artifacts instance"""
     global _model_artifacts
     if _model_artifacts is None:
-        base_path = Path(__file__).parent.parent.parent.parent / "models"
+        repo_root = Path(__file__).parent.parent.parent.parent
+        base_path = repo_root / "backend" / "models"
 
         _model_artifacts = ModelArtifacts(
             model_path=str(base_path / "lightgbm_p50_v1.pkl"),
             residual_bands_path=str(base_path / "residual_bands_v1.json"),
-            feature_schema_path=str(base_path / "feature_schema.json"),
+            feature_schema_path=str(base_path / "feature_schema_v1.json"),
             metrics_path=str(base_path / "model_metrics_v1.json"),
         )
 
