@@ -1,0 +1,582 @@
+{
+  "status": "ok",
+  "payloadType": "outlet_dashboard",
+  "forecastDate": "2022-10-01",
+  "outlets": [
+    {
+      "outletId": "klcc_mall",
+      "outletName": "KLCC Mall",
+      "rows": 36,
+      "prep": {
+        "p50PrepTotal": 642,
+        "recommendedPrepTotal": 626,
+        "p90PrepTotal": 965
+      },
+      "economics": {
+        "expectedCost": 648.37,
+        "expectedWasteUnits": 114.5,
+        "expectedStockoutUnits": 72.25,
+        "savingVsP50": 7.73,
+        "savingVsP90": 465.63
+      },
+      "topRecommendationLines": [
+        {
+          "forecastLineId": "fcst_069",
+          "skuName": "Pain au Chocolat",
+          "daypart": "morning",
+          "p10": 0,
+          "p50": 45,
+          "p90": 83,
+          "recommendedPrepQty": 45,
+          "decisionPosture": "near_p50_balanced",
+          "expectedCost": 89.76,
+          "explanation": "For Pain au Chocolat at KLCC Mall during morning, forecast demand range is 0\u201383 units with median 45. Recommended prep is 45 units. Expected waste is about 11.2 units and expected stockout is about 9.5 units. The optimizer recommends staying close to the median forecast because the waste and stockout tradeoff is balanced."
+        },
+        {
+          "forecastLineId": "fcst_048",
+          "skuName": "Butter Croissant",
+          "daypart": "morning",
+          "p10": 22,
+          "p50": 61,
+          "p90": 94,
+          "recommendedPrepQty": 60,
+          "decisionPosture": "below_p50_cost_control",
+          "expectedCost": 78.2,
+          "explanation": "For Butter Croissant at KLCC Mall during morning, forecast demand range is 22\u201394 units with median 61. Recommended prep is 60 units. Expected waste is about 9.5 units and expected stockout is about 9.0 units. The optimizer recommends preparing below the median forecast because the expected waste risk is more expensive than the expected missed-sales risk."
+        },
+        {
+          "forecastLineId": "fcst_072",
+          "skuName": "Traditional Baguette",
+          "daypart": "morning",
+          "p10": 140,
+          "p50": 185,
+          "p90": 258,
+          "recommendedPrepQty": 190,
+          "decisionPosture": "above_p50_service_protection",
+          "expectedCost": 56.7,
+          "explanation": "For Traditional Baguette at KLCC Mall during morning, forecast demand range is 140\u2013258 units with median 185. Recommended prep is 190 units. Expected waste is about 15.0 units and expected stockout is about 17.0 units. The optimizer recommends preparing above the median forecast because the expected stockout cost is higher than the expected waste cost."
+        },
+        {
+          "forecastLineId": "fcst_060",
+          "skuName": "Country Sourdough",
+          "daypart": "morning",
+          "p10": 30,
+          "p50": 35,
+          "p90": 56,
+          "recommendedPrepQty": 35,
+          "decisionPosture": "near_p50_balanced",
+          "expectedCost": 43.8,
+          "explanation": "For Country Sourdough at KLCC Mall during morning, forecast demand range is 30\u201356 units with median 35. Recommended prep is 35 units. Expected waste is about 1.2 units and expected stockout is about 5.2 units. The optimizer recommends staying close to the median forecast because the waste and stockout tradeoff is balanced."
+        },
+        {
+          "forecastLineId": "fcst_071",
+          "skuName": "Traditional Baguette",
+          "daypart": "midday",
+          "p10": 77,
+          "p50": 106,
+          "p90": 150,
+          "recommendedPrepQty": 110,
+          "decisionPosture": "above_p50_service_protection",
+          "expectedCost": 35.35,
+          "explanation": "For Traditional Baguette at KLCC Mall during midday, forecast demand range is 77\u2013150 units with median 106. Recommended prep is 110 units. Expected waste is about 10.2 units and expected stockout is about 10.0 units. The optimizer recommends preparing above the median forecast because the expected stockout cost is higher than the expected waste cost."
+        },
+        {
+          "forecastLineId": "fcst_059",
+          "skuName": "Country Sourdough",
+          "daypart": "midday",
+          "p10": 8,
+          "p50": 16,
+          "p90": 26,
+          "recommendedPrepQty": 15,
+          "decisionPosture": "below_p50_cost_control",
+          "expectedCost": 31.8,
+          "explanation": "For Country Sourdough at KLCC Mall during midday, forecast demand range is 8\u201326 units with median 16. Recommended prep is 15 units. Expected waste is about 1.8 units and expected stockout is about 3.2 units. The optimizer recommends preparing below the median forecast because the expected waste risk is more expensive than the expected missed-sales risk."
+        },
+        {
+          "forecastLineId": "fcst_065",
+          "skuName": "Ham & Cheese Sandwich",
+          "daypart": "midday",
+          "p10": 7,
+          "p50": 14,
+          "p90": 22,
+          "recommendedPrepQty": 16,
+          "decisionPosture": "above_p50_service_protection",
+          "expectedCost": 29.7,
+          "explanation": "For Ham & Cheese Sandwich at KLCC Mall during midday, forecast demand range is 7\u201322 units with median 14. Recommended prep is 16 units. Expected waste is about 3.2 units and expected stockout is about 1.5 units. The optimizer recommends preparing above the median forecast because the expected stockout cost is higher than the expected waste cost."
+        },
+        {
+          "forecastLineId": "fcst_066",
+          "skuName": "Ham & Cheese Sandwich",
+          "daypart": "morning",
+          "p10": 0,
+          "p50": 6,
+          "p90": 13,
+          "recommendedPrepQty": 8,
+          "decisionPosture": "above_p50_service_protection",
+          "expectedCost": 26.33,
+          "explanation": "For Ham & Cheese Sandwich at KLCC Mall during morning, forecast demand range is 0\u201313 units with median 6. Recommended prep is 8 units. Expected waste is about 3.0 units and expected stockout is about 1.2 units. The optimizer recommends preparing above the median forecast because the expected stockout cost is higher than the expected waste cost."
+        }
+      ]
+    },
+    {
+      "outletId": "mid_valley_mall",
+      "outletName": "Mid Valley Mall",
+      "rows": 36,
+      "prep": {
+        "p50PrepTotal": 710,
+        "recommendedPrepTotal": 701,
+        "p90PrepTotal": 1069
+      },
+      "economics": {
+        "expectedCost": 618.51,
+        "expectedWasteUnits": 99.25,
+        "expectedStockoutUnits": 76.25,
+        "savingVsP50": 4.35,
+        "savingVsP90": 510.45
+      },
+      "topRecommendationLines": [
+        {
+          "forecastLineId": "fcst_084",
+          "skuName": "Butter Croissant",
+          "daypart": "morning",
+          "p10": 24,
+          "p50": 53,
+          "p90": 74,
+          "recommendedPrepQty": 55,
+          "decisionPosture": "above_p50_service_protection",
+          "expectedCost": 53.97,
+          "explanation": "For Butter Croissant at Mid Valley Mall during morning, forecast demand range is 24\u201374 units with median 53. Recommended prep is 55 units. Expected waste is about 8.8 units and expected stockout is about 4.8 units. The optimizer recommends preparing above the median forecast because the expected stockout cost is higher than the expected waste cost."
+        },
+        {
+          "forecastLineId": "fcst_105",
+          "skuName": "Pain au Chocolat",
+          "daypart": "morning",
+          "p10": 16,
+          "p50": 38,
+          "p90": 58,
+          "recommendedPrepQty": 40,
+          "decisionPosture": "above_p50_service_protection",
+          "expectedCost": 48.4,
+          "explanation": "For Pain au Chocolat at Mid Valley Mall during morning, forecast demand range is 16\u201358 units with median 38. Recommended prep is 40 units. Expected waste is about 7.0 units and expected stockout is about 4.5 units. The optimizer recommends preparing above the median forecast because the expected stockout cost is higher than the expected waste cost."
+        },
+        {
+          "forecastLineId": "fcst_096",
+          "skuName": "Country Sourdough",
+          "daypart": "morning",
+          "p10": 24,
+          "p50": 30,
+          "p90": 50,
+          "recommendedPrepQty": 30,
+          "decisionPosture": "near_p50_balanced",
+          "expectedCost": 43.2,
+          "explanation": "For Country Sourdough at Mid Valley Mall during morning, forecast demand range is 24\u201350 units with median 30. Recommended prep is 30 units. Expected waste is about 1.5 units and expected stockout is about 5.0 units. The optimizer recommends staying close to the median forecast because the waste and stockout tradeoff is balanced."
+        },
+        {
+          "forecastLineId": "fcst_107",
+          "skuName": "Traditional Baguette",
+          "daypart": "midday",
+          "p10": 112,
+          "p50": 150,
+          "p90": 203,
+          "recommendedPrepQty": 150,
+          "decisionPosture": "near_p50_balanced",
+          "expectedCost": 41.12,
+          "explanation": "For Traditional Baguette at Mid Valley Mall during midday, forecast demand range is 112\u2013203 units with median 150. Recommended prep is 150 units. Expected waste is about 9.5 units and expected stockout is about 13.2 units. The optimizer recommends staying close to the median forecast because the waste and stockout tradeoff is balanced."
+        },
+        {
+          "forecastLineId": "fcst_108",
+          "skuName": "Traditional Baguette",
+          "daypart": "morning",
+          "p10": 153,
+          "p50": 186,
+          "p90": 237,
+          "recommendedPrepQty": 190,
+          "decisionPosture": "above_p50_service_protection",
+          "expectedCost": 40.42,
+          "explanation": "For Traditional Baguette at Mid Valley Mall during morning, forecast demand range is 153\u2013237 units with median 186. Recommended prep is 190 units. Expected waste is about 11.2 units and expected stockout is about 11.8 units. The optimizer recommends preparing above the median forecast because the expected stockout cost is higher than the expected waste cost."
+        },
+        {
+          "forecastLineId": "fcst_095",
+          "skuName": "Country Sourdough",
+          "daypart": "midday",
+          "p10": 22,
+          "p50": 31,
+          "p90": 45,
+          "recommendedPrepQty": 30,
+          "decisionPosture": "below_p50_cost_control",
+          "expectedCost": 40.2,
+          "explanation": "For Country Sourdough at Mid Valley Mall during midday, forecast demand range is 22\u201345 units with median 31. Recommended prep is 30 units. Expected waste is about 2.0 units and expected stockout is about 4.2 units. The optimizer recommends preparing below the median forecast because the expected waste risk is more expensive than the expected missed-sales risk."
+        },
+        {
+          "forecastLineId": "fcst_101",
+          "skuName": "Ham & Cheese Sandwich",
+          "daypart": "midday",
+          "p10": 9,
+          "p50": 17,
+          "p90": 27,
+          "recommendedPrepQty": 16,
+          "decisionPosture": "below_p50_cost_control",
+          "expectedCost": 35.77,
+          "explanation": "For Ham & Cheese Sandwich at Mid Valley Mall during midday, forecast demand range is 9\u201327 units with median 17. Recommended prep is 16 units. Expected waste is about 1.8 units and expected stockout is about 3.2 units. The optimizer recommends preparing below the median forecast because the expected waste risk is more expensive than the expected missed-sales risk."
+        },
+        {
+          "forecastLineId": "fcst_106",
+          "skuName": "Traditional Baguette",
+          "daypart": "evening",
+          "p10": 20,
+          "p50": 55,
+          "p90": 90,
+          "recommendedPrepQty": 60,
+          "decisionPosture": "above_p50_service_protection",
+          "expectedCost": 33.25,
+          "explanation": "For Traditional Baguette at Mid Valley Mall during evening, forecast demand range is 20\u201390 units with median 55. Recommended prep is 60 units. Expected waste is about 12.5 units and expected stockout is about 7.5 units. The optimizer recommends preparing above the median forecast because the expected stockout cost is higher than the expected waste cost."
+        }
+      ]
+    },
+    {
+      "outletId": "mont_kiara_premium",
+      "outletName": "Mont Kiara Premium",
+      "rows": 36,
+      "prep": {
+        "p50PrepTotal": 720,
+        "recommendedPrepTotal": 712,
+        "p90PrepTotal": 1064
+      },
+      "economics": {
+        "expectedCost": 617.4,
+        "expectedWasteUnits": 102.0,
+        "expectedStockoutUnits": 70.25,
+        "savingVsP50": 2.4,
+        "savingVsP90": 526.88
+      },
+      "topRecommendationLines": [
+        {
+          "forecastLineId": "fcst_141",
+          "skuName": "Pain au Chocolat",
+          "daypart": "morning",
+          "p10": 8,
+          "p50": 42,
+          "p90": 63,
+          "recommendedPrepQty": 45,
+          "decisionPosture": "above_p50_service_protection",
+          "expectedCost": 61.6,
+          "explanation": "For Pain au Chocolat at Mont Kiara Premium during morning, forecast demand range is 8\u201363 units with median 42. Recommended prep is 45 units. Expected waste is about 10.8 units and expected stockout is about 4.5 units. The optimizer recommends preparing above the median forecast because the expected stockout cost is higher than the expected waste cost."
+        },
+        {
+          "forecastLineId": "fcst_120",
+          "skuName": "Butter Croissant",
+          "daypart": "morning",
+          "p10": 19,
+          "p50": 49,
+          "p90": 67,
+          "recommendedPrepQty": 50,
+          "decisionPosture": "above_p50_service_protection",
+          "expectedCost": 49.72,
+          "explanation": "For Butter Croissant at Mont Kiara Premium during morning, forecast demand range is 19\u201367 units with median 49. Recommended prep is 50 units. Expected waste is about 8.2 units and expected stockout is about 4.2 units. The optimizer recommends preparing above the median forecast because the expected stockout cost is higher than the expected waste cost."
+        },
+        {
+          "forecastLineId": "fcst_132",
+          "skuName": "Country Sourdough",
+          "daypart": "morning",
+          "p10": 26,
+          "p50": 34,
+          "p90": 52,
+          "recommendedPrepQty": 35,
+          "decisionPosture": "above_p50_service_protection",
+          "expectedCost": 43.8,
+          "explanation": "For Country Sourdough at Mont Kiara Premium during morning, forecast demand range is 26\u201352 units with median 34. Recommended prep is 35 units. Expected waste is about 2.8 units and expected stockout is about 4.2 units. The optimizer recommends preparing above the median forecast because the expected stockout cost is higher than the expected waste cost."
+        },
+        {
+          "forecastLineId": "fcst_144",
+          "skuName": "Traditional Baguette",
+          "daypart": "morning",
+          "p10": 147,
+          "p50": 184,
+          "p90": 235,
+          "recommendedPrepQty": 190,
+          "decisionPosture": "above_p50_service_protection",
+          "expectedCost": 42.88,
+          "explanation": "For Traditional Baguette at Mont Kiara Premium during morning, forecast demand range is 147\u2013235 units with median 184. Recommended prep is 190 units. Expected waste is about 13.8 units and expected stockout is about 11.2 units. The optimizer recommends preparing above the median forecast because the expected stockout cost is higher than the expected waste cost."
+        },
+        {
+          "forecastLineId": "fcst_131",
+          "skuName": "Country Sourdough",
+          "daypart": "midday",
+          "p10": 12,
+          "p50": 22,
+          "p90": 33,
+          "recommendedPrepQty": 25,
+          "decisionPosture": "above_p50_service_protection",
+          "expectedCost": 37.2,
+          "explanation": "For Country Sourdough at Mont Kiara Premium during midday, forecast demand range is 12\u201333 units with median 22. Recommended prep is 25 units. Expected waste is about 4.8 units and expected stockout is about 2.0 units. The optimizer recommends preparing above the median forecast because the expected stockout cost is higher than the expected waste cost."
+        },
+        {
+          "forecastLineId": "fcst_130",
+          "skuName": "Country Sourdough",
+          "daypart": "evening",
+          "p10": 8,
+          "p50": 12,
+          "p90": 25,
+          "recommendedPrepQty": 15,
+          "decisionPosture": "above_p50_service_protection",
+          "expectedCost": 33.6,
+          "explanation": "For Country Sourdough at Mont Kiara Premium during evening, forecast demand range is 8\u201325 units with median 12. Recommended prep is 15 units. Expected waste is about 3.2 units and expected stockout is about 2.5 units. The optimizer recommends preparing above the median forecast because the expected stockout cost is higher than the expected waste cost."
+        },
+        {
+          "forecastLineId": "fcst_142",
+          "skuName": "Traditional Baguette",
+          "daypart": "evening",
+          "p10": 52,
+          "p50": 76,
+          "p90": 117,
+          "recommendedPrepQty": 80,
+          "decisionPosture": "above_p50_service_protection",
+          "expectedCost": 32.02,
+          "explanation": "For Traditional Baguette at Mont Kiara Premium during evening, forecast demand range is 52\u2013117 units with median 76. Recommended prep is 80 units. Expected waste is about 9.0 units and expected stockout is about 9.2 units. The optimizer recommends preparing above the median forecast because the expected stockout cost is higher than the expected waste cost."
+        },
+        {
+          "forecastLineId": "fcst_137",
+          "skuName": "Ham & Cheese Sandwich",
+          "daypart": "midday",
+          "p10": 6,
+          "p50": 13,
+          "p90": 21,
+          "recommendedPrepQty": 12,
+          "decisionPosture": "below_p50_cost_control",
+          "expectedCost": 30.38,
+          "explanation": "For Ham & Cheese Sandwich at Mont Kiara Premium during midday, forecast demand range is 6\u201321 units with median 13. Recommended prep is 12 units. Expected waste is about 1.5 units and expected stockout is about 2.8 units. The optimizer recommends preparing below the median forecast because the expected waste risk is more expensive than the expected missed-sales risk."
+        }
+      ]
+    },
+    {
+      "outletId": "bangsar_street",
+      "outletName": "Bangsar Street",
+      "rows": 36,
+      "prep": {
+        "p50PrepTotal": 495,
+        "recommendedPrepTotal": 469,
+        "p90PrepTotal": 792
+      },
+      "economics": {
+        "expectedCost": 540.28,
+        "expectedWasteUnits": 92.25,
+        "expectedStockoutUnits": 63.0,
+        "savingVsP50": 6.15,
+        "savingVsP90": 461.88
+      },
+      "topRecommendationLines": [
+        {
+          "forecastLineId": "fcst_022",
+          "skuName": "Country Sourdough",
+          "daypart": "evening",
+          "p10": 8,
+          "p50": 13,
+          "p90": 30,
+          "recommendedPrepQty": 15,
+          "decisionPosture": "above_p50_service_protection",
+          "expectedCost": 40.2,
+          "explanation": "For Country Sourdough at Bangsar Street during evening, forecast demand range is 8\u201330 units with median 13. Recommended prep is 15 units. Expected waste is about 2.8 units and expected stockout is about 3.8 units. The optimizer recommends preparing above the median forecast because the expected stockout cost is higher than the expected waste cost."
+        },
+        {
+          "forecastLineId": "fcst_033",
+          "skuName": "Pain au Chocolat",
+          "daypart": "morning",
+          "p10": 4,
+          "p50": 22,
+          "p90": 35,
+          "recommendedPrepQty": 25,
+          "decisionPosture": "above_p50_service_protection",
+          "expectedCost": 36.96,
+          "explanation": "For Pain au Chocolat at Bangsar Street during morning, forecast demand range is 4\u201335 units with median 22. Recommended prep is 25 units. Expected waste is about 6.8 units and expected stockout is about 2.5 units. The optimizer recommends preparing above the median forecast because the expected stockout cost is higher than the expected waste cost."
+        },
+        {
+          "forecastLineId": "fcst_035",
+          "skuName": "Traditional Baguette",
+          "daypart": "midday",
+          "p10": 66,
+          "p50": 102,
+          "p90": 141,
+          "recommendedPrepQty": 100,
+          "decisionPosture": "below_p50_cost_control",
+          "expectedCost": 35.52,
+          "explanation": "For Traditional Baguette at Bangsar Street during midday, forecast demand range is 66\u2013141 units with median 102. Recommended prep is 100 units. Expected waste is about 8.5 units and expected stockout is about 11.2 units. The optimizer recommends preparing below the median forecast because the expected waste risk is more expensive than the expected missed-sales risk."
+        },
+        {
+          "forecastLineId": "fcst_034",
+          "skuName": "Traditional Baguette",
+          "daypart": "evening",
+          "p10": 24,
+          "p50": 65,
+          "p90": 97,
+          "recommendedPrepQty": 70,
+          "decisionPosture": "above_p50_service_protection",
+          "expectedCost": 33.77,
+          "explanation": "For Traditional Baguette at Bangsar Street during evening, forecast demand range is 24\u201397 units with median 65. Recommended prep is 70 units. Expected waste is about 14.0 units and expected stockout is about 6.8 units. The optimizer recommends preparing above the median forecast because the expected stockout cost is higher than the expected waste cost."
+        },
+        {
+          "forecastLineId": "fcst_012",
+          "skuName": "Butter Croissant",
+          "daypart": "morning",
+          "p10": 7,
+          "p50": 30,
+          "p90": 41,
+          "recommendedPrepQty": 30,
+          "decisionPosture": "near_p50_balanced",
+          "expectedCost": 33.58,
+          "explanation": "For Butter Croissant at Bangsar Street during morning, forecast demand range is 7\u201341 units with median 30. Recommended prep is 30 units. Expected waste is about 5.8 units and expected stockout is about 2.8 units. The optimizer recommends staying close to the median forecast because the waste and stockout tradeoff is balanced."
+        },
+        {
+          "forecastLineId": "fcst_023",
+          "skuName": "Country Sourdough",
+          "daypart": "midday",
+          "p10": 9,
+          "p50": 17,
+          "p90": 26,
+          "recommendedPrepQty": 20,
+          "decisionPosture": "above_p50_service_protection",
+          "expectedCost": 31.2,
+          "explanation": "For Country Sourdough at Bangsar Street during midday, forecast demand range is 9\u201326 units with median 17. Recommended prep is 20 units. Expected waste is about 4.2 units and expected stockout is about 1.5 units. The optimizer recommends preparing above the median forecast because the expected stockout cost is higher than the expected waste cost."
+        },
+        {
+          "forecastLineId": "fcst_036",
+          "skuName": "Traditional Baguette",
+          "daypart": "morning",
+          "p10": 43,
+          "p50": 70,
+          "p90": 109,
+          "recommendedPrepQty": 70,
+          "decisionPosture": "near_p50_balanced",
+          "expectedCost": 29.92,
+          "explanation": "For Traditional Baguette at Bangsar Street during morning, forecast demand range is 43\u2013109 units with median 70. Recommended prep is 70 units. Expected waste is about 6.8 units and expected stockout is about 9.8 units. The optimizer recommends staying close to the median forecast because the waste and stockout tradeoff is balanced."
+        },
+        {
+          "forecastLineId": "fcst_029",
+          "skuName": "Ham & Cheese Sandwich",
+          "daypart": "midday",
+          "p10": 8,
+          "p50": 13,
+          "p90": 20,
+          "recommendedPrepQty": 12,
+          "decisionPosture": "below_p50_cost_control",
+          "expectedCost": 25.65,
+          "explanation": "For Ham & Cheese Sandwich at Bangsar Street during midday, forecast demand range is 8\u201320 units with median 13. Recommended prep is 12 units. Expected waste is about 1.0 units and expected stockout is about 2.5 units. The optimizer recommends preparing below the median forecast because the expected waste risk is more expensive than the expected missed-sales risk."
+        }
+      ]
+    },
+    {
+      "outletId": "subang_residential",
+      "outletName": "Subang Residential",
+      "rows": 36,
+      "prep": {
+        "p50PrepTotal": 428,
+        "recommendedPrepTotal": 384,
+        "p90PrepTotal": 622
+      },
+      "economics": {
+        "expectedCost": 422.07,
+        "expectedWasteUnits": 72.5,
+        "expectedStockoutUnits": 48.5,
+        "savingVsP50": 11.43,
+        "savingVsP90": 323.28
+      },
+      "topRecommendationLines": [
+        {
+          "forecastLineId": "fcst_156",
+          "skuName": "Butter Croissant",
+          "daypart": "morning",
+          "p10": 10,
+          "p50": 26,
+          "p90": 41,
+          "recommendedPrepQty": 25,
+          "decisionPosture": "below_p50_cost_control",
+          "expectedCost": 35.7,
+          "explanation": "For Butter Croissant at Subang Residential during morning, forecast demand range is 10\u201341 units with median 26. Recommended prep is 25 units. Expected waste is about 3.8 units and expected stockout is about 4.5 units. The optimizer recommends preparing below the median forecast because the expected waste risk is more expensive than the expected missed-sales risk."
+        },
+        {
+          "forecastLineId": "fcst_168",
+          "skuName": "Country Sourdough",
+          "daypart": "morning",
+          "p10": 13,
+          "p50": 20,
+          "p90": 33,
+          "recommendedPrepQty": 20,
+          "decisionPosture": "near_p50_balanced",
+          "expectedCost": 31.8,
+          "explanation": "For Country Sourdough at Subang Residential during morning, forecast demand range is 13\u201333 units with median 20. Recommended prep is 20 units. Expected waste is about 1.8 units and expected stockout is about 3.2 units. The optimizer recommends staying close to the median forecast because the waste and stockout tradeoff is balanced."
+        },
+        {
+          "forecastLineId": "fcst_179",
+          "skuName": "Traditional Baguette",
+          "daypart": "midday",
+          "p10": 42,
+          "p50": 63,
+          "p90": 97,
+          "recommendedPrepQty": 60,
+          "decisionPosture": "below_p50_cost_control",
+          "expectedCost": 28.87,
+          "explanation": "For Traditional Baguette at Subang Residential during midday, forecast demand range is 42\u201397 units with median 63. Recommended prep is 60 units. Expected waste is about 4.5 units and expected stockout is about 10.8 units. The optimizer recommends preparing below the median forecast because the expected waste risk is more expensive than the expected missed-sales risk."
+        },
+        {
+          "forecastLineId": "fcst_180",
+          "skuName": "Traditional Baguette",
+          "daypart": "morning",
+          "p10": 103,
+          "p50": 121,
+          "p90": 161,
+          "recommendedPrepQty": 120,
+          "decisionPosture": "below_p50_cost_control",
+          "expectedCost": 28.52,
+          "explanation": "For Traditional Baguette at Subang Residential during morning, forecast demand range is 103\u2013161 units with median 121. Recommended prep is 120 units. Expected waste is about 4.2 units and expected stockout is about 10.8 units. The optimizer recommends preparing below the median forecast because the expected waste risk is more expensive than the expected missed-sales risk."
+        },
+        {
+          "forecastLineId": "fcst_177",
+          "skuName": "Pain au Chocolat",
+          "daypart": "morning",
+          "p10": 9,
+          "p50": 19,
+          "p90": 32,
+          "recommendedPrepQty": 20,
+          "decisionPosture": "above_p50_service_protection",
+          "expectedCost": 27.28,
+          "explanation": "For Pain au Chocolat at Subang Residential during morning, forecast demand range is 9\u201332 units with median 19. Recommended prep is 20 units. Expected waste is about 3.2 units and expected stockout is about 3.0 units. The optimizer recommends preparing above the median forecast because the expected stockout cost is higher than the expected waste cost."
+        },
+        {
+          "forecastLineId": "fcst_176",
+          "skuName": "Pain au Chocolat",
+          "daypart": "midday",
+          "p10": 0,
+          "p50": 2,
+          "p90": 6,
+          "recommendedPrepQty": 10,
+          "decisionPosture": "high_service_p90_prep",
+          "expectedCost": 26.4,
+          "explanation": "For Pain au Chocolat at Subang Residential during midday, forecast demand range is 0\u20136 units with median 2. Recommended prep is 10 units. Expected waste is about 7.5 units and expected stockout is about 0.0 units. The optimizer recommends preparing above the median forecast because the expected stockout cost is higher than the expected waste cost."
+        },
+        {
+          "forecastLineId": "fcst_167",
+          "skuName": "Country Sourdough",
+          "daypart": "midday",
+          "p10": 5,
+          "p50": 11,
+          "p90": 17,
+          "recommendedPrepQty": 10,
+          "decisionPosture": "below_p50_cost_control",
+          "expectedCost": 22.2,
+          "explanation": "For Country Sourdough at Subang Residential during midday, forecast demand range is 5\u201317 units with median 11. Recommended prep is 10 units. Expected waste is about 1.2 units and expected stockout is about 2.2 units. The optimizer recommends preparing below the median forecast because the expected waste risk is more expensive than the expected missed-sales risk."
+        },
+        {
+          "forecastLineId": "fcst_175",
+          "skuName": "Pain au Chocolat",
+          "daypart": "evening",
+          "p10": 2,
+          "p50": 3,
+          "p90": 8,
+          "recommendedPrepQty": 10,
+          "decisionPosture": "high_service_p90_prep",
+          "expectedCost": 21.12,
+          "explanation": "For Pain au Chocolat at Subang Residential during evening, forecast demand range is 2\u20138 units with median 3. Recommended prep is 10 units. Expected waste is about 6.0 units and expected stockout is about 0.0 units. The optimizer recommends preparing above the median forecast because the expected stockout cost is higher than the expected waste cost."
+        }
+      ]
+    }
+  ]
+}

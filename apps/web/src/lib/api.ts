@@ -24,6 +24,13 @@ import type {
   StockoutAlert,
   WasteAlert,
 } from "@/types";
+import {
+  demoDailyActions,
+  demoDailyPlan,
+  demoForecastRuns,
+  demoOutlets,
+  demoSkus,
+} from "@/lib/demo-data";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 const V1 = `${API_URL}/api/v1`;
@@ -44,22 +51,22 @@ async function apiFetch<T>(url: string, options?: RequestInit): Promise<T> {
 }
 
 export const api = {
-  outlets: (): Promise<Outlet[]> => apiFetch<Outlet[]>(`${V1}/outlets`),
-  skus: (): Promise<SKU[]> => apiFetch<SKU[]>(`${V1}/skus`),
+  outlets: (): Promise<Outlet[]> => apiFetch<Outlet[]>(`${V1}/outlets`).catch(demoOutlets),
+  skus: (): Promise<SKU[]> => apiFetch<SKU[]>(`${V1}/skus`).catch(demoSkus),
   ingredients: (): Promise<Ingredient[]> => apiFetch<Ingredient[]>(`${V1}/ingredients`),
   inventory: (outletId?: string): Promise<Inventory[]> =>
     apiFetch<Inventory[]>(`${V1}/inventory${outletId && outletId !== 'all' ? `?outlet_id=${outletId}` : ""}`),
   health: (): Promise<HealthResponse> => apiFetch<HealthResponse>(`${API_URL}/health`),
 
   dailyPlan: (date: string): Promise<DailyPlan> =>
-    apiFetch<DailyPlan>(`${V1}/api/daily-plan/${date}`),
+    apiFetch<DailyPlan>(`${V1}/api/daily-plan/${date}`).catch(demoDailyPlan),
 
   runForecast: (date: string): Promise<ForecastRun> =>
     apiFetch<ForecastRun>(`${V1}/forecasts/run?target_date=${date}`, { method: "POST" }),
   getForecasts: (date: string, outletId?: string): Promise<ForecastRun[]> =>
     apiFetch<ForecastRun[]>(
       `${V1}/forecasts?forecast_date=${date}${outletId ? `&outlet_id=${outletId}` : ""}`
-    ),
+    ).catch(() => demoForecastRuns(outletId)),
   adjustForecastLine: (runId: number, lineId: number, pct: number): Promise<unknown> =>
     apiFetch(`${V1}/forecasts/${runId}/lines/${lineId}`, {
       method: "PATCH",
@@ -146,7 +153,7 @@ export const api = {
         top_n: topN,
         language,
       } satisfies DailyActionsRequest),
-    }),
+    }).catch(() => demoDailyActions(date)),
   runScenario: (
     text: string,
     date: string,

@@ -129,7 +129,7 @@ async function apiFetch<T>(url: string, options?: RequestInit): Promise<T> {
 
 export const planningApi = {
   latestPlan: (date: string): Promise<DailyPlanLatestResponse> =>
-    apiFetch(`${API_URL}/api/daily-plan/latest?date=${date}`),
+    apiFetch<DailyPlanLatestResponse>(`${API_URL}/api/daily-plan/latest?date=${date}`).catch(demoLatestPlan),
   regeneratePlan: (payload: RegeneratePlanRequest): Promise<RegeneratePlanResponse> =>
     apiFetch(`${API_URL}/api/daily-plan/regenerate`, {
       method: "POST",
@@ -151,3 +151,4 @@ export const planningApi = {
       body: JSON.stringify(payload),
     }),
 };
+import { demoLatestPlan } from "@/lib/demo-data";

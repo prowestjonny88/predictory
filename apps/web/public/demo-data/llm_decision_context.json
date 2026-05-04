@@ -1,0 +1,256 @@
+{
+  "product": "Predictory",
+  "payloadType": "llm_decision_context",
+  "forecastDate": "2022-10-01",
+  "businessQuestion": "How much should each bakery outlet prepare tomorrow by SKU and daypart to reduce waste while avoiding costly stockouts?",
+  "pipelineSummary": {
+    "target": "estimated_true_demand",
+    "forecastModel": "tweedie_count",
+    "forecastModelVersion": "lightgbm_p50_v1",
+    "forecastRows": 180,
+    "optimizerRows": 180,
+    "p10Total": 1547,
+    "p50Total": 2643,
+    "p90Total": 4134,
+    "recommendedPrepTotal": 2892,
+    "expectedCostTotal": 2846.64,
+    "savingVsP50Total": 32.05,
+    "savingVsP90Total": 2288.1
+  },
+  "modelQuality": {
+    "validationWape": 0.38011723175212897,
+    "validationBias": -0.04164149684340122,
+    "wapeImprovementVsBaseline": 0.2084211024724606,
+    "bandCoverageP10P90": 0.8153703703703704
+  },
+  "importantCaveats": [
+    "The forecast target is estimated_true_demand recovered from censored actual_sales.",
+    "FreshRetailNet is used as an external censored-demand reference only, not merged into bakery training data.",
+    "Low-volume SKUs such as Brownie, Brioche, and Chocolate Cookie have weaker support.",
+    "Recommendations optimize expected waste and stockout cost, not only forecast accuracy."
+  ],
+  "topOutletContext": [
+    {
+      "outlet_id": "klcc_mall",
+      "outlet_name": "KLCC Mall",
+      "rows": 36,
+      "p50_prep_total": 642,
+      "recommended_prep_total": 626,
+      "p90_prep_total": 965,
+      "expected_cost": 648.365,
+      "expected_waste_units": 114.5,
+      "expected_stockout_units": 72.25,
+      "saving_vs_p50": 7.725000000000019,
+      "saving_vs_p90": 465.6250000000001
+    },
+    {
+      "outlet_id": "mid_valley_mall",
+      "outlet_name": "Mid Valley Mall",
+      "rows": 36,
+      "p50_prep_total": 710,
+      "recommended_prep_total": 701,
+      "p90_prep_total": 1069,
+      "expected_cost": 618.51,
+      "expected_waste_units": 99.25,
+      "expected_stockout_units": 76.25,
+      "saving_vs_p50": 4.3500000000000085,
+      "saving_vs_p90": 510.45000000000016
+    },
+    {
+      "outlet_id": "mont_kiara_premium",
+      "outlet_name": "Mont Kiara Premium",
+      "rows": 36,
+      "p50_prep_total": 720,
+      "recommended_prep_total": 712,
+      "p90_prep_total": 1064,
+      "expected_cost": 617.405,
+      "expected_waste_units": 102.0,
+      "expected_stockout_units": 70.25,
+      "saving_vs_p50": 2.4000000000000057,
+      "saving_vs_p90": 526.8750000000001
+    },
+    {
+      "outlet_id": "bangsar_street",
+      "outlet_name": "Bangsar Street",
+      "rows": 36,
+      "p50_prep_total": 495,
+      "recommended_prep_total": 469,
+      "p90_prep_total": 792,
+      "expected_cost": 540.285,
+      "expected_waste_units": 92.25,
+      "expected_stockout_units": 63.0,
+      "saving_vs_p50": 6.15000000000002,
+      "saving_vs_p90": 461.8750000000001
+    },
+    {
+      "outlet_id": "subang_residential",
+      "outlet_name": "Subang Residential",
+      "rows": 36,
+      "p50_prep_total": 428,
+      "recommended_prep_total": 384,
+      "p90_prep_total": 622,
+      "expected_cost": 422.075,
+      "expected_waste_units": 72.5,
+      "expected_stockout_units": 48.5,
+      "saving_vs_p50": 11.425000000000018,
+      "saving_vs_p90": 323.2750000000001
+    }
+  ],
+  "topSkuContext": [
+    {
+      "sku_id": "traditional_baguette",
+      "sku_name": "Traditional Baguette",
+      "sku_category": "Bread",
+      "rows": 15,
+      "p50_prep_total": 1620,
+      "recommended_prep_total": 1580,
+      "p90_prep_total": 2210,
+      "expected_cost": 497.69999999999993,
+      "expected_waste_units": 135.75,
+      "expected_stockout_units": 146.5,
+      "saving_vs_p50": 7.000000000000025,
+      "saving_vs_p90": 369.2500000000001
+    },
+    {
+      "sku_id": "country_sourdough",
+      "sku_name": "Country Sourdough",
+      "sku_category": "Bread",
+      "rows": 15,
+      "p50_prep_total": 300,
+      "recommended_prep_total": 285,
+      "p90_prep_total": 490,
+      "expected_cost": 482.4,
+      "expected_waste_units": 31.5,
+      "expected_stockout_units": 46.0,
+      "saving_vs_p50": 9.000000000000018,
+      "saving_vs_p90": 432.00000000000017
+    },
+    {
+      "sku_id": "pain_au_chocolat",
+      "sku_name": "Pain au Chocolat",
+      "sku_category": "Pastry",
+      "rows": 15,
+      "p50_prep_total": 275,
+      "recommended_prep_total": 275,
+      "p90_prep_total": 430,
+      "expected_cost": 464.64000000000004,
+      "expected_waste_units": 81.75,
+      "expected_stockout_units": 33.5,
+      "saving_vs_p50": 0.0,
+      "saving_vs_p90": 250.80000000000004
+    },
+    {
+      "sku_id": "butter_croissant",
+      "sku_name": "Butter Croissant",
+      "sku_category": "Pastry",
+      "rows": 15,
+      "p50_prep_total": 330,
+      "recommended_prep_total": 320,
+      "p90_prep_total": 490,
+      "expected_cost": 436.475,
+      "expected_waste_units": 72.5,
+      "expected_stockout_units": 37.25,
+      "saving_vs_p50": 4.250000000000014,
+      "saving_vs_p90": 261.37500000000006
+    },
+    {
+      "sku_id": "cake_slice",
+      "sku_name": "Cake Slice",
+      "sku_category": "Dessert",
+      "rows": 15,
+      "p50_prep_total": 124,
+      "recommended_prep_total": 108,
+      "p90_prep_total": 228,
+      "expected_cost": 281.925,
+      "expected_waste_units": 29.25,
+      "expected_stockout_units": 25.25,
+      "saving_vs_p50": 4.20000000000001,
+      "saving_vs_p90": 238.87500000000003
+    },
+    {
+      "sku_id": "ham_cheese_sandwich",
+      "sku_name": "Ham & Cheese Sandwich",
+      "sku_category": "Savory",
+      "rows": 15,
+      "p50_prep_total": 100,
+      "recommended_prep_total": 88,
+      "p90_prep_total": 160,
+      "expected_cost": 222.075,
+      "expected_waste_units": 19.0,
+      "expected_stockout_units": 14.75,
+      "saving_vs_p50": 4.050000000000004,
+      "saving_vs_p90": 189.67500000000004
+    },
+    {
+      "sku_id": "fruit_tart",
+      "sku_name": "Fruit Tart",
+      "sku_category": "Dessert",
+      "rows": 15,
+      "p50_prep_total": 72,
+      "recommended_prep_total": 68,
+      "p90_prep_total": 132,
+      "expected_cost": 164.825,
+      "expected_waste_units": 28.0,
+      "expected_stockout_units": 10.25,
+      "saving_vs_p50": 0.9500000000000028,
+      "saving_vs_p90": 145.82500000000002
+    },
+    {
+      "sku_id": "coffee_bun_sweet_bun",
+      "sku_name": "Coffee Bun / Sweet Bun",
+      "sku_category": "Pastry",
+      "rows": 15,
+      "p50_prep_total": 90,
+      "recommended_prep_total": 84,
+      "p90_prep_total": 180,
+      "expected_cost": 141.375,
+      "expected_waste_units": 36.0,
+      "expected_stockout_units": 12.25,
+      "saving_vs_p50": 2.599999999999998,
+      "saving_vs_p90": 169.97500000000002
+    }
+  ],
+  "decisionPostureContext": [
+    {
+      "decision_posture": "above_p50_service_protection",
+      "rows": 62,
+      "recommended_prep_total": 1696,
+      "expected_cost": 1386.23,
+      "expected_waste_units": 270.0,
+      "expected_stockout_units": 159.0
+    },
+    {
+      "decision_posture": "conservative_low_prep",
+      "rows": 52,
+      "recommended_prep_total": 0,
+      "expected_cost": 12.524999999999999,
+      "expected_waste_units": 0.0,
+      "expected_stockout_units": 3.5
+    },
+    {
+      "decision_posture": "high_service_p90_prep",
+      "rows": 25,
+      "recommended_prep_total": 174,
+      "expected_cost": 343.56,
+      "expected_waste_units": 105.5,
+      "expected_stockout_units": 0.0
+    },
+    {
+      "decision_posture": "near_p50_balanced",
+      "rows": 23,
+      "recommended_prep_total": 502,
+      "expected_cost": 585.1750000000001,
+      "expected_waste_units": 58.0,
+      "expected_stockout_units": 81.0
+    },
+    {
+      "decision_posture": "below_p50_cost_control",
+      "rows": 18,
+      "recommended_prep_total": 520,
+      "expected_cost": 519.15,
+      "expected_waste_units": 47.0,
+      "expected_stockout_units": 86.75
+    }
+  ],
+  "instructionForLLM": "Explain recommendations in plain English for a bakery operations manager. Mention forecast uncertainty, expected waste, expected stockout, and why the recommended prep differs from p50 or p90."
+}

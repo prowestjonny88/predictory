@@ -45,6 +45,7 @@ apps/web/node_modules/
 apps/web/npm-debug.log*
 apps/web/yarn-debug.log*
 apps/web/yarn-error.log*
+apps/web/dev-server*.log
 apps/web/.pnp/
 apps/web/.pnp.js
 apps/web/tsconfig.tsbuildinfo
