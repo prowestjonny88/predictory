@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 
-import Sidebar from "@/components/Sidebar";
-import SkipLink from "@/components/i18n/SkipLink";
+import AppShell from "@/components/AppShell";
 
 import "./globals.css";
 import Providers from "./providers";
@@ -20,11 +19,7 @@ export default function RootLayout({
     <html lang="en">
       <body className="flex min-h-screen bg-neutral-50">
         <Providers>
-          <SkipLink />
-          <Sidebar />
-          <main id="main-content" className="flex-1 overflow-auto pb-20 md:ml-60 md:pb-0">
-            {children}
-          </main>
+          <AppShell>{children}</AppShell>
         </Providers>
       </body>
     </html>

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  BarChart3,
   TrendingUp,
   ClipboardList,
   ShoppingCart,
@@ -15,6 +16,7 @@ import LanguageSwitcher from "@/components/i18n/LanguageSwitcher";
 import { cn } from "@/lib/utils";
 
 const NAV = [
+  { href: "/dashboard", labelKey: "nav.dashboard", fallback: "Dashboard", icon: BarChart3 },
   { href: "/daily-planning", labelKey: "nav.dailyPlanning", fallback: "Daily Planning", icon: ClipboardList },
   { href: "/forecast", labelKey: "nav.forecast", fallback: "Forecast", icon: TrendingUp },
   { href: "/prep-plan", labelKey: "nav.prepPlan", fallback: "Prep Plan", icon: ClipboardList },
