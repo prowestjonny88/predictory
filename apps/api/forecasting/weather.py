@@ -9,6 +9,10 @@ from db.models import Outlet, WeatherSnapshot
 OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast"
 
 
+class WeatherUnavailableError(RuntimeError):
+    """Raised when weather data is required but no live or imported source is available."""
+
+
 def _weather_enabled() -> bool:
     return os.getenv("WEATHER_FETCH_ENABLED", "false").strip().lower() in {
         "1",
@@ -128,54 +132,18 @@ def get_or_refresh_weather_snapshot(outlet: Outlet, target_date: date_type, db: 
         .first()
     )
 
-    if snapshot and snapshot.source == "live":
+    if snapshot:
         return snapshot
 
     if outlet.latitude is None or outlet.longitude is None:
-        return _build_or_update_snapshot(
-            snapshot,
-            outlet_id=outlet.id,
-            target_date=target_date,
-            summary="Weather unavailable",
-            rain_mm=None,
-            temp_max_c=None,
-            adjustment_pct=0.0,
-            status="unavailable",
-            source="fallback",
-            raw_json={"reason": "Missing outlet coordinates"},
-            db=db,
-        )
+        raise WeatherUnavailableError("Weather data is unavailable because outlet coordinates are missing")
 
     today = date_type.today()
     if target_date < today or target_date > today + timedelta(days=14):
-        return _build_or_update_snapshot(
-            snapshot,
-            outlet_id=outlet.id,
-            target_date=target_date,
-            summary="Weather unavailable",
-            rain_mm=None,
-            temp_max_c=None,
-            adjustment_pct=0.0,
-            status="unavailable",
-            source="fallback",
-            raw_json={"reason": "Target date outside Open-Meteo forecast window"},
-            db=db,
-        )
+        raise WeatherUnavailableError("Weather data is unavailable outside the live forecast window")
 
     if not _weather_enabled():
-        return _build_or_update_snapshot(
-            snapshot,
-            outlet_id=outlet.id,
-            target_date=target_date,
-            summary="Weather fetch disabled",
-            rain_mm=None,
-            temp_max_c=None,
-            adjustment_pct=0.0,
-            status="unavailable",
-            source="fallback",
-            raw_json={"reason": "WEATHER_FETCH_ENABLED is false"},
-            db=db,
-        )
+        raise WeatherUnavailableError("Weather fetch is disabled and no imported snapshot exists")
 
     try:
         weather = _fetch_open_meteo(outlet, target_date)
@@ -193,16 +161,4 @@ def get_or_refresh_weather_snapshot(outlet: Outlet, target_date: date_type, db: 
             db=db,
         )
     except Exception as exc:
-        return _build_or_update_snapshot(
-            snapshot,
-            outlet_id=outlet.id,
-            target_date=target_date,
-            summary="Weather unavailable",
-            rain_mm=None,
-            temp_max_c=None,
-            adjustment_pct=0.0,
-            status="unavailable",
-            source="fallback",
-            raw_json={"reason": str(exc)},
-            db=db,
-        )
+        raise WeatherUnavailableError(f"Live weather request failed: {exc}") from exc

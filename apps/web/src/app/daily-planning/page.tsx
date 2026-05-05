@@ -15,24 +15,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useLanguage } from "@/components/i18n/LanguageProvider";
 import { planningApi, type DailyPlanLatestResponse, type DailyPlanTopAction, type ManagerNoteResponse } from "@/lib/api/planning";
-import { translateDaypart } from "@/lib/i18n";
-
-const EMPTY_PLAN: DailyPlanLatestResponse = {
-  forecast_run_id: "",
-  model_run_id: "",
-  model_version: "lightgbm_p50_v1",
-  engine_name: "lightgbm_mlops_prototype",
-  model_status: "Loading",
-  data_source: "backend",
-  validation_window: "2022-09-01 to 2022-09-30",
-  metrics: {
-    wape: 0.38011723175212897,
-    bias: -0.04164149684340122,
-    p10_p90_coverage: 0.8153703703703704,
-    estimated_mismatch_cost_delta_pct: -0.12,
-  },
-  top_actions: [],
-};
 
 function tomorrowISO() {
   const date = new Date();
@@ -40,30 +22,12 @@ function tomorrowISO() {
   return date.toISOString().split("T")[0];
 }
 
-function buildExplanation(
-  item: DailyPlanTopAction,
-  t: (key: string, fallback?: string, values?: Record<string, string | number>) => string,
-  language: "en" | "ms" | "zh-CN"
-) {
-  return t(
-    "planning.explanation",
-    "Prepare {{prep}} {{sku}} for {{outlet}} {{daypart}}. Expected demand is around {{p50}}, with a high scenario of {{p90}}. Stockout cost is higher than waste cost, so prep sits slightly above median demand.",
-    {
-      prep: item.recommended_prep,
-      sku: item.sku_name,
-      outlet: item.outlet_name,
-      daypart: translateDaypart(language, item.daypart.toLowerCase()),
-      p50: item.p50,
-      p90: item.p90,
-    }
-  );
-}
-
 export default function DailyPlanningPage() {
-  const { t, language } = useLanguage();
+  const { t } = useLanguage();
   const [planDate] = useState(tomorrowISO);
-  const [plan, setPlan] = useState<DailyPlanLatestResponse>(EMPTY_PLAN);
+  const [plan, setPlan] = useState<DailyPlanLatestResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [filter, setFilter] = useState<FilterKey>("top");
   const [selectedAction, setSelectedAction] = useState<DailyPlanTopAction | null>(null);
   const [evidenceOpen, setEvidenceOpen] = useState(false);
@@ -77,41 +41,45 @@ export default function DailyPlanningPage() {
 
   const loadLatestPlan = useCallback(async () => {
     setLoading(true);
-    const response = await planningApi.latestPlan(planDate);
-    setPlan(response);
-    setSelectedAction((current) => {
-      if (current) {
-        return response.top_actions.find((item) => item.id === current.id) ?? response.top_actions[0] ?? null;
-      }
-      return response.top_actions[0] ?? null;
-    });
-    setOutletFilter((current) => {
-      const outlets = new Set(response.top_actions.map((item) => item.outlet_name));
-      return outlets.has(current) ? current : response.top_actions[0]?.outlet_name ?? current;
-    });
-    setLoading(false);
+    setLoadError(null);
+    try {
+      const response = await planningApi.latestPlan(planDate);
+      setPlan(response);
+      setSelectedAction((current) => {
+        if (current) {
+          return response.top_actions.find((item) => item.id === current.id) ?? response.top_actions[0] ?? null;
+        }
+        return response.top_actions[0] ?? null;
+      });
+      setOutletFilter((current) => {
+        const outlets = new Set(response.top_actions.map((item) => item.outlet_name));
+        return outlets.has(current) ? current : response.top_actions[0]?.outlet_name ?? current;
+      });
+    } catch (error) {
+      setPlan(null);
+      setSelectedAction(null);
+      setLoadError(error instanceof Error ? error.message : "Failed to load daily plan");
+    } finally {
+      setLoading(false);
+    }
   }, [planDate]);
 
   useEffect(() => {
-    let active = true;
-    loadLatestPlan().catch(() => {
-      if (active) {
-        setLoading(false);
-      }
-    });
-    return () => {
-      active = false;
-    };
+    loadLatestPlan();
   }, [loadLatestPlan]);
 
   const visibleActions = useMemo(() => {
+    const actions = plan?.top_actions ?? [];
     if (role === "outlet_manager") {
-      return plan.top_actions.filter((item) => item.outlet_name === outletFilter);
+      return actions.filter((item) => item.outlet_name === outletFilter);
     }
-    return plan.top_actions;
-  }, [plan.top_actions, outletFilter, role]);
+    return actions;
+  }, [plan?.top_actions, outletFilter, role]);
 
   const actionSummaryItems = useMemo(() => {
+    if (!plan) {
+      return [];
+    }
     const topPrep = visibleActions[0];
     const topShortage = visibleActions
       .flatMap((item) => item.replenishment.map((line) => ({ item, line })))
@@ -146,12 +114,12 @@ export default function DailyPlanningPage() {
         label: t("planning.summary.mismatchCost", "Mismatch cost"),
         value: t(
           "planning.summary.mismatchValue",
-          "{{percent}}% reduction on demo window",
+          "{{percent}}% validation-window delta",
           { percent: Math.abs(plan.metrics.estimated_mismatch_cost_delta_pct * 100).toFixed(0) }
         ),
       },
     ];
-  }, [plan.metrics.estimated_mismatch_cost_delta_pct, t, visibleActions]);
+  }, [plan, t, visibleActions]);
 
   const groupedByOutlet = useMemo(() => {
     const map = new Map<string, DailyPlanTopAction[]>();
@@ -176,88 +144,36 @@ export default function DailyPlanningPage() {
   async function handleRegenerate() {
     setStatusMessage(null);
     try {
-      const response = await planningApi.regeneratePlan({ date: planDate, reason: "manual_demo_refresh" });
+      const response = await planningApi.regeneratePlan({ date: planDate, reason: "manual_refresh" });
       setStatusMessage(response.message);
       await loadLatestPlan();
-    } catch (_error) {
-      setStatusMessage(
-        t(
-          "planning.status.regenerateQueued",
-          "Regenerate request queued (demo mode). Using cached run."
-        )
-      );
+    } catch (error) {
+      setStatusMessage(error instanceof Error ? error.message : "Regenerate failed");
     }
   }
 
   async function handleParse(note: string) {
-    try {
-      return await planningApi.parseManagerNote({ forecast_run_id: plan.forecast_run_id, note });
-    } catch (_error) {
-      const action = selectedAction ?? plan.top_actions[0];
-      return {
-        parsed_adjustment: {
-          outlet_id: action?.outlet_name ?? "",
-          daypart: action?.daypart ?? "morning",
-          sku_category: action?.sku_category ?? "Bakery",
-          suggested_adjustment_pct: 10,
-          reason: note,
-          requires_confirmation: true,
-        },
-        explanation:
-          "Suggested adjustment parsed in demo fallback. No prep or replenishment quantity is changed until Apply is confirmed.",
-      };
+    if (!plan) {
+      throw new Error("Load a backend plan before parsing a manager note.");
     }
+    return planningApi.parseManagerNote({ forecast_run_id: plan.forecast_run_id, note });
   }
 
   async function handleApply(adjustment: ManagerNoteResponse["parsed_adjustment"]) {
-    let backendApplied = false;
+    if (!plan) {
+      throw new Error("Load a backend plan before applying a manager note.");
+    }
     try {
       await planningApi.applyManagerNote({
         forecast_run_id: plan.forecast_run_id,
         confirmed: true,
         adjustment,
       });
-      backendApplied = true;
       await loadLatestPlan();
       setStatusMessage(t("planning.status.noteApplied", "Manager note applied after confirmation."));
-    } catch (_error) {
-      backendApplied = false;
+    } catch (error) {
+      setStatusMessage(error instanceof Error ? error.message : "Manager note apply failed");
     }
-
-    if (backendApplied) {
-      return;
-    }
-
-    const factor = 1 + adjustment.suggested_adjustment_pct / 100;
-    const updated = plan.top_actions.map((item) => {
-      if (
-        item.outlet_name === adjustment.outlet_id &&
-        item.daypart.toLowerCase() === adjustment.daypart.toLowerCase() &&
-        item.sku_category === adjustment.sku_category
-      ) {
-        return {
-          ...item,
-          p10: Math.round(item.p10 * factor),
-          p50: Math.round(item.p50 * factor),
-          p90: Math.round(item.p90 * factor),
-          recommended_prep: Math.round(item.recommended_prep * factor),
-          reason_summary: `${item.reason_summary} ${t(
-            "planning.managerNoteApplied",
-            "Manager note applied (+{{percent}}%).",
-            { percent: adjustment.suggested_adjustment_pct }
-          )}`,
-        };
-      }
-      return item;
-    });
-
-    setPlan((current) => ({ ...current, top_actions: updated }));
-    setSelectedAction((current) => {
-      if (!current) {
-        return current;
-      }
-      return updated.find((item) => item.id === current.id) ?? current;
-    });
   }
 
   async function handleDecision(payload: { action: "approved" | "edited" | "rejected"; finalPrep: number; reason?: string }) {
@@ -285,35 +201,9 @@ export default function DailyPlanningPage() {
       setDrawerOpen(false);
       setStatusMessage(t("planning.status.decisionRecorded", "Decision recorded and audit log created."));
       return;
-    } catch (_error) {
-      // Demo fallback only.
+    } catch (error) {
+      setStatusMessage(error instanceof Error ? error.message : "Decision failed");
     }
-
-    const timestamp = new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
-    setAuditEvents((current) => [
-      {
-        id: `${selectedAction.id}-${current.length + 1}`,
-        action: payload.action,
-        final_prep: payload.finalPrep,
-        reason: payload.reason,
-        timestamp,
-      },
-      ...current,
-    ]);
-    setPlan((current) => ({
-      ...current,
-      top_actions: current.top_actions.map((item) =>
-        item.id === selectedAction.id
-          ? {
-              ...item,
-              recommended_prep: payload.finalPrep,
-              status: payload.action,
-            }
-          : item
-      ),
-    }));
-    setDrawerOpen(false);
-    setStatusMessage(t("planning.status.decisionRecorded", "Decision recorded."));
   }
 
   async function handleOpenRecommendation(item: DailyPlanTopAction) {
@@ -322,17 +212,17 @@ export default function DailyPlanningPage() {
     if (!item.explanation && item.plan_id) {
       try {
         const response = await planningApi.explainRecommendation(item.id);
-        setPlan((current) => ({
+        setPlan((current) => current ? ({
           ...current,
           top_actions: current.top_actions.map((candidate) =>
             candidate.id === item.id ? { ...candidate, explanation: response.explanation } : candidate
           ),
-        }));
+        }) : current);
         setSelectedAction((current) =>
           current?.id === item.id ? { ...current, explanation: response.explanation } : current
         );
-      } catch (_error) {
-        // Local deterministic explanation remains available.
+      } catch (error) {
+        setStatusMessage(error instanceof Error ? error.message : "Explanation request failed");
       }
     }
   }
@@ -379,20 +269,44 @@ export default function DailyPlanningPage() {
               value={outletFilter}
               onChange={(event) => setOutletFilter(event.target.value)}
             >
-              {Array.from(new Set(plan.top_actions.map((item) => item.outlet_name))).map((name) => (
+              {Array.from(new Set((plan?.top_actions ?? []).map((item) => item.outlet_name))).map((name) => (
                 <option key={name} value={name}>
                   {name}
                 </option>
               ))}
             </select>
           )}
-          <Button variant="outline" size="sm" onClick={handleRegenerate}>
+          <Button variant="outline" size="sm" onClick={handleRegenerate} disabled={loading}>
             {t("planning.regenerate", "Regenerate plan")}
           </Button>
         </div>
       </Header>
 
       <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-6 md:px-8">
+        {loadError && (
+          <Card className="border-red-200 bg-red-50">
+            <CardContent className="text-sm text-red-800">{loadError}</CardContent>
+          </Card>
+        )}
+
+        {loading && (
+          <Card>
+            <CardContent className="text-sm text-neutral-500">
+              {t("planning.loadingPlan", "Loading latest plan...")}
+            </CardContent>
+          </Card>
+        )}
+
+        {!loading && !plan && !loadError && (
+          <Card>
+            <CardContent className="text-sm text-neutral-500">
+              {t("planning.noBackendPlan", "No backend daily plan is available for this date.")}
+            </CardContent>
+          </Card>
+        )}
+
+        {plan && (
+          <>
         <ActionSummaryCard
           title={t("planning.actionSummary.title", "Tomorrow action summary")}
           items={actionSummaryItems}
@@ -430,13 +344,6 @@ export default function DailyPlanningPage() {
           <FilterTabs value={filter} onChange={setFilter} />
         </div>
 
-        {loading ? (
-          <Card>
-            <CardContent className="text-sm text-neutral-500">
-              {t("planning.loadingPlan", "Loading latest plan...")}
-            </CardContent>
-          </Card>
-        ) : (
           <div className="space-y-4">
             {filter === "top" && renderActionList(visibleActions)}
             {filter === "outlet" &&
@@ -462,31 +369,28 @@ export default function DailyPlanningPage() {
                 )
               )}
           </div>
-        )}
 
         <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
           <ManagerNotePanel onParse={handleParse} onApply={handleApply} />
           <ReplenishmentBreakdown item={selectedAction} />
         </div>
 
-        {selectedAction && (
+        {selectedAction?.explanation && (
           <Card className="border-dashed">
             <CardHeader>
               <CardTitle>{t("planning.geminiExplanation", "Gemini explanation (grounded)")}</CardTitle>
             </CardHeader>
             <CardContent className="text-sm text-neutral-600">
-              {buildExplanation(selectedAction, t, language)}
-              {selectedAction.explanation && (
-                <p className="mt-3 border-t border-neutral-100 pt-3 text-neutral-700">
-                  {selectedAction.explanation}
-                </p>
-              )}
+              {selectedAction.explanation}
             </CardContent>
           </Card>
         )}
+          </>
+        )}
       </div>
 
-      <ModelEvidenceDrawer
+      {plan && (
+        <ModelEvidenceDrawer
         open={evidenceOpen}
         onClose={() => setEvidenceOpen(false)}
         modelVersion={plan.model_version}
@@ -496,6 +400,7 @@ export default function DailyPlanningPage() {
         validationWindow={plan.validation_window}
         metrics={plan.metrics}
       />
+      )}
 
       <ApprovalDrawer
         open={drawerOpen}

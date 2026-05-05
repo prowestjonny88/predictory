@@ -41,9 +41,9 @@ def test_forecast_context_returns_expected_schema_and_combined_adjustment():
 
     target_date = date(2026, 4, 10)
     db.add(
-        HolidayCalendar(
+            HolidayCalendar(
             holiday_date=target_date,
-            name="Demo Festival Day",
+            name="Festival Day",
             country_code="MY",
             holiday_type="Festival",
             demand_uplift_pct=5.0,
@@ -109,7 +109,7 @@ def test_forecast_context_returns_expected_schema_and_combined_adjustment():
             )
             assert resp.status_code == 200
             payload = resp.json()
-            assert payload["holiday"]["label"] == "Demo Festival Day"
+            assert payload["holiday"]["label"] == "Festival Day"
             assert payload["weather"]["label"] == "Light rain"
             assert payload["stockout_censoring"]["adjusted_history_days"] >= 1
             assert len(payload["active_overrides"]) == 1
@@ -187,7 +187,7 @@ def test_forecast_override_crud_lifecycle():
         app.dependency_overrides.clear()
 
 
-def test_forecast_context_returns_weather_fallback_when_snapshot_unavailable():
+def test_forecast_context_returns_422_when_weather_snapshot_unavailable():
     SessionLocal = _build_session_factory()
     db = SessionLocal()
     outlet = Outlet(name="Test Outlet", code="OUT-A")
@@ -211,10 +211,6 @@ def test_forecast_context_returns_weather_fallback_when_snapshot_unavailable():
                     "sku_id": sku_id,
                 },
             )
-            assert resp.status_code == 200
-            payload = resp.json()
-            assert payload["weather"]["source"] == "fallback"
-            assert payload["weather"]["adjustment_pct"] == 0.0
-            assert payload["weather"]["status"] == "unavailable"
+            assert resp.status_code == 422
     finally:
         app.dependency_overrides.clear()

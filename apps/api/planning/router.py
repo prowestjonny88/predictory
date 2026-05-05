@@ -18,6 +18,7 @@ from db.models import (
     DecisionAuditEvent,
     ForecastRun,
     Ingredient,
+    InventorySnapshot,
     Outlet,
     PrepPlan,
     PrepPlanLine,
@@ -25,13 +26,15 @@ from db.models import (
     ReplenishmentPlan,
     SKU,
 )
-from planning.prep import generate_prep_plan
 from planning.replenishment import recommend_replenishment
 from forecasting.engine import run_forecast_for_date
 from alerts.waste import detect_waste_risk
 from alerts.stockout import detect_stockout_risk
-from services.model_loader import get_model_artifacts, load_model_for_inference
+from services.lightgbm_inference import FeatureBuildError, OperationalDataError
+from services.model_loader import ModelArtifactError, load_model_for_inference
 from services.optimizer import calculate_optimal_prep
+from services.runtime_readiness import ReadinessError
+from services.uncertainty import band_for_prep_line
 
 router = APIRouter()
 
@@ -313,6 +316,39 @@ def _latest_replenishment_plan(plan_date: Optional[date_type], db: Session) -> O
     return query.order_by(desc(ReplenishmentPlan.created_at), desc(ReplenishmentPlan.id)).first()
 
 
+def _to_http_error(exc: Exception) -> HTTPException:
+    if isinstance(exc, ReadinessError):
+        return HTTPException(status_code=422, detail={"blockers": exc.blockers})
+    if isinstance(exc, OperationalDataError):
+        return HTTPException(status_code=422, detail=str(exc))
+    if isinstance(exc, (ModelArtifactError, FeatureBuildError)):
+        return HTTPException(status_code=503, detail=str(exc))
+    if isinstance(exc, HTTPException):
+        return exc
+    return HTTPException(status_code=500, detail=str(exc))
+
+
+def _get_or_build_forecast_run(plan_date: date_type, db: Session) -> ForecastRun:
+    forecast_run = _latest_forecast_for_date(plan_date, db)
+    if forecast_run:
+        return forecast_run
+    return run_forecast_for_date(plan_date, db)
+
+
+def _get_or_build_optimizer_prep_plan(plan_date: date_type, db: Session) -> tuple[PrepPlan, ForecastRun]:
+    forecast_run = _get_or_build_forecast_run(plan_date, db)
+    prep_plan = _latest_prep_plan(plan_date, db)
+    created = False
+    if not prep_plan:
+        prep_plan = _generate_prep_plan_from_forecast(plan_date, forecast_run, db)
+        created = True
+    changed = _optimize_prep_plan_lines(prep_plan, forecast_run, db)
+    if created or changed:
+        db.commit()
+        db.refresh(prep_plan)
+    return prep_plan, forecast_run
+
+
 def _serialize_prep_plan(plan: PrepPlan, db: Session, forecast_run: Optional[ForecastRun] = None) -> PrepPlanContractOut:
     outlets_map = {o.id: o.name for o in db.query(Outlet).all()}
     skus = {s.id: s for s in db.query(SKU).all()}
@@ -379,10 +415,10 @@ def _refresh_replenishment(plan_date: date_type, db: Session) -> Optional[Replen
     return recommend_replenishment(plan_date, db)
 
 
-def _forecast_values_for_line(line: PrepPlanLine, db: Session) -> tuple[str, str, float, float, float]:
+def _forecast_values_for_line(line: PrepPlanLine, db: Session) -> tuple[str, str, str, float, float, float]:
     forecast_run = _latest_forecast_for_date(line.plan.plan_date, db)
     if not forecast_run:
-        return f"manual_{line.plan.plan_date.isoformat()}", "unknown", 0.0, float(line.recommended_units), float(line.recommended_units)
+        raise HTTPException(status_code=422, detail="No forecast run exists for this prep line")
     matching = next(
         (
             candidate
@@ -392,27 +428,15 @@ def _forecast_values_for_line(line: PrepPlanLine, db: Session) -> tuple[str, str
         None,
     )
     if not matching:
-        p50 = float(line.recommended_units)
-    else:
-        p50 = float(getattr(matching, line.daypart, matching.total))
+        raise HTTPException(status_code=422, detail="No matching forecast line exists for this prep line")
     p10, p50, p90 = _forecast_band_for_line(line, matching, db)
     return (
         forecast_run.forecast_run_id,
         forecast_run.model_version,
+        forecast_run.engine_name,
         p10,
         p50,
         p90,
-    )
-
-
-def _band_residual_for(line: PrepPlanLine, db: Session) -> tuple[float, float, str]:
-    artifacts = get_model_artifacts()
-    bands = artifacts.residual_bands or {}
-    fallback = bands.get("global_residual_band") or {}
-    return (
-        float(fallback.get("residual_p10", -2.0)),
-        float(fallback.get("residual_p90", 3.0)),
-        "residual_bands_v1" if fallback else "fallback_band_default",
     )
 
 
@@ -421,12 +445,14 @@ def _forecast_band_for_line(
     forecast_line,
     db: Session,
 ) -> tuple[float, float, float]:
-    p50 = float(getattr(forecast_line, line.daypart, forecast_line.total)) if forecast_line else float(line.recommended_units)
-    lower_residual, upper_residual, _source = _band_residual_for(line, db)
-    p10 = max(0.0, p50 + lower_residual)
-    p90 = max(p50, p50 + upper_residual)
-    p10 = min(p10, p50)
-    return round(p10, 2), round(max(0.0, p50), 2), round(p90, 2)
+    if forecast_line is None:
+        raise HTTPException(status_code=422, detail="Forecast line is required for uncertainty bands")
+    sku = db.query(SKU).filter(SKU.id == line.sku_id).first()
+    outlet = db.query(Outlet).filter(Outlet.id == line.outlet_id).first()
+    if not sku or not outlet:
+        raise HTTPException(status_code=422, detail="Forecast band requires an outlet and SKU")
+    band = band_for_prep_line(prep_line=line, forecast_line=forecast_line, sku=sku, outlet_code=outlet.code)
+    return band.p10, band.p50, band.p90
 
 
 def _sku_unit_cost(sku: SKU, db: Session) -> float:
@@ -436,7 +462,25 @@ def _sku_unit_cost(sku: SKU, db: Session) -> float:
         ingredient = db.query(Ingredient).filter(Ingredient.id == bom.ingredient_id).first()
         if ingredient:
             cost += float(ingredient.cost_per_unit or 0) * float(bom.quantity_per_unit or 0)
-    return round(cost if cost > 0 else float(sku.price or 0) * 0.4, 2)
+    if cost <= 0:
+        raise HTTPException(status_code=422, detail=f"Recipe BOM cost is missing for SKU '{sku.code}'")
+    return round(cost, 2)
+
+
+def _latest_inventory_units(outlet_id: int, sku_id: int, plan_date: date_type, db: Session) -> int:
+    snapshot = (
+        db.query(InventorySnapshot)
+        .filter(
+            InventorySnapshot.outlet_id == outlet_id,
+            InventorySnapshot.sku_id == sku_id,
+            InventorySnapshot.snapshot_date < plan_date,
+        )
+        .order_by(desc(InventorySnapshot.snapshot_date), desc(InventorySnapshot.id))
+        .first()
+    )
+    if not snapshot:
+        raise HTTPException(status_code=422, detail="Inventory history is required to build a prep plan")
+    return int(snapshot.units_on_hand or 0)
 
 
 def _ingredient_impact_for_action(
@@ -495,7 +539,7 @@ def _optimize_prep_plan_lines(prep_plan: PrepPlan, forecast_run: ForecastRun, db
         )
         recommended = int(decision["recommended_prep"])
         rationale = line.rationale_json or {}
-        rationale["uncertainty"] = {"p10": p10, "p50": p50, "p90": p90, "source": _band_residual_for(line, db)[2]}
+        rationale["uncertainty"] = {"p10": p10, "p50": p50, "p90": p90}
         rationale["optimizer"] = decision
         if line.recommended_units != recommended:
             line.recommended_units = recommended
@@ -521,9 +565,9 @@ def _generate_prep_plan_from_forecast(plan_date: date_type, forecast_run: Foreca
                 sku_id=forecast_line.sku_id,
                 daypart=daypart,
                 recommended_units=max(0, round(p50)),
-                current_stock=0,
+                current_stock=_latest_inventory_units(forecast_line.outlet_id, forecast_line.sku_id, plan_date, db),
                 status="pending",
-                rationale_json={"source": "forecast_run_fast_builder"},
+                rationale_json={"source": "lightgbm_forecast_run"},
             )
             db.add(line)
     db.flush()
@@ -602,11 +646,11 @@ def _record_line_decision(
     gemini_note_adjustment_applied: bool = False,
     gemini_note_summary: Optional[str] = None,
 ) -> DecisionAuditEvent:
-    forecast_run_id, model_version, p10, p50, p90 = _forecast_values_for_line(line, db)
+    forecast_run_id, model_version, engine_name, p10, p50, p90 = _forecast_values_for_line(line, db)
     event = DecisionAuditEvent(
         forecast_run_id=forecast_run_id,
         model_version=model_version,
-        engine_name="weighted_blend_fallback" if model_version != "unknown" else "manual",
+        engine_name=engine_name,
         outlet_id=line.outlet_id,
         sku_id=line.sku_id,
         daypart=line.daypart,
@@ -656,7 +700,10 @@ def get_latest_daily_plan(date: Optional[date_type] = None, db: Session = Depend
     if date is None:
         date = date_type.today()
 
-    return _build_daily_plan_response(date, db)
+    try:
+        return _build_daily_plan_response(date, db)
+    except Exception as exc:
+        raise _to_http_error(exc) from exc
 
 
 @router.post("/api/daily-plan/regenerate")
@@ -669,7 +716,10 @@ def regenerate_daily_plan(date: date_type, reason: str = "manual_refresh", db: S
     db.commit()
 
     # Regenerate
-    plan = _build_daily_plan_response(date, db)
+    try:
+        plan = _build_daily_plan_response(date, db)
+    except Exception as exc:
+        raise _to_http_error(exc) from exc
     return {
         "forecast_run_id": plan.forecast_run_id,
         "status": "generated",
@@ -833,7 +883,10 @@ def _build_daily_plan_response(plan_date: date_type, db: Session) -> DailyPlanOu
 @router.get("/api/daily-plan/{plan_date}", response_model=DailyPlanOut)
 def get_daily_plan(plan_date: date_type, db: Session = Depends(get_db)):
     """Get daily plan by date (alias for backward compatibility)."""
-    return _build_daily_plan_response(plan_date, db)
+    try:
+        return _build_daily_plan_response(plan_date, db)
+    except Exception as exc:
+        raise _to_http_error(exc) from exc
 
 
 @router.get("/prep-plans/latest", response_model=PrepPlanContractOut)
@@ -841,7 +894,11 @@ def get_latest_prep_plan(date: Optional[date_type] = None, db: Session = Depends
     plan = _latest_prep_plan(date, db)
     if not plan:
         target_date = date or date_type.today()
-        plan = generate_prep_plan(target_date, db)
+        try:
+            plan, forecast_run = _get_or_build_optimizer_prep_plan(target_date, db)
+        except Exception as exc:
+            raise _to_http_error(exc) from exc
+        return _serialize_prep_plan(plan, db, forecast_run)
     return _serialize_prep_plan(plan, db)
 
 
@@ -858,7 +915,10 @@ def get_prep_plan_for_forecast(forecast_run_id: str, db: Session = Depends(get_d
         raise HTTPException(status_code=404, detail="Forecast run not found")
     plan = _latest_prep_plan(forecast_run.forecast_date, db)
     if not plan:
-        plan = generate_prep_plan(forecast_run.forecast_date, db)
+        try:
+            plan, forecast_run = _get_or_build_optimizer_prep_plan(forecast_run.forecast_date, db)
+        except Exception as exc:
+            raise _to_http_error(exc) from exc
     return _serialize_prep_plan(plan, db, forecast_run)
 
 
@@ -983,7 +1043,10 @@ def get_latest_replenishment(date: Optional[date_type] = None, db: Session = Dep
     plan = _latest_replenishment_plan(target_date, db)
     if not plan:
         if not _latest_prep_plan(target_date, db):
-            generate_prep_plan(target_date, db)
+            try:
+                _get_or_build_optimizer_prep_plan(target_date, db)
+            except Exception as exc:
+                raise _to_http_error(exc) from exc
         plan = recommend_replenishment(target_date, db)
     return _serialize_replenishment_plan(plan)
 
@@ -1043,7 +1106,10 @@ def apply_recommendation_decision(
 def run_prep_plan(target_date: date_type = None, db: Session = Depends(get_db)):
     if target_date is None:
         target_date = date_type.today()
-    plan = generate_prep_plan(target_date, db)
+    try:
+        plan, _forecast_run = _get_or_build_optimizer_prep_plan(target_date, db)
+    except Exception as exc:
+        raise _to_http_error(exc) from exc
     return PlanRunOut(
         plan_id=plan.id,
         plan_date=str(plan.plan_date),
@@ -1056,6 +1122,11 @@ def run_prep_plan(target_date: date_type = None, db: Session = Depends(get_db)):
 def run_replenishment_plan(target_date: date_type = None, db: Session = Depends(get_db)):
     if target_date is None:
         target_date = date_type.today()
+    if not _latest_prep_plan(target_date, db):
+        try:
+            _get_or_build_optimizer_prep_plan(target_date, db)
+        except Exception as exc:
+            raise _to_http_error(exc) from exc
     plan = recommend_replenishment(target_date, db)
     return PlanRunOut(
         plan_id=plan.id,

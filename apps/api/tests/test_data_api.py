@@ -1,5 +1,4 @@
 from datetime import date
-import random
 
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -8,7 +7,7 @@ from sqlalchemy.pool import StaticPool
 
 from db.database import Base, get_db
 from db.models import AuditEvent, HolidayCalendar, Outlet, PrepPlan, PrepPlanLine, SKU, SalesFact
-from db.seed import seed_master_data, seed_sales_and_waste
+from factories import load_test_dataset, load_test_master_data
 from main import app
 
 
@@ -22,13 +21,8 @@ def _build_session_factory():
     return sessionmaker(bind=engine, autocommit=False, autoflush=False)
 
 
-def _seed_demo_data(session):
-    random.seed(42)
-    seed_master_data(session)
-
-    all_outlets = session.query(Outlet).all()
-    all_skus = session.query(SKU).all()
-    seed_sales_and_waste(session, all_outlets, all_skus)
+def _load_test_data(session):
+    load_test_dataset(session)
 
 
 def _override_app_db(SessionLocal):
@@ -45,7 +39,7 @@ def _override_app_db(SessionLocal):
 def test_upload_products_supports_upsert_and_create():
     SessionLocal = _build_session_factory()
     db = SessionLocal()
-    _seed_demo_data(db)
+    _load_test_data(db)
     db.close()
 
     _override_app_db(SessionLocal)
@@ -86,7 +80,7 @@ def test_upload_products_supports_upsert_and_create():
 def test_upload_sales_and_inventory_accept_valid_rows():
     SessionLocal = _build_session_factory()
     db = SessionLocal()
-    _seed_demo_data(db)
+    _load_test_data(db)
     db.close()
 
     _override_app_db(SessionLocal)
@@ -127,7 +121,7 @@ def test_upload_sales_and_inventory_accept_valid_rows():
 def test_upload_sales_supports_common_bakery_transaction_headers():
     SessionLocal = _build_session_factory()
     db = SessionLocal()
-    _seed_demo_data(db)
+    _load_test_data(db)
     db.close()
 
     _override_app_db(SessionLocal)
@@ -158,7 +152,7 @@ def test_upload_sales_supports_common_bakery_transaction_headers():
 def test_upload_sales_can_auto_create_skus_and_map_daypart_aliases():
     SessionLocal = _build_session_factory()
     db = SessionLocal()
-    _seed_demo_data(db)
+    _load_test_data(db)
     db.close()
 
     _override_app_db(SessionLocal)
@@ -198,7 +192,7 @@ def test_upload_sales_can_auto_create_skus_and_map_daypart_aliases():
 def test_upload_sales_aggregates_duplicate_transaction_rows_for_same_key():
     SessionLocal = _build_session_factory()
     db = SessionLocal()
-    _seed_demo_data(db)
+    _load_test_data(db)
     db.close()
 
     _override_app_db(SessionLocal)
@@ -252,7 +246,7 @@ def test_upload_sales_aggregates_duplicate_transaction_rows_for_same_key():
 def test_upload_missing_required_columns_returns_422():
     SessionLocal = _build_session_factory()
     db = SessionLocal()
-    _seed_demo_data(db)
+    _load_test_data(db)
     db.close()
 
     _override_app_db(SessionLocal)
@@ -279,7 +273,7 @@ def test_upload_missing_required_columns_returns_422():
 def test_upload_rejects_invalid_data_type_and_empty_file():
     SessionLocal = _build_session_factory()
     db = SessionLocal()
-    _seed_demo_data(db)
+    _load_test_data(db)
     db.close()
 
     _override_app_db(SessionLocal)
@@ -307,7 +301,7 @@ def test_upload_rejects_invalid_data_type_and_empty_file():
 def test_upload_normalizes_headers_and_reports_row_level_errors():
     SessionLocal = _build_session_factory()
     db = SessionLocal()
-    _seed_demo_data(db)
+    _load_test_data(db)
     db.close()
 
     _override_app_db(SessionLocal)
@@ -346,7 +340,7 @@ def test_upload_normalizes_headers_and_reports_row_level_errors():
 def test_upload_sales_reports_unknown_codes_without_committing_rows():
     SessionLocal = _build_session_factory()
     db = SessionLocal()
-    _seed_demo_data(db)
+    _load_test_data(db)
     db.close()
 
     _override_app_db(SessionLocal)
@@ -378,7 +372,7 @@ def test_upload_sales_reports_unknown_codes_without_committing_rows():
 def test_upload_holidays_supports_create_and_update():
     SessionLocal = _build_session_factory()
     db = SessionLocal()
-    _seed_demo_data(db)
+    _load_test_data(db)
     db.close()
 
     _override_app_db(SessionLocal)
@@ -418,10 +412,10 @@ def test_upload_holidays_supports_create_and_update():
         app.dependency_overrides.clear()
 
 
-def test_catalog_endpoints_return_seeded_payloads():
+def test_catalog_endpoints_return_imported_payloads():
     SessionLocal = _build_session_factory()
     db = SessionLocal()
-    _seed_demo_data(db)
+    _load_test_data(db)
 
     outlet = db.query(Outlet).first()
     sku = db.query(SKU).first()
@@ -489,7 +483,7 @@ def test_catalog_endpoints_return_empty_lists_gracefully():
 def test_ops_data_edit_approve_and_reapprove_conflict():
     SessionLocal = _build_session_factory()
     db = SessionLocal()
-    seed_master_data(db)
+    load_test_master_data(db)
 
     outlet = db.query(Outlet).first()
     sku = db.query(SKU).first()
@@ -549,7 +543,7 @@ def test_ops_data_edit_approve_and_reapprove_conflict():
 def test_ops_data_rejects_negative_edits_and_blocks_edit_after_approval():
     SessionLocal = _build_session_factory()
     db = SessionLocal()
-    seed_master_data(db)
+    load_test_master_data(db)
 
     outlet = db.query(Outlet).first()
     sku = db.query(SKU).first()

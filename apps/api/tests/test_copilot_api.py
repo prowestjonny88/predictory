@@ -1,6 +1,5 @@
-from datetime import date, timedelta
+from datetime import date
 import json
-import random
 import re
 
 from fastapi.testclient import TestClient
@@ -10,7 +9,7 @@ from sqlalchemy.pool import StaticPool
 
 import copilot.router as copilot_router
 from db.database import Base, get_db
-from db.seed import seed_master_data, seed_sales_and_waste
+from factories import load_test_dataset, load_test_master_data
 from forecasting.engine import run_forecast_for_date
 from main import app
 from planning.prep import generate_prep_plan
@@ -27,15 +26,40 @@ def _build_session_factory():
     return sessionmaker(bind=engine, autocommit=False, autoflush=False)
 
 
-def _seed_demo_data(session):
-    random.seed(42)
-    seed_master_data(session)
+def _load_test_data(session):
+    load_test_dataset(session)
 
-    from db.models import Outlet, SKU
 
-    all_outlets = session.query(Outlet).all()
-    all_skus = session.query(SKU).all()
-    seed_sales_and_waste(session, all_outlets, all_skus)
+def _fixed_llm(text: str = "LLM response"):
+    return lambda _prompt, _text="": text
+
+
+def _daily_actions_llm(prompt, _text=""):
+    if "Candidate actions JSON" in prompt:
+        action_ids = re.findall(r'"action_id":\s*"([^"]+)"', prompt)
+        return json.dumps(
+            [
+                {
+                    "action_id": action_id,
+                    "action_text": f"Priority action for {action_id}",
+                    "estimated_impact": "Protect readiness while preserving model plan values.",
+                }
+                for action_id in action_ids[:5]
+            ]
+        )
+    if "Top actions JSON" in prompt:
+        return (
+            "Operations are broadly ready for service.\n\n"
+            "Main risks are concentrated in the highest-ranked outlets and SKUs.\n\n"
+            "Act on the ranked prep and reorder actions first."
+        )
+    return "LLM response"
+
+
+def _prepare_planning_context(db, target_date: date) -> None:
+    run_forecast_for_date(target_date, db)
+    generate_prep_plan(target_date, db)
+    recommend_replenishment(target_date, db)
 
 
 def _override_app_db(SessionLocal):
@@ -52,13 +76,11 @@ def _override_app_db(SessionLocal):
 def test_explain_plan_returns_404_for_unknown_outlet_or_sku():
     SessionLocal = _build_session_factory()
     db = SessionLocal()
-    _seed_demo_data(db)
+    _load_test_data(db)
     db.close()
 
-    original = copilot_router._call_llm
-    copilot_router._call_llm = lambda prompt, fallback="": fallback
+    _override_app_db(SessionLocal)
     try:
-        _override_app_db(SessionLocal)
         with TestClient(app) as client:
             resp = client.post(
                 "/api/v1/copilot/explain-plan",
@@ -71,19 +93,16 @@ def test_explain_plan_returns_404_for_unknown_outlet_or_sku():
             )
             assert resp.status_code == 404
     finally:
-        copilot_router._call_llm = original
         app.dependency_overrides.clear()
 
 
-def test_explain_plan_supports_all_contexts_with_fallback_text():
+def test_explain_plan_supports_all_contexts_with_llm_text():
     SessionLocal = _build_session_factory()
     db = SessionLocal()
-    _seed_demo_data(db)
+    _load_test_data(db)
     target_date = date.today()
 
-    run_forecast_for_date(target_date, db)
-    generate_prep_plan(target_date, db)
-    recommend_replenishment(target_date, db)
+    _prepare_planning_context(db, target_date)
 
     from db.models import Outlet, SKU
 
@@ -93,7 +112,7 @@ def test_explain_plan_supports_all_contexts_with_fallback_text():
     db.close()
 
     original = copilot_router._call_llm
-    copilot_router._call_llm = lambda prompt, fallback="": fallback
+    copilot_router._call_llm = _fixed_llm("Grounded LLM explanation")
     try:
         _override_app_db(SessionLocal)
         with TestClient(app) as client:
@@ -126,7 +145,7 @@ def test_explain_plan_supports_all_contexts_with_fallback_text():
         app.dependency_overrides.clear()
 
 
-def test_explain_plan_missing_data_returns_graceful_fallback():
+def test_explain_plan_missing_data_returns_404():
     SessionLocal = _build_session_factory()
     db = SessionLocal()
 
@@ -148,10 +167,8 @@ def test_explain_plan_missing_data_returns_graceful_fallback():
     db.refresh(sku)
     db.close()
 
-    original = copilot_router._call_llm
-    copilot_router._call_llm = lambda prompt, fallback="": fallback
+    _override_app_db(SessionLocal)
     try:
-        _override_app_db(SessionLocal)
         with TestClient(app) as client:
             resp = client.post(
                 "/api/v1/copilot/explain-plan",
@@ -162,10 +179,8 @@ def test_explain_plan_missing_data_returns_graceful_fallback():
                     "context_type": "forecast",
                 },
             )
-            assert resp.status_code == 200
-            assert "No forecast data found" in resp.json()["explanation"]
+            assert resp.status_code == 404
     finally:
-        copilot_router._call_llm = original
         app.dependency_overrides.clear()
 
 
@@ -173,45 +188,34 @@ def test_explain_plan_forecast_mentions_contextual_drivers_when_present():
     SessionLocal = _build_session_factory()
     db = SessionLocal()
 
-    from db.models import ForecastOverride, HolidayCalendar, Outlet, SKU, SalesFact, WeatherSnapshot
+    from db.models import ForecastOverride, HolidayCalendar, Outlet, SKU, WeatherSnapshot
 
-    outlet = Outlet(name="Test Outlet", code="OUT-T", latitude=3.1, longitude=101.6)
-    sku = SKU(
-        name="Test SKU",
-        code="SKU-T",
-        category="Pastry",
-        freshness_hours=8,
-        is_bestseller=False,
-        safety_buffer_pct=0.1,
-        price=8.0,
-    )
-    db.add_all([outlet, sku])
-    db.flush()
-
-    target_date = date(2026, 4, 10)
+    target_date = date.today()
+    _load_test_data(db)
+    outlet = db.query(Outlet).filter(Outlet.code == "klcc_mall").first()
+    sku = db.query(SKU).filter(SKU.code == "butter_croissant").first()
     db.add(
         HolidayCalendar(
             holiday_date=target_date,
-            name="Demo Festival Day",
+            name="Festival Day",
             country_code="MY",
             holiday_type="Festival",
             demand_uplift_pct=5.0,
             source="test",
         )
     )
-    db.add(
-        WeatherSnapshot(
-            outlet_id=outlet.id,
-            target_date=target_date,
-            summary="Light rain",
-            rain_mm=3.4,
-            temp_max_c=31.2,
-            adjustment_pct=-2.0,
-            status="applied",
-            source="live",
-            raw_json={"test": True},
-        )
+    weather = (
+        db.query(WeatherSnapshot)
+        .filter(WeatherSnapshot.outlet_id == outlet.id, WeatherSnapshot.target_date == target_date)
+        .one()
     )
+    weather.summary = "Light rain"
+    weather.rain_mm = 3.4
+    weather.temp_max_c = 31.2
+    weather.adjustment_pct = -2.0
+    weather.status = "applied"
+    weather.source = "live"
+    weather.raw_json = {"test": True}
     db.add(
         ForecastOverride(
             target_date=target_date,
@@ -224,15 +228,6 @@ def test_explain_plan_forecast_mentions_contextual_drivers_when_present():
             created_by="tester",
         )
     )
-    for i in range(1, 15):
-        sales_day = target_date - timedelta(days=i)
-        db.add_all(
-            [
-                SalesFact(outlet_id=outlet.id, sku_id=sku.id, sale_date=sales_day, daypart="morning", units_sold=10, revenue=1),
-                SalesFact(outlet_id=outlet.id, sku_id=sku.id, sale_date=sales_day, daypart="midday", units_sold=8, revenue=1),
-                SalesFact(outlet_id=outlet.id, sku_id=sku.id, sale_date=sales_day, daypart="evening", units_sold=6, revenue=1),
-            ]
-        )
     db.commit()
     run_forecast_for_date(target_date, db)
     outlet_id = outlet.id
@@ -240,7 +235,7 @@ def test_explain_plan_forecast_mentions_contextual_drivers_when_present():
     db.close()
 
     original = copilot_router._call_llm
-    copilot_router._call_llm = lambda prompt, fallback="": fallback
+    copilot_router._call_llm = _fixed_llm("Holiday, weather adjustment, and manual override are reflected in the evidence.")
     try:
         _override_app_db(SessionLocal)
         with TestClient(app) as client:
@@ -263,19 +258,19 @@ def test_explain_plan_forecast_mentions_contextual_drivers_when_present():
         app.dependency_overrides.clear()
 
 
-def test_daily_brief_returns_deterministic_fallback_when_llm_unavailable():
+def test_daily_brief_returns_503_when_llm_unavailable():
     SessionLocal = _build_session_factory()
     db = SessionLocal()
-    _seed_demo_data(db)
+    _load_test_data(db)
     target_date = date.today()
 
-    run_forecast_for_date(target_date, db)
-    generate_prep_plan(target_date, db)
-    recommend_replenishment(target_date, db)
+    _prepare_planning_context(db, target_date)
     db.close()
 
     original = copilot_router._call_llm
-    copilot_router._call_llm = lambda prompt, fallback="": fallback
+    copilot_router._call_llm = lambda _prompt, _text="": (_ for _ in ()).throw(
+        copilot_router.HTTPException(status_code=503, detail="LLM provider unavailable")
+    )
     try:
         _override_app_db(SessionLocal)
         with TestClient(app) as client:
@@ -283,11 +278,7 @@ def test_daily_brief_returns_deterministic_fallback_when_llm_unavailable():
                 "/api/v1/copilot/daily-brief",
                 json={"brief_date": target_date.isoformat()},
             )
-            assert resp.status_code == 200
-            payload = resp.json()
-            assert payload["date"] == target_date.isoformat()
-            assert "Total predicted sales are" in payload["brief"]
-            assert payload["brief"].count("\n\n") == 2
+            assert resp.status_code == 503
     finally:
         copilot_router._call_llm = original
         app.dependency_overrides.clear()
@@ -296,7 +287,7 @@ def test_daily_brief_returns_deterministic_fallback_when_llm_unavailable():
 def test_run_scenario_handles_expected_inputs_without_db_writes():
     SessionLocal = _build_session_factory()
     db = SessionLocal()
-    _seed_demo_data(db)
+    _load_test_data(db)
     target_date = date.today()
 
     from db.models import PrepPlan, ReplenishmentPlan
@@ -341,37 +332,14 @@ def test_run_scenario_handles_expected_inputs_without_db_writes():
 def test_daily_actions_returns_valid_schema_with_llm_rephrasing():
     SessionLocal = _build_session_factory()
     db = SessionLocal()
-    _seed_demo_data(db)
+    _load_test_data(db)
     target_date = date.today()
 
-    run_forecast_for_date(target_date, db)
-    generate_prep_plan(target_date, db)
-    recommend_replenishment(target_date, db)
+    _prepare_planning_context(db, target_date)
     db.close()
 
-    def fake_llm(prompt, fallback=""):
-        if "Candidate actions JSON" in prompt:
-            action_ids = re.findall(r'"action_id":\s*"([^"]+)"', prompt)
-            return json.dumps(
-                [
-                    {
-                        "action_id": action_id,
-                        "action_text": f"Priority action for {action_id}",
-                        "estimated_impact": "Protect readiness while preserving deterministic plan values.",
-                    }
-                    for action_id in action_ids[:3]
-                ]
-            )
-        if "Top actions JSON" in prompt:
-            return (
-                "Operations are broadly ready for service.\n\n"
-                "Main risks are concentrated in the highest-ranked outlets and SKUs.\n\n"
-                "Act on the ranked prep and reorder actions first."
-            )
-        return fallback
-
     original = copilot_router._call_llm
-    copilot_router._call_llm = fake_llm
+    copilot_router._call_llm = _daily_actions_llm
     try:
         _override_app_db(SessionLocal)
         with TestClient(app) as client:
@@ -382,7 +350,6 @@ def test_daily_actions_returns_valid_schema_with_llm_rephrasing():
             assert resp.status_code == 200
             payload = resp.json()
             assert payload["date"] == target_date.isoformat()
-            assert payload["fallback_mode"] is False
             assert len(payload["top_actions"]) <= 3
             assert "brief" in payload
             assert "prep_actions" in payload
@@ -396,19 +363,19 @@ def test_daily_actions_returns_valid_schema_with_llm_rephrasing():
         app.dependency_overrides.clear()
 
 
-def test_daily_actions_fallback_mode_when_llm_unavailable():
+def test_daily_actions_returns_503_when_llm_unavailable():
     SessionLocal = _build_session_factory()
     db = SessionLocal()
-    _seed_demo_data(db)
+    _load_test_data(db)
     target_date = date.today()
 
-    run_forecast_for_date(target_date, db)
-    generate_prep_plan(target_date, db)
-    recommend_replenishment(target_date, db)
+    _prepare_planning_context(db, target_date)
     db.close()
 
     original = copilot_router._call_llm
-    copilot_router._call_llm = lambda prompt, fallback="": fallback
+    copilot_router._call_llm = lambda _prompt, _text="": (_ for _ in ()).throw(
+        copilot_router.HTTPException(status_code=503, detail="LLM provider unavailable")
+    )
     try:
         _override_app_db(SessionLocal)
         with TestClient(app) as client:
@@ -416,12 +383,7 @@ def test_daily_actions_fallback_mode_when_llm_unavailable():
                 "/api/v1/copilot/daily-actions",
                 json={"target_date": target_date.isoformat(), "top_n": 5},
             )
-            assert resp.status_code == 200
-            payload = resp.json()
-            assert payload["fallback_mode"] is True
-            assert payload["brief"].count("\n\n") == 2
-            assert len(payload["top_actions"]) <= 5
-            assert all(action["source_type"] == "deterministic" for action in payload["top_actions"])
+            assert resp.status_code == 503
     finally:
         copilot_router._call_llm = original
         app.dependency_overrides.clear()
@@ -430,8 +392,9 @@ def test_daily_actions_fallback_mode_when_llm_unavailable():
 def test_daily_actions_targets_reference_valid_entities():
     SessionLocal = _build_session_factory()
     db = SessionLocal()
-    _seed_demo_data(db)
+    _load_test_data(db)
     target_date = date.today()
+    _prepare_planning_context(db, target_date)
 
     from db.models import Ingredient, Outlet, SKU
 
@@ -441,7 +404,7 @@ def test_daily_actions_targets_reference_valid_entities():
     db.close()
 
     original = copilot_router._call_llm
-    copilot_router._call_llm = lambda prompt, fallback="": fallback
+    copilot_router._call_llm = _daily_actions_llm
     try:
         _override_app_db(SessionLocal)
         with TestClient(app) as client:
@@ -475,12 +438,13 @@ def test_daily_actions_targets_reference_valid_entities():
 def test_daily_actions_caps_top_n_to_five():
     SessionLocal = _build_session_factory()
     db = SessionLocal()
-    _seed_demo_data(db)
+    _load_test_data(db)
     target_date = date.today()
+    _prepare_planning_context(db, target_date)
     db.close()
 
     original = copilot_router._call_llm
-    copilot_router._call_llm = lambda prompt, fallback="": fallback
+    copilot_router._call_llm = _daily_actions_llm
     try:
         _override_app_db(SessionLocal)
         with TestClient(app) as client:
@@ -498,40 +462,32 @@ def test_daily_actions_caps_top_n_to_five():
 def test_daily_actions_handles_low_signal_dataset():
     SessionLocal = _build_session_factory()
     db = SessionLocal()
-    seed_master_data(db)
+    load_test_master_data(db)
     target_date = date.today()
     db.close()
 
-    original = copilot_router._call_llm
-    copilot_router._call_llm = lambda prompt, fallback="": fallback
+    _override_app_db(SessionLocal)
     try:
-        _override_app_db(SessionLocal)
         with TestClient(app) as client:
             resp = client.post(
                 "/api/v1/copilot/daily-actions",
                 json={"target_date": target_date.isoformat(), "top_n": 5},
             )
-            assert resp.status_code == 200
-            payload = resp.json()
-            assert payload["date"] == target_date.isoformat()
-            assert payload["brief"]
-            assert isinstance(payload["top_actions"], list)
-            assert isinstance(payload["prep_actions"], list)
-            assert isinstance(payload["reorder_actions"], list)
+            assert resp.status_code == 503
     finally:
-        copilot_router._call_llm = original
         app.dependency_overrides.clear()
 
 
 def test_daily_actions_dedupes_duplicate_prep_actions():
     SessionLocal = _build_session_factory()
     db = SessionLocal()
-    _seed_demo_data(db)
+    _load_test_data(db)
     target_date = date.today()
+    _prepare_planning_context(db, target_date)
     db.close()
 
     original = copilot_router._call_llm
-    copilot_router._call_llm = lambda prompt, fallback="": fallback
+    copilot_router._call_llm = _daily_actions_llm
     try:
         _override_app_db(SessionLocal)
         with TestClient(app) as client:
@@ -550,12 +506,12 @@ def test_daily_actions_dedupes_duplicate_prep_actions():
 def test_daily_plan_and_daily_actions_can_be_requested_for_same_date():
     SessionLocal = _build_session_factory()
     db = SessionLocal()
-    _seed_demo_data(db)
+    _load_test_data(db)
     target_date = date.today()
     db.close()
 
     original = copilot_router._call_llm
-    copilot_router._call_llm = lambda prompt, fallback="": fallback
+    copilot_router._call_llm = _daily_actions_llm
     try:
         _override_app_db(SessionLocal)
         with TestClient(app) as client:
@@ -579,10 +535,10 @@ def test_daily_plan_and_daily_actions_can_be_requested_for_same_date():
         app.dependency_overrides.clear()
 
 
-def test_daily_brief_localizes_fallback_output():
+def test_daily_brief_localizes_llm_output():
     SessionLocal = _build_session_factory()
     db = SessionLocal()
-    _seed_demo_data(db)
+    _load_test_data(db)
     target_date = date.today()
     run_forecast_for_date(target_date, db)
     generate_prep_plan(target_date, db)
@@ -590,7 +546,11 @@ def test_daily_brief_localizes_fallback_output():
     db.close()
 
     original = copilot_router._call_llm
-    copilot_router._call_llm = lambda prompt, fallback="": fallback
+    copilot_router._call_llm = lambda prompt, _text="": (
+        "Ringkasan harian daripada LLM"
+        if "Bahasa Melayu" in prompt
+        else "æ¯æ—¥ç®€æŠ¥ LLM"
+    )
     try:
         _override_app_db(SessionLocal)
         with TestClient(app) as client:
@@ -605,21 +565,40 @@ def test_daily_brief_localizes_fallback_output():
             assert ms_resp.status_code == 200
             assert zh_resp.status_code == 200
             assert "Ringkasan harian" in ms_resp.json()["brief"]
-            assert "每日简报" in zh_resp.json()["brief"]
+            assert "LLM" in zh_resp.json()["brief"]
     finally:
         copilot_router._call_llm = original
         app.dependency_overrides.clear()
 
 
-def test_daily_actions_localize_fallback_output():
+def test_daily_actions_localize_llm_output():
     SessionLocal = _build_session_factory()
     db = SessionLocal()
-    _seed_demo_data(db)
+    _load_test_data(db)
     target_date = date.today()
+    _prepare_planning_context(db, target_date)
     db.close()
 
+    def localized_daily_actions_llm(prompt, _text=""):
+        if "Candidate actions JSON" in prompt:
+            action_ids = re.findall(r'"action_id":\s*"([^"]+)"', prompt)
+            text = "Kurangkan tindakan" if "Bahasa Melayu" in prompt else "å…³æ³¨è¡ŒåŠ¨"
+            return json.dumps(
+                [
+                    {
+                        "action_id": action_id,
+                        "action_text": text,
+                        "estimated_impact": "LLM impact",
+                    }
+                    for action_id in action_ids[:5]
+                ]
+            )
+        if "Top actions JSON" in prompt:
+            return "Tindakan harian LLM" if "Bahasa Melayu" in prompt else "æ¯æ—¥è¡ŒåŠ¨ LLM"
+        return "LLM response"
+
     original = copilot_router._call_llm
-    copilot_router._call_llm = lambda prompt, fallback="": fallback
+    copilot_router._call_llm = localized_daily_actions_llm
     try:
         _override_app_db(SessionLocal)
         with TestClient(app) as client:
@@ -638,13 +617,8 @@ def test_daily_actions_localize_fallback_output():
                 "Kurangkan" in action["action_text"] or "Pantau" in action["action_text"]
                 for action in ms_resp.json()["top_actions"]
             )
-            assert "每日行动" in zh_resp.json()["brief"]
-            assert any(
-                "减少" in action["action_text"]
-                or "关注" in action["action_text"]
-                or "提高" in action["action_text"]
-                for action in zh_resp.json()["top_actions"]
-            )
+            assert "LLM" in zh_resp.json()["brief"]
+            assert zh_resp.json()["top_actions"]
     finally:
         copilot_router._call_llm = original
         app.dependency_overrides.clear()
@@ -653,7 +627,7 @@ def test_daily_actions_localize_fallback_output():
 def test_scenario_supports_non_english_inputs():
     SessionLocal = _build_session_factory()
     db = SessionLocal()
-    _seed_demo_data(db)
+    _load_test_data(db)
     target_date = date.today()
     db.close()
 
@@ -672,18 +646,16 @@ def test_scenario_supports_non_english_inputs():
         assert "Kurangkan prep" in payload["interpretation"] or "Teruskan" in payload["recommendation"]
 
 
-def test_invalid_language_falls_back_to_english():
+def test_invalid_language_uses_english_prompt():
     SessionLocal = _build_session_factory()
     db = SessionLocal()
-    _seed_demo_data(db)
+    _load_test_data(db)
     target_date = date.today()
-    run_forecast_for_date(target_date, db)
-    generate_prep_plan(target_date, db)
-    recommend_replenishment(target_date, db)
+    _prepare_planning_context(db, target_date)
     db.close()
 
     original = copilot_router._call_llm
-    copilot_router._call_llm = lambda prompt, fallback="": fallback
+    copilot_router._call_llm = _fixed_llm("Daily brief for English prompt")
     try:
         _override_app_db(SessionLocal)
         with TestClient(app) as client:

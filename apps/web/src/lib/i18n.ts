@@ -35,13 +35,13 @@ export function getLocale(language: LanguageCode): string {
 export function translate(
   language: LanguageCode,
   key: string,
-  fallback?: string,
+  defaultText?: string,
   values?: Record<string, string | number>
 ): string {
   if (!dictionaries[language]) {
     console.error(`[i18n] Missing dictionary for language:`, language, `Type:`, typeof language);
   }
-  const template = dictionaries[language]?.[key] ?? dictionaries.en[key] ?? fallback ?? key;
+  const template = dictionaries[language]?.[key] ?? dictionaries.en[key] ?? defaultText ?? key;
   if (!values) {
     return template;
   }

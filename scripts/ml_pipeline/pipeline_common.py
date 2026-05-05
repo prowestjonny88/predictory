@@ -11,7 +11,6 @@ import argparse
 import json
 import pickle
 import re
-import shutil
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -86,8 +85,6 @@ class PipelinePaths:
     models_dir: Path
     backend_models_dir: Path
     exports_dir: Path
-    frontend_demo_dir: Path
-    web_demo_dir: Path
 
     @classmethod
     def from_args(cls, args: argparse.Namespace) -> "PipelinePaths":
@@ -99,8 +96,6 @@ class PipelinePaths:
             models_dir=(repo_root / args.models_dir).resolve(),
             backend_models_dir=(repo_root / args.backend_models_dir).resolve(),
             exports_dir=(repo_root / args.exports_dir).resolve(),
-            frontend_demo_dir=(repo_root / args.frontend_demo_dir).resolve(),
-            web_demo_dir=(repo_root / args.web_demo_dir).resolve(),
         )
 
     def ensure_dirs(self) -> None:
@@ -109,8 +104,6 @@ class PipelinePaths:
             self.models_dir,
             self.backend_models_dir,
             self.exports_dir,
-            self.frontend_demo_dir,
-            self.web_demo_dir,
         ]:
             directory.mkdir(parents=True, exist_ok=True)
 
@@ -122,8 +115,6 @@ def add_common_args(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
     parser.add_argument("--models-dir", default="backend/models", help="Primary model artifact directory")
     parser.add_argument("--backend-models-dir", default="backend/models", help="Backend model drop-in directory")
     parser.add_argument("--exports-dir", default="exports/ml_pipeline", help="Export artifact directory")
-    parser.add_argument("--frontend-demo-dir", default="apps/web/public/demo-data", help="Canonical frontend demo data")
-    parser.add_argument("--web-demo-dir", default="apps/web/public/demo-data", help="Next.js public demo data")
     parser.add_argument("--days", type=int, default=180, help="Days of source history to keep")
     parser.add_argument("--seed", type=int, default=42, help="Random seed")
     return parser
@@ -540,47 +531,6 @@ def display_path(path: Path, root: Path) -> str:
         return str(path)
 
 
-def validate_demo_payloads(paths: PipelinePaths) -> None:
-    required = [
-        "forecast_api_response.json",
-        "outlet_dashboard_payload.json",
-        "recommendation_cards.json",
-        "llm_decision_context.json",
-        "optimized_recommendations_frontend.csv",
-    ]
-    missing = [name for name in required if not (paths.frontend_demo_dir / name).exists()]
-    if missing:
-        raise FileNotFoundError(f"Missing frontend demo payloads: {missing}")
-    forecast_payload = read_json(paths.frontend_demo_dir / "forecast_api_response.json")
-    outlet_payload = read_json(paths.frontend_demo_dir / "outlet_dashboard_payload.json")
-    recommendation_payload = read_json(paths.frontend_demo_dir / "recommendation_cards.json")
-    if not isinstance(forecast_payload, dict) or not forecast_payload.get("forecastLines"):
-        raise ValueError("forecast_api_response.json must include forecastLines")
-    if not isinstance(outlet_payload, dict) or not outlet_payload.get("outlets"):
-        raise ValueError("outlet_dashboard_payload.json must include outlets")
-    if not isinstance(recommendation_payload, dict) or not recommendation_payload.get("cards"):
-        raise ValueError("recommendation_cards.json must include cards")
-
-
-def step_12_export_payloads(paths: PipelinePaths) -> Path:
-    validate_demo_payloads(paths)
-    paths.web_demo_dir.mkdir(parents=True, exist_ok=True)
-    for source in paths.frontend_demo_dir.iterdir():
-        if source.is_file():
-            destination = paths.web_demo_dir / source.name
-            if source.resolve() != destination.resolve():
-                shutil.copy2(source, destination)
-    manifest = {
-        "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "source_demo_dir": display_path(paths.frontend_demo_dir, paths.repo_root),
-        "web_demo_dir": display_path(paths.web_demo_dir, paths.repo_root),
-        "files": sorted(path.name for path in paths.frontend_demo_dir.iterdir() if path.is_file()),
-    }
-    output = paths.pipeline_dir / "12_payload_manifest.json"
-    write_json(output, manifest)
-    return output
-
-
 STEP_FUNCS = {
     "01": lambda paths, args: step_01_ingest(paths),
     "02": lambda paths, args: step_02_map_skus(paths),
@@ -593,7 +543,6 @@ STEP_FUNCS = {
     "09": lambda paths, args: step_09_build_bands(paths),
     "10": lambda paths, args: step_10_generate_forecast(paths),
     "11": lambda paths, args: step_11_optimize_prep(paths),
-    "12": lambda paths, args: step_12_export_payloads(paths),
 }
 
 

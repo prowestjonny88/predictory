@@ -34,7 +34,7 @@ const ms = {
   "common.override.promo": "Promosi",
   "common.override.event": "Acara",
   "common.source.ai": "Digubah AI",
-  "common.source.deterministic": "Deterministik",
+  "common.source.rulesBased": "Berasaskan peraturan",
   "actionType.prep": "Persediaan",
   "actionType.reorder": "Pesan semula",
   "actionType.risk": "Risiko",
@@ -49,7 +49,7 @@ const ms = {
   "nav.scenarioPlanner": "Perancang Senario",
   "nav.stock": "Stok Semasa",
   "nav.copilot": "Copilot AI",
-  "nav.footer": "Predictory v2 · Binaan demo ASEAN",
+  "nav.footer": "Predictory v2",
   "language.label": "Bahasa",
   "language.english": "English",
   "language.malay": "Bahasa Melayu",
@@ -212,7 +212,6 @@ const ms = {
   "scenario.preset.butterDelay": "Penghantaran butter tertangguh",
   "scenario.preset.weekendSpike": "Lonjakan permintaan hujung minggu 30%",
   "actionPlan.title": "Pelan Tindakan AI",
-  "actionPlan.fallbackMode": "Mod fallback",
   "actionPlan.topActions": "Tindakan Utama",
   "actionPlan.noActions": "Tiada tindakan AI dikembalikan untuk tarikh ini.",
   "actionPlan.prepActions": "Tindakan Persediaan",
@@ -245,7 +244,7 @@ const ms = {
   "language.chineseFull": "Cina Ringkas (Singapura)",
   "catalog.title": "Katalog SKU",
   "catalog.section.itemsPrices": "Item dan harga",
-  "catalog.section.unitCostHelper": "Kos unit dikira sebagai harga unit x {{ratio}} untuk tujuan demo.",
+  "catalog.section.unitCostHelper": "Kos unit dikira daripada data resipi dan kos bahan yang diimport.",
   "catalog.loadingSkus": "Memuatkan SKU...",
   "catalog.failedSkus": "Gagal memuatkan SKU",
   "catalog.emptySkus": "Tiada data SKU ditemui.",
@@ -269,11 +268,11 @@ const ms = {
   "planning.actionSummary.subtext": "Paparan ini mengutamakan keputusan persediaan dan pengisian semula yang optimum dari segi kewangan berdasarkan ramalan permintaan LightGBM.",
   "planning.modelBadge": "Prototaip MLOps LightGBM",
   "planning.status.decisionRecorded": "Keputusan direkodkan.",
-  "planning.status.regenerateQueued": "Permintaan jana semula dalam baris (mod demo). Menggunakan larian cache.",
+  "planning.status.regenerateQueued": "Permintaan jana semula gagal.",
   "planning.summary.noActions": "Tiada tindakan",
   "planning.summary.noShortages": "Tiada kekurangan dikesan",
   "planning.summary.noRisks": "Tiada risiko dikesan",
-  "planning.summary.mismatchValue": "{{percent}}% pengurangan pada tetingkap demo",
+  "planning.summary.mismatchValue": "Delta {{percent}}% pada tetingkap pengesahan",
   "planning.recommendations": "Cadangan",
   "planning.showingActions": "Menunjukkan {{count}} tindakan",
   "planning.loadingPlan": "Memuatkan pelan terkini...",
@@ -339,16 +338,11 @@ const ms = {
   ,"stock.centralWarehouse": "Gudang Pusat"
   ,"stock.live": "LANGSUNG"
   ,"stock.needsReorder": "Perlu Pesan Semula"
-  ,"forecast.mathDetails": "Butiran matematik ramalan"
-  ,"forecast.signalTotals": "Jumlah isyarat"
-  ,"forecast.weightedRecent": "Terkini berwajaran"
-  ,"forecast.weekdayPattern": "Corak hari bekerja"
-  ,"forecast.avg14d": "Purata 14 hari"
-  ,"forecast.adjustments": "Pelarasan"
-  ,"forecast.baselineTotal": "Jumlah asas"
-  ,"forecast.contextAdjustment": "Pelarasan konteks"
-  ,"forecast.finalTotal": "Jumlah akhir"
-  ,"forecast.daypartSplit": "Pembahagian sesi"
+  ,"forecast.mathDetails": "Bukti ramalan"
+  ,"forecast.model": "Model"
+  ,"forecast.engine": "Enjin"
+  ,"forecast.method": "Kaedah"
+  ,"forecast.featureCount": "Ciri dikodkan"
   ,"forecast.drivers": "Pemacu"
   ,"forecast.holiday": "Cuti"
   ,"forecast.weather": "Cuaca"
@@ -378,7 +372,7 @@ const ms = {
   ,"planning.replenishment.short": "Kurang"
   ,"planning.replenishment.currentStock": "Stok semasa"
   ,"planning.modelEvidence.title": "Bukti model"
-  ,"planning.modelEvidence.note": "Status model: prototaip MLOps. Disahkan pada tetingkap demo gaya POS."
+  ,"planning.modelEvidence.note": "Status model: prototaip MLOps. Disahkan pada tetingkap pengesahan artifak terlatih."
   ,"planning.status": "Status"
   ,"planning.engine": "Enjin"
   ,"planning.version": "Versi"

@@ -132,7 +132,7 @@ def train_model_stub(
     return TrainModelOut(
         model_run_id=model_run.id,
         status=model_run.status,
-        message="Accepted ML artifacts registered. Retraining is intentionally not run by this demo endpoint.",
+        message="Accepted ML artifacts registered. Retraining is intentionally not run by this endpoint.",
         model=_model_run_out(
             model_run,
             artifact_loaded=bool(model_info.get("is_loaded")),

@@ -15,8 +15,6 @@ from alerts.stockout import StockoutAlert, detect_stockout_risk
 from alerts.waste import WasteAlert, detect_waste_risk
 from copilot.prompts import DAILY_ACTIONS_BRIEF_PROMPT, DAILY_ACTIONS_RANKING_PROMPT
 from db.models import ForecastRun, Ingredient, Outlet, PrepPlan, ReplenishmentPlan, SKU
-from forecasting.engine import run_forecast_for_date
-from planning.prep import generate_prep_plan
 from planning.replenishment import recommend_replenishment
 
 ActionDict = dict[str, Any]
@@ -183,7 +181,6 @@ class DailyAgentState(TypedDict, total=False):
     candidate_actions: list[ActionDict]
     ranked_actions: list[ActionDict]
     brief: str
-    fallback_mode: bool
     total_predicted_sales: int
     high_waste_count: int
     high_stockout_count: int
@@ -276,7 +273,7 @@ def _make_action(
         "estimated_impact": estimated_impact,
         "target": target_data,
         "evidence": _dedupe_strings(evidence),
-        "source_type": "deterministic",
+        "source_type": "rules_based",
         "_priority": priority,
         "_source_family": source_family,
     }
@@ -361,43 +358,6 @@ def _extract_json_array(raw: str) -> list[dict[str, Any]] | None:
     return [item for item in payload if isinstance(item, dict)]
 
 
-def _deterministic_brief(
-    state: DailyAgentState, top_actions: list[ActionDict], language: str
-) -> str:
-    target_date = state["target_date"]
-    weekday = DAY_LABELS_BY_LANGUAGE.get(language, DAY_LABELS)[target_date.weekday()]
-    intro = _msg(
-        language,
-        "brief_intro",
-        target_date=target_date,
-        weekday=weekday,
-        total_predicted_sales=state["total_predicted_sales"],
-        high_waste_count=state["high_waste_count"],
-        high_stockout_count=state["high_stockout_count"],
-        critical_reorder_count=state["critical_reorder_count"],
-    )
-    if top_actions:
-        outlets = ", ".join(
-            _dedupe_strings(
-                [
-                    action["target"].get("outlet_name")
-                    for action in top_actions
-                    if action["target"].get("outlet_name")
-                ]
-            )[:3]
-        )
-        main_risks = _msg(language, "brief_risks", outlets=outlets)
-        action_summary = _msg(
-            language,
-            "brief_top",
-            actions="; ".join(action["action_text"] for action in top_actions[:3]),
-        )
-    else:
-        main_risks = _msg(language, "brief_none")
-        action_summary = _msg(language, "brief_monitor")
-    return f"{intro}\n\n{main_risks}\n\n{action_summary}"
-
-
 def generate_daily_actions(
     target_date: date, top_n: int, db: Session, llm_fn: LLMFn, language: str = "en"
 ) -> dict[str, Any]:
@@ -406,11 +366,11 @@ def generate_daily_actions(
     def load_context(state: DailyAgentState) -> DailyAgentState:
         forecast_run = _get_latest_forecast_run(target_date, db)
         if not forecast_run:
-            forecast_run = run_forecast_for_date(target_date, db)
+            raise RuntimeError("Daily actions require an existing forecast run")
 
         prep_plan = _get_latest_prep_plan(target_date, db)
         if not prep_plan:
-            prep_plan = generate_prep_plan(target_date, db)
+            raise RuntimeError("Daily actions require an existing optimizer-backed prep plan")
 
         replenishment_plan = _get_latest_replenishment_plan(target_date, db)
         if not replenishment_plan:
@@ -431,7 +391,6 @@ def generate_daily_actions(
             "critical_reorder_count": sum(
                 1 for line in replenishment_plan.lines if line.urgency == "critical"
             ),
-            "fallback_mode": False,
             "errors": [],
         }
 
@@ -739,7 +698,6 @@ def generate_daily_actions(
 
     def rank_and_phrase_actions(state: DailyAgentState) -> DailyAgentState:
         top_actions = _select_top_actions(state.get("candidate_actions", []), state["top_n"])
-        fallback_mode = bool(state.get("fallback_mode", False))
 
         candidate_payload = [
             {
@@ -789,11 +747,10 @@ def generate_daily_actions(
                             ranked.append(action)
                     top_actions = ranked[: state["top_n"]]
                 else:
-                    fallback_mode = True
+                    raise RuntimeError("Daily action ranking did not return usable JSON")
             else:
-                fallback_mode = True
+                raise RuntimeError("Daily action ranking did not return valid JSON")
 
-        brief_fallback = _deterministic_brief(state, top_actions, language)
         brief_prompt = f"{_language_prompt_prefix(language)}\n\n" + DAILY_ACTIONS_BRIEF_PROMPT.format(
             date=str(state["target_date"]),
             weekday=DAY_LABELS_BY_LANGUAGE.get(language, DAY_LABELS)[state["target_date"].weekday()],
@@ -801,7 +758,6 @@ def generate_daily_actions(
             high_waste_count=state["high_waste_count"],
             high_stockout_count=state["high_stockout_count"],
             critical_reorder_count=state["critical_reorder_count"],
-            fallback_mode=str(fallback_mode).lower(),
             top_actions_json=json.dumps(
                 [
                     {
@@ -815,14 +771,13 @@ def generate_daily_actions(
                 indent=2,
             ),
         )
-        brief = llm_fn(brief_prompt, brief_fallback).strip() or brief_fallback
-        if brief == brief_fallback:
-            fallback_mode = True
+        brief = llm_fn(brief_prompt, "").strip()
+        if not brief:
+            raise RuntimeError("Daily action brief did not return text")
 
         return {
             "ranked_actions": top_actions,
             "brief": brief,
-            "fallback_mode": fallback_mode,
         }
 
     def validate_and_finalize(state: DailyAgentState) -> DailyAgentState:
@@ -875,7 +830,6 @@ def generate_daily_actions(
     return {
         "date": str(target_date),
         "brief": final_state["brief"],
-        "fallback_mode": final_state["fallback_mode"],
         "top_actions": final_state["ranked_actions"],
         "prep_actions": final_state["prep_actions"],
         "reorder_actions": final_state["reorder_actions"],

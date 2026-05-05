@@ -1,4 +1,3 @@
-import random
 from datetime import date, timedelta
 
 from fastapi.testclient import TestClient
@@ -20,8 +19,9 @@ from db.models import (
     RecipeBOM,
     SKU,
     SalesFact,
+    WeatherSnapshot,
 )
-from db.seed import seed_master_data, seed_sales_and_waste
+from factories import load_test_dataset
 from main import app
 from planning.prep import generate_prep_plan
 
@@ -36,20 +36,14 @@ def _build_session_factory():
     return sessionmaker(bind=engine, autocommit=False, autoflush=False)
 
 
-def _seed_demo_data(session):
-    random.seed(42)
-    seed_master_data(session)
-    from db.models import Outlet, SKU
-
-    all_outlets = session.query(Outlet).all()
-    all_skus = session.query(SKU).all()
-    seed_sales_and_waste(session, all_outlets, all_skus)
+def _load_test_data(session):
+    load_test_dataset(session)
 
 
-def test_seeded_alerts_flag_bangsar_waste_and_klcc_stockout():
+def test_alerts_flag_bangsar_waste_and_klcc_stockout():
     SessionLocal = _build_session_factory()
     db = SessionLocal()
-    _seed_demo_data(db)
+    _load_test_data(db)
 
     target_date = date.today()
     generate_prep_plan(target_date, db)
@@ -77,7 +71,7 @@ def test_seeded_alerts_flag_bangsar_waste_and_klcc_stockout():
 def test_daily_plan_api_returns_required_sections_and_plan_triggers():
     SessionLocal = _build_session_factory()
     db = SessionLocal()
-    _seed_demo_data(db)
+    _load_test_data(db)
     target_date = date.today().isoformat()
     db.close()
 
@@ -137,7 +131,7 @@ def test_daily_plan_api_returns_required_sections_and_plan_triggers():
 def test_apply_recommendation_decision_updates_prep_line_and_records_audit():
     SessionLocal = _build_session_factory()
     db = SessionLocal()
-    _seed_demo_data(db)
+    _load_test_data(db)
     target_date = date.today().isoformat()
     db.close()
 
@@ -184,7 +178,7 @@ def test_apply_recommendation_decision_updates_prep_line_and_records_audit():
 def test_daily_plan_reuses_existing_runs_and_plans_after_first_generation():
     SessionLocal = _build_session_factory()
     db = SessionLocal()
-    _seed_demo_data(db)
+    _load_test_data(db)
     target_date = date.today().isoformat()
     db.close()
 
@@ -266,6 +260,18 @@ def test_stockout_keeps_checking_other_skus_after_ingredient_alert():
     )
 
     target_date = date(2026, 3, 10)
+    db.add(
+        WeatherSnapshot(
+            outlet_id=outlet.id,
+            target_date=target_date,
+            summary="Clear",
+            rain_mm=0.0,
+            temp_max_c=29.5,
+            adjustment_pct=0.0,
+            status="neutral",
+            source="test",
+        )
+    )
     for i in range(1, 15):
         d = target_date - timedelta(days=i)
         db.add_all(
@@ -276,6 +282,8 @@ def test_stockout_keeps_checking_other_skus_after_ingredient_alert():
                 SalesFact(outlet_id=outlet.id, sku_id=sku_b.id, sale_date=d, daypart="morning", units_sold=20, revenue=100),
                 SalesFact(outlet_id=outlet.id, sku_id=sku_b.id, sale_date=d, daypart="midday", units_sold=10, revenue=50),
                 SalesFact(outlet_id=outlet.id, sku_id=sku_b.id, sale_date=d, daypart="evening", units_sold=8, revenue=40),
+                InventorySnapshot(outlet_id=outlet.id, sku_id=sku_a.id, snapshot_date=d, snapshot_time="eod", units_on_hand=5),
+                InventorySnapshot(outlet_id=outlet.id, sku_id=sku_b.id, snapshot_date=d, snapshot_time="eod", units_on_hand=0 if i <= 3 else 4),
             ]
         )
 

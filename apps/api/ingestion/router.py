@@ -11,17 +11,42 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 
 from db.database import get_db
-from db.models import HolidayCalendar, InventorySnapshot, Outlet, SalesFact, SKU
+from db.models import (
+    HolidayCalendar,
+    Ingredient,
+    InventorySnapshot,
+    Outlet,
+    RecipeBOM,
+    SalesFact,
+    SKU,
+    WasteLog,
+    WeatherSnapshot,
+)
 
 router = APIRouter()
 
-SUPPORTED_TYPES = ("sales", "inventory", "products", "holidays")
+SUPPORTED_TYPES = (
+    "sales",
+    "inventory",
+    "products",
+    "holidays",
+    "outlets",
+    "ingredients",
+    "recipes",
+    "waste",
+    "weather",
+)
 
 REQUIRED_COLUMNS = {
     "sales": {"sale_date", "daypart", "units_sold", "outlet_code", "sku_code"},
     "inventory": {"snapshot_date", "snapshot_time", "units_on_hand", "outlet_code", "sku_code"},
     "products": {"sku_name", "category", "price"},
     "holidays": {"holiday_date", "name"},
+    "outlets": {"code", "name"},
+    "ingredients": {"code", "name", "unit"},
+    "recipes": {"sku_code", "ingredient_code", "quantity_per_unit", "unit"},
+    "waste": {"waste_date", "daypart", "units_wasted", "outlet_code", "sku_code"},
+    "weather": {"target_date", "outlet_code"},
 }
 
 DAYPARTS = {"morning", "midday", "evening"}
@@ -106,6 +131,16 @@ def _detect_type(headers: set) -> str:
         return "products"
     if {"holiday_date", "name"}.issubset(headers):
         return "holidays"
+    if {"code", "name"}.issubset(headers) and {"latitude", "longitude"}.intersection(headers):
+        return "outlets"
+    if {"ingredient_code", "sku_code", "quantity_per_unit"}.issubset(headers):
+        return "recipes"
+    if {"code", "name", "unit"}.issubset(headers):
+        return "ingredients"
+    if {"waste_date", "units_wasted", "daypart"}.issubset(headers):
+        return "waste"
+    if {"target_date", "outlet_code"}.issubset(headers) and {"rain_mm", "temp_max_c", "summary"}.intersection(headers):
+        return "weather"
     return "unknown"
 
 
@@ -547,6 +582,180 @@ def _import_holidays(rows: list[dict], db: Session) -> tuple[int, list[str]]:
     return committed, errors
 
 
+def _import_outlets(rows: list[dict], db: Session) -> tuple[int, list[str]]:
+    by_code = {outlet.code: outlet for outlet in db.query(Outlet).all()}
+    committed = 0
+    errors = []
+    for i, row in enumerate(rows):
+        try:
+            code = row.get("code", "").strip()
+            name = row.get("name", "").strip()
+            if not code or not name:
+                errors.append(f"Row {i+2}: code and name are required")
+                continue
+            latitude = row.get("latitude", "").strip()
+            longitude = row.get("longitude", "").strip()
+            outlet = by_code.get(code)
+            if outlet is None:
+                outlet = Outlet(code=code, name=name)
+                db.add(outlet)
+                db.flush()
+                by_code[code] = outlet
+            outlet.name = name
+            outlet.address = row.get("address", "").strip() or None
+            outlet.latitude = _to_float(latitude) if latitude else None
+            outlet.longitude = _to_float(longitude) if longitude else None
+            outlet.is_active = _to_bool(row.get("is_active", ""), default=True)
+            committed += 1
+        except Exception as exc:
+            errors.append(f"Row {i+2}: {exc}")
+    db.commit()
+    return committed, errors
+
+
+def _import_ingredients(rows: list[dict], db: Session) -> tuple[int, list[str]]:
+    by_code = {ingredient.code: ingredient for ingredient in db.query(Ingredient).all()}
+    committed = 0
+    errors = []
+    for i, row in enumerate(rows):
+        try:
+            code = row.get("code", "").strip() or row.get("ingredient_code", "").strip()
+            name = row.get("name", "").strip() or row.get("ingredient_name", "").strip()
+            unit = row.get("unit", "").strip()
+            if not code or not name or not unit:
+                errors.append(f"Row {i+2}: code, name, and unit are required")
+                continue
+            ingredient = by_code.get(code)
+            if ingredient is None:
+                ingredient = Ingredient(code=code, name=name, unit=unit)
+                db.add(ingredient)
+                db.flush()
+                by_code[code] = ingredient
+            ingredient.name = name
+            ingredient.unit = unit
+            ingredient.stock_on_hand = _to_float(row.get("stock_on_hand", ""), default=ingredient.stock_on_hand or 0.0)
+            ingredient.reorder_point = _to_float(row.get("reorder_point", ""), default=ingredient.reorder_point or 0.0)
+            ingredient.supplier_lead_time_hours = _to_int(
+                row.get("supplier_lead_time_hours", ""),
+                default=ingredient.supplier_lead_time_hours or 24,
+            )
+            ingredient.cost_per_unit = _to_float(row.get("cost_per_unit", ""), default=ingredient.cost_per_unit or 0.0)
+            ingredient.is_active = _to_bool(row.get("is_active", ""), default=True)
+            committed += 1
+        except Exception as exc:
+            errors.append(f"Row {i+2}: {exc}")
+    db.commit()
+    return committed, errors
+
+
+def _import_recipes(rows: list[dict], db: Session) -> tuple[int, list[str]]:
+    skus = {sku.code: sku for sku in db.query(SKU).all()}
+    ingredients = {ingredient.code: ingredient for ingredient in db.query(Ingredient).all()}
+    committed = 0
+    errors = []
+    for i, row in enumerate(rows):
+        try:
+            sku = skus.get(_canonical_sku_code(row.get("sku_code", "")))
+            ingredient = ingredients.get(row.get("ingredient_code", "").strip())
+            if not sku or not ingredient:
+                errors.append(f"Row {i+2}: unknown sku_code or ingredient_code")
+                continue
+            quantity = _to_float(row.get("quantity_per_unit", ""))
+            unit = row.get("unit", "").strip()
+            if quantity <= 0 or not unit:
+                errors.append(f"Row {i+2}: quantity_per_unit must be > 0 and unit is required")
+                continue
+            recipe = (
+                db.query(RecipeBOM)
+                .filter(RecipeBOM.sku_id == sku.id, RecipeBOM.ingredient_id == ingredient.id)
+                .first()
+            )
+            if recipe is None:
+                recipe = RecipeBOM(sku_id=sku.id, ingredient_id=ingredient.id, quantity_per_unit=quantity, unit=unit)
+                db.add(recipe)
+            else:
+                recipe.quantity_per_unit = quantity
+                recipe.unit = unit
+            committed += 1
+        except Exception as exc:
+            errors.append(f"Row {i+2}: {exc}")
+    db.commit()
+    return committed, errors
+
+
+def _import_waste(rows: list[dict], db: Session) -> tuple[int, list[str]]:
+    outlets = {outlet.code: outlet.id for outlet in db.query(Outlet).all()}
+    skus = {sku.code: sku.id for sku in db.query(SKU).all()}
+    committed = 0
+    errors = []
+    for i, row in enumerate(rows):
+        try:
+            outlet_id = outlets.get(_canonical_outlet_code(row.get("outlet_code", "")))
+            sku_id = skus.get(_canonical_sku_code(row.get("sku_code", "")))
+            daypart = DAYPART_ALIASES.get(row.get("daypart", "").strip().lower(), row.get("daypart", "").strip().lower())
+            if not outlet_id or not sku_id:
+                errors.append(f"Row {i+2}: unknown outlet_code or sku_code")
+                continue
+            if daypart not in DAYPARTS:
+                errors.append(f"Row {i+2}: invalid daypart '{daypart}'")
+                continue
+            units = _to_int(row.get("units_wasted", ""))
+            if units < 0:
+                errors.append(f"Row {i+2}: units_wasted must be >= 0")
+                continue
+            db.add(
+                WasteLog(
+                    outlet_id=outlet_id,
+                    sku_id=sku_id,
+                    waste_date=_parse_date(row["waste_date"]),
+                    daypart=daypart,
+                    units_wasted=units,
+                    reason=row.get("reason", "").strip() or None,
+                )
+            )
+            committed += 1
+        except Exception as exc:
+            errors.append(f"Row {i+2}: {exc}")
+    db.commit()
+    return committed, errors
+
+
+def _import_weather(rows: list[dict], db: Session) -> tuple[int, list[str]]:
+    outlets = {outlet.code: outlet.id for outlet in db.query(Outlet).all()}
+    committed = 0
+    errors = []
+    for i, row in enumerate(rows):
+        try:
+            outlet_id = outlets.get(_canonical_outlet_code(row.get("outlet_code", "")))
+            if not outlet_id:
+                errors.append(f"Row {i+2}: unknown outlet_code")
+                continue
+            target_date = _parse_date(row["target_date"])
+            rain_mm = _to_float(row.get("rain_mm", ""), default=0.0)
+            temp_max_c = _to_float(row.get("temp_max_c", ""), default=29.7)
+            adjustment_pct = _to_float(row.get("adjustment_pct", ""), default=0.0)
+            snapshot = (
+                db.query(WeatherSnapshot)
+                .filter(WeatherSnapshot.outlet_id == outlet_id, WeatherSnapshot.target_date == target_date)
+                .first()
+            )
+            if snapshot is None:
+                snapshot = WeatherSnapshot(outlet_id=outlet_id, target_date=target_date)
+                db.add(snapshot)
+            snapshot.summary = row.get("summary", "").strip() or "Imported weather"
+            snapshot.rain_mm = rain_mm
+            snapshot.temp_max_c = temp_max_c
+            snapshot.adjustment_pct = adjustment_pct
+            snapshot.status = row.get("status", "").strip() or ("applied" if adjustment_pct else "neutral")
+            snapshot.source = row.get("source", "").strip() or "csv"
+            snapshot.raw_json = {"imported": True}
+            committed += 1
+        except Exception as exc:
+            errors.append(f"Row {i+2}: {exc}")
+    db.commit()
+    return committed, errors
+
+
 @router.post("/imports/upload", response_model=UploadResult)
 async def upload_csv(
     file: UploadFile = File(...),
@@ -581,7 +790,7 @@ async def upload_csv(
     if detected == "unknown":
         raise HTTPException(
             status_code=422,
-            detail=f"Cannot detect data type. Expected columns for sales/inventory/products/holidays. Got: {list(headers)[:8]}",
+            detail=f"Cannot detect data type. Got: {list(headers)[:8]}",
         )
 
     _require_columns(detected, headers)
@@ -597,8 +806,18 @@ async def upload_csv(
         committed, errors = _import_inventory(rows, db)
     elif detected == "holidays":
         committed, errors = _import_holidays(rows, db)
-    else:
+    elif detected == "products":
         committed, errors = _import_products(rows, db)
+    elif detected == "outlets":
+        committed, errors = _import_outlets(rows, db)
+    elif detected == "ingredients":
+        committed, errors = _import_ingredients(rows, db)
+    elif detected == "recipes":
+        committed, errors = _import_recipes(rows, db)
+    elif detected == "waste":
+        committed, errors = _import_waste(rows, db)
+    else:
+        committed, errors = _import_weather(rows, db)
 
     return UploadResult(
         rows_parsed=len(rows),

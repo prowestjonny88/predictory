@@ -314,7 +314,7 @@ It needs a believable, explainable recommendation engine.
 
 ### Baseline demand forecast logic
 For each SKU/outlet/daypart:
-- weighted recent sales trend
+- LightGBM model evidence
 - same-weekday pattern
 - moving average with recent bias
 - optional event override or manual demand adjustment

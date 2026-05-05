@@ -24,7 +24,7 @@ interface LanguageContextValue {
   language: LanguageCode;
   locale: string;
   setLanguage: (language: LanguageCode) => void;
-  t: (key: string, fallback?: string, values?: TranslateValues) => string;
+  t: (key: string, defaultText?: string, values?: TranslateValues) => string;
 }
 
 const LanguageContext = createContext<LanguageContextValue | null>(null);
@@ -49,7 +49,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
       language,
       locale: getLocale(language),
       setLanguage: setLanguageState,
-      t: (key, fallback, values) => translate(language, key, fallback, values),
+      t: (key, defaultText, values) => translate(language, key, defaultText, values),
     }),
     [language]
   );

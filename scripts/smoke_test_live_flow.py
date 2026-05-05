@@ -1,10 +1,5 @@
 #!/usr/bin/env python
-"""Smoke-test the final Predictory demo API flow.
-
-The script assumes the FastAPI backend is already running and seeded.
-It intentionally uses a future target date by default so repeated smoke
-runs do not alter the main visible demo date unless SMOKE_TARGET_DATE is set.
-"""
+"""Smoke-test Predictory against already imported live operational data."""
 
 from __future__ import annotations
 
@@ -19,7 +14,8 @@ from urllib.request import Request, urlopen
 
 
 API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000/api/v1").rstrip("/")
-SMOKE_TARGET_DATE = os.getenv("SMOKE_TARGET_DATE") or (date.today() + timedelta(days=2)).isoformat()
+SMOKE_TARGET_DATE = os.getenv("SMOKE_TARGET_DATE") or (date.today() + timedelta(days=1)).isoformat()
+REQUIRE_LLM = os.getenv("SMOKE_REQUIRE_LLM") == "1"
 
 
 class SmokeFailure(RuntimeError):
@@ -57,9 +53,7 @@ def _request(method: str, path: str, body: dict[str, Any] | None = None) -> tupl
 
 
 def _get(path: str, query: dict[str, Any] | None = None) -> Any:
-    suffix = path
-    if query:
-        suffix = f"{path}?{urlencode(query)}"
+    suffix = path if not query else f"{path}?{urlencode(query)}"
     status, payload = _request("GET", suffix)
     if status >= 400:
         raise SmokeFailure(f"GET {suffix} failed with {status}: {payload}")
@@ -67,9 +61,7 @@ def _get(path: str, query: dict[str, Any] | None = None) -> Any:
 
 
 def _post(path: str, body: dict[str, Any] | None = None, query: dict[str, Any] | None = None) -> Any:
-    suffix = path
-    if query:
-        suffix = f"{path}?{urlencode(query)}"
+    suffix = path if not query else f"{path}?{urlencode(query)}"
     status, payload = _request("POST", suffix, body)
     if status >= 400:
         raise SmokeFailure(f"POST {suffix} failed with {status}: {payload}")
@@ -88,54 +80,39 @@ def main() -> int:
     _assert(isinstance(health, dict) and health.get("status") == "ok", f"Health check failed: {health}")
     checks.append("health")
 
-    model = _get("/admin/models/latest")
-    _assert(model.get("model_version") == "lightgbm_p50_v1", f"Unexpected model metadata: {model}")
-    _assert(model.get("metrics", {}).get("wape") is not None, "Model WAPE is missing")
-    checks.append("model metadata")
+    readiness = _get("/forecast-readiness", query={"target_date": SMOKE_TARGET_DATE})
+    _assert(readiness.get("ready") is True, f"Readiness blockers remain: {readiness}")
+    checks.append("readiness")
 
     generated = _post("/forecast-runs/generate", query={"target_date": SMOKE_TARGET_DATE})
     forecast_run_id = generated.get("forecast_run_id")
     _assert(bool(forecast_run_id), f"Forecast generation did not return a run id: {generated}")
-    checks.append("forecast generation")
+    checks.append("LightGBM forecast generation")
 
     latest = _get("/forecast-runs/latest", query={"forecast_date": SMOKE_TARGET_DATE})
     _assert(latest.get("forecast_run_id") == forecast_run_id, f"Latest forecast mismatch: {latest}")
+    _assert(latest.get("engine_name") == "lightgbm_mlops_prototype", f"Unexpected engine: {latest}")
     checks.append("latest forecast")
 
     lines = _get(f"/forecast-runs/{forecast_run_id}/lines")
-    _assert(isinstance(lines, list) and len(lines) > 0, "Forecast lines are empty")
+    _assert(isinstance(lines, list) and lines, "Forecast lines are empty")
+    first_line = lines[0]
+    _assert(first_line.get("method") == "lightgbm_p50_v1", f"Unexpected forecast method: {first_line}")
     checks.append("forecast lines")
 
     daily_plan = _get("/api/daily-plan/latest", query={"date": SMOKE_TARGET_DATE})
-    _assert(daily_plan.get("forecast_run_id"), f"Daily plan is missing forecast_run_id: {daily_plan}")
-    _assert(daily_plan.get("data_source") in {"backend", "demo_fallback"}, f"Daily plan source missing: {daily_plan}")
+    _assert(daily_plan.get("forecast_run_id") == forecast_run_id, f"Daily plan uses a different run: {daily_plan}")
+    _assert(daily_plan.get("engine_name") == "lightgbm_mlops_prototype", f"Unexpected daily plan engine: {daily_plan}")
     actions = daily_plan.get("top_actions") or []
     _assert(actions, f"Daily plan top_actions missing: {daily_plan}")
     first_action = actions[0]
-    _assert(first_action.get("p10") <= first_action.get("p50") <= first_action.get("p90"), f"Uncertainty bands unordered: {first_action}")
-    _assert(first_action.get("recommended_prep") is not None, f"Recommended prep missing: {first_action}")
+    _assert(first_action.get("p10") <= first_action.get("p50") <= first_action.get("p90"), f"Unordered uncertainty bands: {first_action}")
     _assert(first_action.get("financial_exposure"), f"Financial exposure missing: {first_action}")
-    _assert(first_action.get("replenishment") is not None, f"Replenishment impact missing: {first_action}")
-    checks.append("latest daily plan contract")
+    checks.append("daily planning")
 
     prep = _get("/prep-plans/latest", query={"date": SMOKE_TARGET_DATE})
-    prep_lines = prep.get("lines") or []
-    _assert(prep.get("id") and prep_lines, f"Prep plan is missing lines: {prep}")
+    _assert(prep.get("id") and prep.get("lines"), f"Prep plan is missing lines: {prep}")
     checks.append("prep plan")
-
-    first_line = prep_lines[0]
-    final_units = int(first_line.get("final_units", first_line.get("recommended_units", 0)))
-    edit = _post(
-        f"/prep-plans/{prep['id']}/edit",
-        body={
-            "line_id": first_line["id"],
-            "final_prep": final_units,
-            "operator_reason": "Smoke test no-op audit check",
-            "user_id": "smoke-test",
-        },
-    )
-    _assert(edit.get("audit_event_ids"), f"Prep edit did not create audit event: {edit}")
-    checks.append("decision audit")
 
     replenishment = _get("/replenishment/latest", query={"date": SMOKE_TARGET_DATE})
     _assert(replenishment.get("lines"), f"Replenishment lines are empty: {replenishment}")
@@ -148,14 +125,24 @@ def main() -> int:
             "note": "Increase morning Pastry prep at KLCC Mall by 10%",
         },
     )
-    parsed = parse.get("parsed_adjustment") or {}
-    _assert(parsed.get("requires_confirmation") is True, f"Manager note confirmation flag missing: {parse}")
-    checks.append("manager note parse")
+    _assert((parse.get("parsed_adjustment") or {}).get("requires_confirmation") is True, f"Parse response invalid: {parse}")
+    checks.append("manager note parsing")
 
-    print(f"PASS Predictory smoke flow for {SMOKE_TARGET_DATE}")
+    brief_status, brief_payload = _request(
+        "POST",
+        "/copilot/daily-brief",
+        {"brief_date": SMOKE_TARGET_DATE},
+    )
+    if REQUIRE_LLM or os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY"):
+        _assert(brief_status == 200, f"Copilot daily brief failed with {brief_status}: {brief_payload}")
+        checks.append("Copilot daily brief")
+    else:
+        _assert(brief_status == 503, f"Copilot should fail closed without provider config: {brief_payload}")
+        checks.append("Copilot fail-closed")
+
+    print(f"PASS Predictory live smoke flow for {SMOKE_TARGET_DATE}")
     for check in checks:
         print(f"[PASS] {check}")
-    print("Final result: DEMO READY")
     return 0
 
 

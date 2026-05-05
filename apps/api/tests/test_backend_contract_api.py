@@ -1,4 +1,3 @@
-import random
 from datetime import date
 
 from fastapi.testclient import TestClient
@@ -6,9 +5,10 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
+import copilot.router as copilot_router
 from db.database import Base, get_db
 from db.models import DecisionAuditEvent, Ingredient, PrepPlan
-from db.seed import seed_master_data, seed_sales_and_waste
+from factories import load_test_dataset
 from main import app
 
 
@@ -22,20 +22,14 @@ def _build_session_factory():
     return sessionmaker(bind=engine, autocommit=False, autoflush=False)
 
 
-def _seed_demo_data(session):
-    random.seed(42)
-    seed_master_data(session)
-    from db.models import Outlet, SKU
-
-    all_outlets = session.query(Outlet).all()
-    all_skus = session.query(SKU).all()
-    seed_sales_and_waste(session, all_outlets, all_skus)
+def _load_test_data(session):
+    load_test_dataset(session)
 
 
-def _client_with_seeded_db():
+def _client_with_test_db():
     SessionLocal = _build_session_factory()
     db = SessionLocal()
-    _seed_demo_data(db)
+    _load_test_data(db)
     db.close()
 
     def override_get_db():
@@ -50,7 +44,7 @@ def _client_with_seeded_db():
 
 
 def test_admin_model_contract_uses_accepted_artifact_metrics(monkeypatch):
-    client, _ = _client_with_seeded_db()
+    client, _ = _client_with_test_db()
     monkeypatch.setenv("ADMIN_API_TOKEN", "secret")
     try:
         latest = client.get("/api/v1/admin/models/latest")
@@ -72,7 +66,7 @@ def test_admin_model_contract_uses_accepted_artifact_metrics(monkeypatch):
 
 
 def test_forecast_run_contract_generates_versioned_saved_runs():
-    client, _ = _client_with_seeded_db()
+    client, _ = _client_with_test_db()
     target = date.today().isoformat()
     try:
         first = client.post(f"/api/v1/forecast-runs/generate?target_date={target}")
@@ -96,14 +90,14 @@ def test_forecast_run_contract_generates_versioned_saved_runs():
 
 
 def test_prep_replenishment_and_decision_contracts_write_audit_and_refresh_replenishment():
-    client, SessionLocal = _client_with_seeded_db()
+    client, SessionLocal = _client_with_test_db()
     target = date.today().isoformat()
     try:
         daily = client.get(f"/api/v1/api/daily-plan/{target}")
         assert daily.status_code == 200
         daily_payload = daily.json()
         assert daily_payload["data_source"] == "backend"
-        assert daily_payload["engine_name"] == "weighted_blend_fallback"
+        assert daily_payload["engine_name"] == "lightgbm_mlops_prototype"
         assert daily_payload["top_actions"]
         first_action = daily_payload["top_actions"][0]
         assert first_action["p10"] <= first_action["p50"] <= first_action["p90"]
@@ -143,7 +137,7 @@ def test_prep_replenishment_and_decision_contracts_write_audit_and_refresh_reple
 
 
 def test_approve_and_reject_contracts_are_audited():
-    client, SessionLocal = _client_with_seeded_db()
+    client, SessionLocal = _client_with_test_db()
     target = date.today().isoformat()
     try:
         client.get(f"/api/v1/api/daily-plan/{target}")
@@ -179,8 +173,10 @@ def test_approve_and_reject_contracts_are_audited():
 
 
 def test_copilot_manager_note_contract_requires_confirmation_and_preserves_grounding():
-    client, _ = _client_with_seeded_db()
+    client, _ = _client_with_test_db()
     target = date.today().isoformat()
+    original = copilot_router._call_llm
+    copilot_router._call_llm = lambda _prompt, _text="": "Grounded recommendation explanation"
     try:
         client.get(f"/api/v1/api/daily-plan/{target}")
         run_id = client.get(f"/api/v1/forecast-runs/latest?forecast_date={target}").json()["forecast_run_id"]
@@ -219,5 +215,6 @@ def test_copilot_manager_note_contract_requires_confirmation_and_preserves_groun
         assert applied.json()["updated_line_ids"]
         assert applied.json()["audit_event_ids"]
     finally:
+        copilot_router._call_llm = original
         app.dependency_overrides.clear()
         client.close()

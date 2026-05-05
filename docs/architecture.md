@@ -409,7 +409,7 @@ This becomes the stable brain of the product.
 - one abstraction for multiple model providers
 - easy switching between OpenAI / Anthropic / others
 - protects us from provider lock-in
-- cleaner logging and fallback logic
+- cleaner logging and fail-closed error handling
 
 ## Primary model usage
 Use LLMs for:
@@ -1144,7 +1144,7 @@ If time is tight, the minimum real slice should be:
 ## Data
 - Postgres schema for core entities
 - sample bakery dataset
-- seeded plan/forecast data
+- imported plan/forecast data
 
 ## AI
 - LiteLLM setup

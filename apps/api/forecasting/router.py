@@ -21,7 +21,11 @@ from db.database import get_db
 from db.models import AuditEvent, ForecastLine, ForecastOverride, ForecastRun, Outlet, SKU
 from forecasting.context import build_forecast_context
 from forecasting.engine import run_forecast_for_date
+from forecasting.weather import WeatherUnavailableError
 from services.forecast_runs import get_forecast_run_by_any_id, get_latest_forecast_run
+from services.lightgbm_inference import FeatureBuildError, OperationalDataError
+from services.model_loader import ModelArtifactError
+from services.runtime_readiness import ReadinessError, check_runtime_readiness
 
 router = APIRouter()
 
@@ -29,7 +33,9 @@ router = APIRouter()
 class ForecastLineOut(BaseModel):
     id: int
     outlet_id: int
+    outlet_name: Optional[str] = None
     sku_id: int
+    sku_name: Optional[str] = None
     morning: float
     midday: float
     evening: float
@@ -70,6 +76,12 @@ class ForecastGenerateOut(BaseModel):
     status: str
     forecast_date: date
     line_count: int
+
+
+class ReadinessOut(BaseModel):
+    ready: bool
+    target_date: str
+    blockers: list[str]
 
 
 class AdjustmentRequest(BaseModel):
@@ -173,7 +185,20 @@ def trigger_forecast(
         from datetime import date as date_mod
 
         target_date = date_mod.today()
-    return run_forecast_for_date(target_date, db)
+    try:
+        run = run_forecast_for_date(target_date, db)
+    except ReadinessError as exc:
+        raise HTTPException(status_code=422, detail={"blockers": exc.blockers}) from exc
+    except OperationalDataError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except (ModelArtifactError, FeatureBuildError) as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    return _forecast_run_out(run, db)
+
+
+@router.get("/forecast-readiness", response_model=ReadinessOut)
+def forecast_readiness(target_date: date, db: Session = Depends(get_db)):
+    return ReadinessOut(**check_runtime_readiness(target_date, db).to_dict())
 
 
 def _forecast_summary(run: ForecastRun) -> ForecastRunSummaryOut:
@@ -189,6 +214,51 @@ def _forecast_summary(run: ForecastRun) -> ForecastRunSummaryOut:
     )
 
 
+def _forecast_line_out(
+    line: ForecastLine,
+    outlets_map: dict[int, str],
+    skus_map: dict[int, str],
+) -> ForecastLineOut:
+    return ForecastLineOut(
+        id=line.id,
+        outlet_id=line.outlet_id,
+        outlet_name=outlets_map.get(line.outlet_id),
+        sku_id=line.sku_id,
+        sku_name=skus_map.get(line.sku_id),
+        morning=line.morning,
+        midday=line.midday,
+        evening=line.evening,
+        total=line.total,
+        method=line.method,
+        confidence=line.confidence,
+        manual_adjustment_pct=line.manual_adjustment_pct,
+        rationale_json=line.rationale_json,
+    )
+
+
+def _forecast_run_out(
+    run: ForecastRun,
+    db: Session,
+    outlet_id: Optional[int] = None,
+) -> ForecastRunOut:
+    outlets_map = {outlet.id: outlet.name for outlet in db.query(Outlet).all()}
+    skus_map = {sku.id: sku.name for sku in db.query(SKU).all()}
+    lines = list(run.lines)
+    if outlet_id:
+        lines = [line for line in lines if line.outlet_id == outlet_id]
+
+    return ForecastRunOut(
+        id=run.id,
+        forecast_run_id=run.forecast_run_id,
+        forecast_date=run.forecast_date,
+        model_run_id=run.model_run_id,
+        engine_name=run.engine_name,
+        model_version=run.model_version,
+        status=run.status,
+        lines=[_forecast_line_out(line, outlets_map, skus_map) for line in lines],
+    )
+
+
 @router.post("/forecast-runs/generate", response_model=ForecastGenerateOut)
 def generate_contract_forecast_run(
     target_date: date = Query(default=None),
@@ -198,7 +268,14 @@ def generate_contract_forecast_run(
         from datetime import date as date_mod
 
         target_date = date_mod.today()
-    run = run_forecast_for_date(target_date, db)
+    try:
+        run = run_forecast_for_date(target_date, db)
+    except ReadinessError as exc:
+        raise HTTPException(status_code=422, detail={"blockers": exc.blockers}) from exc
+    except OperationalDataError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except (ModelArtifactError, FeatureBuildError) as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
     return ForecastGenerateOut(
         forecast_run_id=run.forecast_run_id,
         status=run.status,
@@ -223,7 +300,7 @@ def get_contract_forecast_run(forecast_run_id: str, db: Session = Depends(get_db
     run = get_forecast_run_by_any_id(forecast_run_id, db)
     if not run:
         raise HTTPException(status_code=404, detail="Forecast run not found")
-    return run
+    return _forecast_run_out(run, db)
 
 
 @router.get("/forecast-runs/{forecast_run_id}/lines", response_model=list[ForecastLineOut])
@@ -231,7 +308,7 @@ def get_contract_forecast_run_lines(forecast_run_id: str, db: Session = Depends(
     run = get_forecast_run_by_any_id(forecast_run_id, db)
     if not run:
         raise HTTPException(status_code=404, detail="Forecast run not found")
-    return run.lines
+    return _forecast_run_out(run, db).lines
 
 
 @router.get("/forecasts", response_model=list[ForecastRunOut])
@@ -245,11 +322,7 @@ def get_forecasts(
         query = query.filter(ForecastRun.forecast_date == forecast_date)
     runs = query.order_by(desc(ForecastRun.created_at), desc(ForecastRun.id)).limit(10).all()
 
-    if outlet_id:
-        for run in runs:
-            run.lines = [line for line in run.lines if line.outlet_id == outlet_id]
-
-    return runs
+    return [_forecast_run_out(run, db, outlet_id=outlet_id) for run in runs]
 
 
 @router.patch("/forecasts/{run_id}/lines/{line_id}", response_model=ForecastLineOut)
@@ -300,7 +373,9 @@ def adjust_forecast_line(
     )
     db.commit()
     db.refresh(line)
-    return line
+    outlets_map = {outlet.id: outlet.name for outlet in db.query(Outlet).all()}
+    skus_map = {sku.id: sku.name for sku in db.query(SKU).all()}
+    return _forecast_line_out(line, outlets_map, skus_map)
 
 
 @router.get("/forecast-context", response_model=ForecastContextOut)
@@ -311,12 +386,15 @@ def get_forecast_context(
     db: Session = Depends(get_db),
 ):
     _require_outlet_and_sku(db, outlet_id, sku_id)
-    context = build_forecast_context(
-        outlet_id=outlet_id,
-        sku_id=sku_id,
-        target_date=target_date,
-        db=db,
-    )
+    try:
+        context = build_forecast_context(
+            outlet_id=outlet_id,
+            sku_id=sku_id,
+            target_date=target_date,
+            db=db,
+        )
+    except WeatherUnavailableError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     return ForecastContextOut(
         target_date=context["target_date"],
         outlet_id=context["outlet_id"],

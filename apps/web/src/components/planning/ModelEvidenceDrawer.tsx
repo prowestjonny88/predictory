@@ -8,7 +8,7 @@ interface Props {
   modelVersion: string;
   modelStatus: string;
   engineName: string;
-  dataSource: "backend" | "demo_fallback";
+  dataSource: "backend";
   validationWindow: string;
   metrics: {
     wape: number;
@@ -49,7 +49,7 @@ export default function ModelEvidenceDrawer({
           <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-3">
             <p className="text-xs uppercase tracking-wide text-neutral-500">{t("planning.status", "Status")}</p>
             <p className="text-sm font-semibold text-neutral-900">{modelStatus}</p>
-            <p className="text-xs text-neutral-500">{t("planning.source", "Source")}: {dataSource === "backend" ? "backend" : "demo fallback"}</p>
+            <p className="text-xs text-neutral-500">{t("planning.source", "Source")}: {dataSource}</p>
             <p className="text-xs text-neutral-500">{t("planning.engine", "Engine")}: {engineName}</p>
             <p className="text-xs text-neutral-500">{t("planning.version", "Version")}: {modelVersion}</p>
           </div>
@@ -76,7 +76,7 @@ export default function ModelEvidenceDrawer({
           <div className="rounded-lg border border-neutral-200 bg-amber-50 p-3 text-xs text-amber-900">
             {t(
               "planning.modelEvidence.note",
-              "Live recommendations use the truthful backend engine shown above. Offline LightGBM artifacts are shown as trained validation evidence unless live inference is wired end-to-end."
+              "Live recommendations use the LightGBM backend engine and trained validation artifacts shown above."
             )}
           </div>
         </div>

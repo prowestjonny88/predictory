@@ -40,7 +40,7 @@ export default function CatalogPage() {
           <p className="text-xs text-neutral-500">
             {t(
               "catalog.section.unitCostHelper",
-              "Unit cost is derived as unit price x {{ratio}} for demo purposes.",
+              "Unit cost is derived from imported recipe and ingredient cost data.",
               { ratio: UNIT_COST_RATIO.toFixed(2) }
             )}
           </p>

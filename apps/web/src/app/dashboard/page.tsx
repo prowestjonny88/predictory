@@ -41,7 +41,6 @@ export default function DashboardPage() {
     [topActions]
   );
   const pendingActions = topActions.filter((action) => action.status !== "accepted").length;
-  const source = plan?.data_source ?? "backend";
 
   return (
     <div className="min-h-screen">
@@ -65,6 +64,24 @@ export default function DashboardPage() {
           </div>
         )}
 
+        {planQuery.isLoading && (
+          <Card>
+            <CardContent className="py-8 text-sm text-neutral-500">
+              {t("dashboard.loadingDailyPlan", "Loading daily plan...")}
+            </CardContent>
+          </Card>
+        )}
+
+        {!planQuery.isLoading && !plan && !planQuery.error && (
+          <Card>
+            <CardContent className="py-8 text-sm text-neutral-500">
+              {t("dashboard.noDailyPlan", "No backend daily plan is available for this date.")}
+            </CardContent>
+          </Card>
+        )}
+
+        {plan && (
+          <>
         <section className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
           <Card>
             <CardHeader>
@@ -105,9 +122,7 @@ export default function DashboardPage() {
             <CardContent className="space-y-3 text-sm">
               <div className="flex items-center justify-between gap-3">
                 <span className="text-neutral-500">{t("planning.source", "Source")}</span>
-                <Badge variant={source === "backend" ? "success" : "medium"}>
-                  {source === "backend" ? "backend" : "demo fallback"}
-                </Badge>
+                <Badge variant="success">{plan.data_source}</Badge>
               </div>
               <div className="flex items-center justify-between gap-3">
                 <span className="text-neutral-500">{t("planning.engine", "Engine")}</span>
@@ -197,6 +212,8 @@ export default function DashboardPage() {
             </div>
           )}
         </section>
+          </>
+        )}
       </main>
     </div>
   );

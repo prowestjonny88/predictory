@@ -34,7 +34,7 @@ const en = {
   "common.override.promo": "Promo",
   "common.override.event": "Event",
   "common.source.ai": "AI phrased",
-  "common.source.deterministic": "Deterministic",
+  "common.source.rulesBased": "Rules-based",
   "actionType.prep": "Prep",
   "actionType.reorder": "Reorder",
   "actionType.risk": "Risk",
@@ -49,7 +49,7 @@ const en = {
   "nav.stock": "Current Stock",
   "nav.scenarioPlanner": "Scenario Planner",
   "nav.copilot": "AI Copilot",
-  "nav.footer": "Predictory v2 · ASEAN demo build",
+  "nav.footer": "Predictory v2",
   "language.label": "Language",
   "language.english": "English",
   "language.malay": "Bahasa Melayu",
@@ -64,7 +64,7 @@ const en = {
   "dashboard.stockoutRisk": "Stockout Risk",
   "dashboard.riskScale": "0 = no risk | 100 = critical",
   "dashboard.actions": "Actions",
-  "dashboard.detRecommendations": "deterministic recommendations",
+  "dashboard.detRecommendations": "rules-based recommendations",
   "dashboard.recommendedActions": "Recommended Actions",
   "dashboard.noActions": "No actions yet. Generate a plan for this date to see recommendations.",
   "dashboard.aiActionPlan": "AI Action Plan",
@@ -212,7 +212,6 @@ const en = {
   "scenario.preset.butterDelay": "Butter delivery delayed",
   "scenario.preset.weekendSpike": "30% weekend demand spike",
   "actionPlan.title": "AI Action Plan",
-  "actionPlan.fallbackMode": "Fallback mode",
   "actionPlan.topActions": "Top Actions",
   "actionPlan.noActions": "No AI actions returned for this date.",
   "actionPlan.prepActions": "Prep Actions",
@@ -245,7 +244,7 @@ const en = {
   "language.chineseFull": "Chinese Simplified (Singapore)",
   "catalog.title": "SKU Catalog",
   "catalog.section.itemsPrices": "Items and prices",
-  "catalog.section.unitCostHelper": "Unit cost is derived as unit price x {{ratio}} for demo purposes.",
+  "catalog.section.unitCostHelper": "Unit cost is derived from imported recipe and ingredient cost data.",
   "catalog.loadingSkus": "Loading SKUs...",
   "catalog.failedSkus": "Failed to load SKUs",
   "catalog.emptySkus": "No SKU data found.",
@@ -265,7 +264,7 @@ const en = {
   "planning.actionSummary.subtext": "This view prioritizes financially optimal prep and replenishment decisions based on LightGBM demand forecasting.",
   "planning.modelBadge": "LightGBM MLOps prototype",
   "planning.status.decisionRecorded": "Decision recorded.",
-  "planning.status.regenerateQueued": "Regenerate request queued (demo mode). Using cached run.",
+  "planning.status.regenerateQueued": "Regenerate request failed.",
   "planning.summary.topPrep": "Top prep action",
   "planning.summary.topReorder": "Top reorder action",
   "planning.summary.topRisk": "Top risk",
@@ -273,7 +272,7 @@ const en = {
   "planning.summary.noActions": "No actions",
   "planning.summary.noShortages": "No shortages detected",
   "planning.summary.noRisks": "No risks detected",
-  "planning.summary.mismatchValue": "{{percent}}% reduction on demo window",
+  "planning.summary.mismatchValue": "{{percent}}% validation-window delta",
   "planning.recommendations": "Recommendations",
   "planning.showingActions": "Showing {{count}} actions",
   "planning.loadingPlan": "Loading latest plan...",
@@ -339,16 +338,11 @@ const en = {
   ,"stock.centralWarehouse": "Central Warehouse"
   ,"stock.live": "LIVE"
   ,"stock.needsReorder": "Needs Reorder"
-  ,"forecast.mathDetails": "Forecast math details"
-  ,"forecast.signalTotals": "Signal totals"
-  ,"forecast.weightedRecent": "Weighted recent"
-  ,"forecast.weekdayPattern": "Weekday pattern"
-  ,"forecast.avg14d": "14d average"
-  ,"forecast.adjustments": "Adjustments"
-  ,"forecast.baselineTotal": "Baseline total"
-  ,"forecast.contextAdjustment": "Context adjustment"
-  ,"forecast.finalTotal": "Final total"
-  ,"forecast.daypartSplit": "Daypart split"
+  ,"forecast.mathDetails": "Forecast evidence"
+  ,"forecast.model": "Model"
+  ,"forecast.engine": "Engine"
+  ,"forecast.method": "Method"
+  ,"forecast.featureCount": "Encoded features"
   ,"forecast.drivers": "Drivers"
   ,"forecast.holiday": "Holiday"
   ,"forecast.weather": "Weather"
@@ -378,7 +372,7 @@ const en = {
   ,"planning.replenishment.short": "Short"
   ,"planning.replenishment.currentStock": "Current stock"
   ,"planning.modelEvidence.title": "Model evidence"
-  ,"planning.modelEvidence.note": "Model status: MLOps prototype. Validated on POS-style demo window."
+  ,"planning.modelEvidence.note": "Model status: MLOps prototype. Validated against the trained artifact validation window."
   ,"planning.status": "Status"
   ,"planning.engine": "Engine"
   ,"planning.version": "Version"

@@ -1,5 +1,3 @@
-import { demoLatestPlan } from "@/lib/demo-data";
-
 export interface DailyPlanMetrics {
   wape: number;
   bias: number;
@@ -54,7 +52,7 @@ export interface DailyPlanLatestResponse {
   engine_name: string;
   model_status: string;
   validation_window: string;
-  data_source: "backend" | "demo_fallback";
+  data_source: "backend";
   metrics: DailyPlanMetrics;
   top_actions: DailyPlanTopAction[];
 }
@@ -119,7 +117,7 @@ export interface DecisionResponse {
 export interface ExplainRecommendationResponse {
   explanation: string;
   evidence: Record<string, unknown>;
-  source_type: "deterministic" | "llm_rephrased";
+  source_type: "rules_based" | "llm_rephrased";
 }
 
 interface BackendMetrics {
@@ -141,7 +139,7 @@ interface BackendDailyPlan {
   engine_name: string;
   model_status: string;
   validation_window: string;
-  data_source?: "backend" | "demo_fallback";
+  data_source?: "backend";
   metrics: BackendMetrics;
   top_actions?: DailyPlanTopAction[];
 }
@@ -189,12 +187,8 @@ function toBackendDailyPlan(payload: BackendDailyPlan): DailyPlanLatestResponse 
 
 export const planningApi = {
   latestPlan: async (date: string): Promise<DailyPlanLatestResponse> => {
-    try {
-      const payload = await apiFetch<BackendDailyPlan>(`${V1}/api/daily-plan/latest?date=${date}`);
-      return toBackendDailyPlan(payload);
-    } catch (_error) {
-      return { ...(await demoLatestPlan()), data_source: "demo_fallback" };
-    }
+    const payload = await apiFetch<BackendDailyPlan>(`${V1}/api/daily-plan/latest?date=${date}`);
+    return toBackendDailyPlan(payload);
   },
 
   regeneratePlan: (payload: RegeneratePlanRequest): Promise<RegeneratePlanResponse> =>

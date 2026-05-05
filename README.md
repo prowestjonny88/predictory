@@ -1,38 +1,24 @@
 # Predictory - AI-Powered Bakery Intelligence Platform
 
-Predictory is an AI-assisted prep and replenishment copilot for multi-outlet bakery-cafe chains. It converts historical sales, inventory, and operational context into next-day action plans by outlet, SKU, and daypart.
+Predictory is an AI-assisted prep and replenishment copilot for multi-outlet bakery-cafe chains. It converts imported operational data and trained LightGBM artifacts into next-day action plans by outlet, SKU, and daypart.
 
-## Hackathon Submission
+## Runtime Contract
 
-| Field | Details |
-|---|---|
-| Team Name | CHAT GPT |
-| Case Study | #8 - AI for Inclusive MSME Growth |
-| Project Name | Predictory - AI-Powered Bakery Intelligence Platform |
-| SDG Alignment | SDG 12 Responsible Consumption; SDG 9 Industry and Innovation |
+Predictory does not synthesize production values when required data is missing. Forecast, planning, dashboard, replenishment, and Copilot pages may show loading, empty, or error states, but runtime paths must not invent forecast, prep, uncertainty, replenishment, financial exposure, or Copilot values.
 
-## Team Members
+API failures are explicit:
 
-| ID | Role | Name |
-|---|---|---|
-| P1 | Infra Lead | LAU WEI ZHONG |
-| P2 | Data Engineer | TAN JUN YONG |
-| P3 | Planning Engine, Team Leader | TAN KANG ZHENG |
-| P4 | Frontend Engineer | TAN SZE YUNG |
-| P5 | AI/LLM Engineer | NG HONG JON |
-
-## What Predictory Solves
-
-Bakery-cafe chains already track sales and inventory, but daily production planning is still often manual. Predictory helps reduce overproduction, prevent stockouts, improve outlet allocation, and convert ingredient planning into auditable manager actions.
+- `422` means required business data has not been imported or is invalid.
+- `503` means the model bundle or a required external provider is unavailable.
 
 ## Core Features
 
 | Feature | Description |
 |---|---|
-| Daily Planning | Main demo surface for forecast-backed prep recommendations, approval, edit, reject, and audit flow. |
-| Demand Forecasting | Outlet x SKU x daypart forecasts with operational context. |
-| Prep Planning | Recommended prep quantities with human-in-the-loop adjustments. |
-| Replenishment | BOM-driven ingredient needs, shortage, reorder quantity, urgency, and driving SKUs. |
+| Daily Planning | Forecast-backed prep recommendations, approval, edit, reject, and audit flow. |
+| Demand Forecasting | LightGBM outlet x SKU x daypart forecasts with trained residual p10/p50/p90 bands. |
+| Prep Planning | Optimizer-backed prep quantities with human-in-the-loop adjustments. |
+| Replenishment | BOM-driven ingredient need, shortage, reorder quantity, urgency, and driving SKUs. |
 | AI Copilot | Gemini-powered explanations, daily brief support, and manager note parsing. |
 | Multilingual | English, Bahasa Melayu, and Simplified Chinese response support. |
 
@@ -43,7 +29,7 @@ Bakery-cafe chains already track sales and inventory, but daily production plann
 | Frontend | Next.js 14, React 18, TypeScript, Tailwind CSS, TanStack Query, Recharts |
 | Backend | FastAPI, SQLAlchemy 2.x, Alembic, Pydantic v2, Uvicorn |
 | AI Layer | LiteLLM with Google Gemini API |
-| Database | SQLite for local demo; PostgreSQL for deployment |
+| Database | SQLite for local development; PostgreSQL for deployment |
 | ML/Data | LightGBM, Pandas, NumPy, scikit-learn |
 
 ## Repo Structure
@@ -53,11 +39,9 @@ apps/
   api/        FastAPI backend, migrations, forecasting, planning, copilot, tests
   web/        Next.js frontend
 
-backend/models/              Accepted ML artifacts
-apps/web/public/demo-data/   Accepted frontend demo artifacts
-docs/demo/                   Demo runbook and manual checklist
-scripts/ml_pipeline/         Lightweight reproducible ML pipeline
-scripts/smoke_test_demo_flow.py
+backend/models/              LightGBM model, feature schema, metrics, residual bands
+scripts/ml_pipeline/         Reproducible ML training pipeline
+scripts/smoke_test_live_flow.py
 ```
 
 ## Local Setup
@@ -70,7 +54,7 @@ Create the root `.env` file from `.env.example`:
 Copy-Item .env.example .env -Force
 ```
 
-For local demo, use:
+Use local development values:
 
 ```env
 DATABASE_URL=sqlite:///./predictory.db
@@ -79,12 +63,10 @@ GEMINI_MODEL=gemini/gemini-2.5-flash
 SECRET_KEY=change-me-in-production-use-openssl-rand-hex-32
 ENVIRONMENT=development
 ADMIN_API_TOKEN=change-me-local-admin-token
-ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5500,http://127.0.0.1:5500
+ALLOWED_ORIGINS=http://localhost:3000
 NEXT_PUBLIC_API_URL=http://localhost:8000
 API_BASE_URL=http://localhost:8000/api/v1
 ```
-
-The backend is configured for Gemini only. OpenAI, Anthropic, Vertex, and generic `LITELLM_MODEL` placeholders are intentionally not used.
 
 ### 2. Run Backend
 
@@ -94,7 +76,6 @@ py -m venv .venv
 .\.venv\Scripts\Activate.ps1
 py -m pip install -r requirements.txt
 alembic upgrade head
-py -m db.seed
 uvicorn main:app --reload --port 8000
 ```
 
@@ -105,7 +86,29 @@ http://localhost:8000/health
 http://localhost:8000/docs
 ```
 
-### 3. Run Frontend
+### 3. Import Operational Data
+
+Populate a clean database through `/api/v1/imports/upload` before running forecasts. Supported CSV types:
+
+- `outlets`
+- `products`
+- `ingredients`
+- `recipes`
+- `sales`
+- `inventory`
+- `waste`
+- `weather`
+- `holidays`
+
+Required references are strict: sales, inventory, waste, and recipe rows must reference outlets, SKUs, and ingredients that have already been imported.
+
+Before generating a forecast, check:
+
+```text
+GET /api/v1/forecast-readiness?target_date=YYYY-MM-DD
+```
+
+### 4. Run Frontend
 
 In another terminal:
 
@@ -124,47 +127,34 @@ http://localhost:3000/daily-planning
 
 The root route redirects to `/daily-planning`.
 
-### 4. Run Demo Smoke Test
+## Operator Flow
 
-With the backend running:
+1. Import outlets, SKUs, ingredients, recipe BOM, sales history, inventory, waste, weather, and holidays.
+2. Check forecast readiness for the planning date.
+3. Generate a forecast run.
+4. Review `/daily-planning` recommendations and model evidence.
+5. Use manager notes only after confirming the parsed adjustment.
+6. Approve or edit prep lines with an operator reason.
+7. Review `/replenishment` for ingredient shortage and reorder actions.
 
-```powershell
-py scripts\smoke_test_demo_flow.py
-```
+## ML Runtime
 
-Optional overrides:
+The live backend uses the trained LightGBM bundle in `backend/models/`:
 
-```powershell
-$env:API_BASE_URL="http://localhost:8000/api/v1"
-$env:SMOKE_TARGET_DATE="2026-05-06"
-py scripts\smoke_test_demo_flow.py
-```
+- `lightgbm_p50_v1.pkl`
+- `feature_schema_v1.json`
+- `encoded_feature_schema_step8.json`
+- `residual_bands_v1.json`
+- `model_metrics_v1.json`
 
-## Recommended Demo Flow
-
-1. `/daily-planning` - Review forecast, prep cards, model evidence, and recommended actions.
-2. Recommendation drawer - Explain p10/p50/p90, operational reason, and ingredient impact.
-3. Manager note panel - Parse a note, confirm the structured assumption, then apply the adjustment.
-4. Approval drawer - Edit or approve the prep line with a reason and show the audit-backed result.
-5. `/replenishment` - Show ingredient need, stock on hand, shortage, reorder quantity, urgency, and driving SKUs.
-6. `/forecast` or `/prep-plan` - Use only as supporting detail if the audience asks for the underlying run or plan.
-
-## ML Artifacts vs Live Backend Forecasts
-
-The accepted ML pipeline predictions are committed as demo artifacts under `apps/web/public/demo-data/`. Those files contain the LightGBM Step 12 forecast and optimization payload for `2022-10-01`.
-
-The live FastAPI demo still generates operational forecast runs from the local SQLite seed data. That path uses the backend `weighted_blend_backend` forecast engine so managers can create, edit, approve, reject, audit, and refresh replenishment against real database rows. The backend loads accepted ML artifacts for model registry and quality metrics, but full LightGBM feature-row inference is not yet wired into `forecasting.engine`.
-
-Use the frontend fallback/demo payload when you need to show the exact accepted ML-pipeline predictions. Use the live backend route when you need to show the interactive API workflow.
-
-For the current live demo, forecast generation is intentionally labeled as `weighted_blend_fallback` unless LightGBM feature-row inference is wired end to end. The offline LightGBM artifacts remain loaded as validation/model evidence. Daily Planning surfaces `data_source` so rehearsals can distinguish `backend` from `demo_fallback`, and the frontend must not fabricate uncertainty bands or financial exposure when backend fields are missing.
+Forecast generation builds encoded feature rows from database data for each outlet/SKU/daypart/date. The runtime engine is `lightgbm_mlops_prototype`, and forecast lines use method `lightgbm_p50_v1`. Residual artifacts provide p10/p50/p90 bands; missing artifacts fail closed.
 
 ## Testing
 
 Backend:
 
 ```powershell
-py -m compileall apps\api
+py -m compileall apps\api\admin apps\api\alerts apps\api\catalog apps\api\copilot apps\api\db apps\api\forecasting apps\api\ingestion apps\api\ops_data apps\api\planning apps\api\services
 py -m pytest apps\api\tests -p no:cacheprovider
 ```
 
@@ -176,35 +166,29 @@ npm.cmd run typecheck
 npm.cmd run build
 ```
 
-Smoke test:
+Live smoke test, after data import:
 
 ```powershell
-py scripts\smoke_test_demo_flow.py
+py scripts\smoke_test_live_flow.py
 ```
 
 ## Troubleshooting
 
-### Backend tries to connect to `ep-xxxx.neon.tech`
+### Readiness reports missing data
 
-Your `.env` is using the placeholder Postgres URL. For local testing, set:
+Import the blocker listed by `/api/v1/forecast-readiness`. Forecast and Daily Planning will not show numbers until readiness passes.
 
-```env
-DATABASE_URL=sqlite:///./predictory.db
-```
+### Forecast endpoint returns `503`
 
-### Gemini copilot does not respond
+Verify the files in `backend/models/` exist and are readable by the backend process.
 
-Verify the backend sees the Gemini config:
+### Copilot endpoint returns `503`
+
+Verify the backend sees Gemini config:
 
 ```powershell
 cd apps/api
 .\.venv\Scripts\python.exe -c "from copilot.router import _resolve_litellm_config; print(_resolve_litellm_config()[0])"
-```
-
-Expected:
-
-```text
-gemini/gemini-2.5-flash
 ```
 
 Then restart `uvicorn`; environment changes are not picked up by an already-running server process.
@@ -225,5 +209,3 @@ NEXT_PUBLIC_API_URL=http://localhost:8000
 - [Project Report](./docs/Predictory_Report.md)
 - [API Contracts](./apps/api/CONTRACTS.md)
 - [Copilot Examples](./apps/api/copilot/EXAMPLES.md)
-- [Demo Runbook](./docs/demo/runbook.md)
-- [Manual Demo Checklist](./docs/demo/manual_demo_checklist.md)

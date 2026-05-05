@@ -3,20 +3,21 @@
 These examples are for frontend integration and local testing.
 
 Supported optional copilot languages:
+
 - `en`
 - `ms`
 - `zh-CN`
 
-If `language` is omitted, the backend defaults to `en`.
+If `language` is omitted, the backend defaults to `en`. Invalid language values use the English prompt.
 
-## Provider config
+## Provider Config
 
 Copilot uses Gemini through LiteLLM:
 
 - `GEMINI_API_KEY=...`
 - optional: `GEMINI_MODEL=gemini/gemini-2.5-flash`
 
-If `GEMINI_API_KEY` is missing or the provider call fails, endpoints return deterministic fallback text rather than invented numbers.
+If the provider is missing or unavailable, prose endpoints return `503`. Runtime endpoints do not substitute deterministic prose for provider failures.
 
 ## `POST /api/v1/copilot/explain-plan`
 
@@ -26,7 +27,7 @@ Request:
 {
   "outlet_id": 1,
   "sku_id": 1,
-  "plan_date": "2026-03-12",
+  "plan_date": "2026-05-06",
   "context_type": "forecast",
   "language": "ms"
 }
@@ -36,12 +37,14 @@ Response:
 
 ```json
 {
-  "explanation": "Forecast for Butter Croissant at Roti Lane Cheras Community Hub on 2026-03-12: total 94 units across the day, with the strongest pull in the morning. The projection is based on recent sales momentum plus the normal weekday pattern for this outlet and SKU.",
+  "explanation": "LLM-generated explanation grounded in the persisted forecast run.",
   "context_type": "forecast",
-  "outlet_name": "Roti Lane Cheras Community Hub",
+  "outlet_name": "KLCC Mall",
   "sku_name": "Butter Croissant"
 }
 ```
+
+Missing grounding data returns `404`.
 
 ## `POST /api/v1/copilot/daily-brief`
 
@@ -49,7 +52,7 @@ Request:
 
 ```json
 {
-  "brief_date": "2026-03-12",
+  "brief_date": "2026-05-06",
   "language": "zh-CN"
 }
 ```
@@ -58,8 +61,16 @@ Response:
 
 ```json
 {
-  "brief": "Daily brief for 2026-03-12 (Thursday).\n\nTotal predicted sales are 1123 units, with waste risk at 48/100 and stockout risk at 40/100.\n\nTop actions: Reduce Butter Croissant at Roti Lane Setapak Town Center; Stock up Butter Croissant at Roti Lane Kajang Town; Place 1 critical ingredient reorder(s).",
-  "date": "2026-03-12"
+  "brief": "Three-paragraph LLM summary grounded in the persisted forecast, alerts, and replenishment plan.",
+  "date": "2026-05-06"
+}
+```
+
+Provider unavailable:
+
+```json
+{
+  "detail": "LLM provider unavailable: GEMINI_API_KEY is not configured"
 }
 ```
 
@@ -69,11 +80,26 @@ Request:
 
 ```json
 {
-  "scenario_text": "cut croissant prep at Setapak Town Center by 15%",
-  "target_date": "2026-03-12",
+  "scenario_text": "cut croissant prep at Bangsar Street by 15%",
+  "target_date": "2026-05-06",
   "language": "en"
 }
 ```
+
+Response:
+
+```json
+{
+  "scenario": "cut croissant prep at Bangsar Street by 15%",
+  "baseline": {},
+  "modified": {},
+  "delta": {},
+  "recommendation": "Rules-based advisory text.",
+  "interpretation": "Rules-based scenario interpretation."
+}
+```
+
+Scenario parsing is rules-based by design.
 
 ## `POST /api/v1/copilot/daily-actions`
 
@@ -81,7 +107,7 @@ Request:
 
 ```json
 {
-  "target_date": "2026-03-12",
+  "target_date": "2026-05-06",
   "top_n": 5,
   "language": "ms"
 }
@@ -91,19 +117,18 @@ Response:
 
 ```json
 {
-  "date": "2026-03-12",
-  "brief": "Operations are broadly ready for service, but Setapak Town Center waste risk and Kajang Town stock coverage need attention.\n\nMain risks are concentrated around Butter Croissant waste at Roti Lane Setapak Town Center, morning stockout exposure at Roti Lane Kajang Town, and one critical ingredient reorder.\n\nTop actions: Reduce Butter Croissant prep at Roti Lane Setapak Town Center by 10%; Increase Butter Croissant morning coverage at Roti Lane Kajang Town by 10%; Reorder Butter now (critical urgency).",
-  "fallback_mode": false,
+  "date": "2026-05-06",
+  "brief": "Operations are broadly ready for service.\n\nMain risks are grounded in backend alerts.\n\nAct on the ranked prep and reorder actions first.",
   "top_actions": [
     {
       "action_type": "prep",
-      "action_text": "Reduce Butter Croissant prep at Roti Lane Setapak Town Center by 10%",
+      "action_text": "Reduce Butter Croissant prep at Bangsar Street by 10%",
       "urgency": "high",
-      "estimated_impact": "Reduce waste pressure; recent 3-day waste rate is 15.3%.",
+      "estimated_impact": "Reduce waste pressure using backend alert evidence.",
       "target": {
         "outlet_id": 2,
-        "outlet_name": "Roti Lane Setapak Town Center",
-        "sku_id": 1,
+        "outlet_name": "Bangsar Street",
+        "sku_id": 4,
         "sku_name": "Butter Croissant",
         "ingredient_id": null,
         "ingredient_name": null
@@ -122,24 +147,4 @@ Response:
 }
 ```
 
-Response:
-
-```json
-{
-  "scenario": "cut croissant prep at Setapak Town Center by 15%",
-  "baseline": {
-    "waste_alerts": 6,
-    "stockout_alerts": 5
-  },
-  "modified": {
-    "waste_alerts": 5,
-    "stockout_alerts": 5
-  },
-  "delta": {
-    "waste_change": -1,
-    "stockout_change": 0
-  },
-  "recommendation": "Proceed with caution for Butter Croissant at Roti Lane Setapak Town Center. Recommended reduction: 10% to balance waste and availability.",
-  "interpretation": "Reducing prep for Butter Croissant at Roti Lane Setapak Town Center by 15% could remove 1 waste alert(s) but may introduce about 0 additional stockout risk(s)."
-}
-```
+Valid `source_type` values are `rules_based` and `llm_rephrased`.

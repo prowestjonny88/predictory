@@ -109,7 +109,7 @@ def upgrade() -> None:
         sa.Column("midday", sa.Float(), server_default="0"),
         sa.Column("evening", sa.Float(), server_default="0"),
         sa.Column("total", sa.Float(), server_default="0"),
-        sa.Column("method", sa.String(50), server_default="weighted_blend"),
+        sa.Column("method", sa.String(50), server_default="lightgbm_p50_v1"),
         sa.Column("confidence", sa.Float(), server_default="0.80"),
         sa.Column("manual_adjustment_pct", sa.Float(), nullable=True),
         sa.Column("rationale_json", sa.JSON(), nullable=True),

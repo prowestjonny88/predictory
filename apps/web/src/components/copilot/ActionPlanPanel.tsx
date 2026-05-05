@@ -54,7 +54,7 @@ function ActionRow({ action }: { action: AgentAction }) {
         <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] font-semibold uppercase text-neutral-600">
           {action.source_type === "llm_rephrased"
             ? t("common.source.ai", "AI phrased")
-            : t("common.source.deterministic", "Deterministic")}
+            : t("common.source.rulesBased", "Rules-based")}
         </span>
       </div>
       <p className="mt-2 text-sm font-semibold text-neutral-800">{action.action_text}</p>
@@ -113,11 +113,6 @@ export default function ActionPlanPanel({ actionPlan, compact = false }: Props) 
         <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] font-semibold text-neutral-600">
           {actionPlan.date}
         </span>
-        {actionPlan.fallback_mode && (
-          <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
-            {t("actionPlan.fallbackMode", "Fallback mode")}
-          </span>
-        )}
       </div>
 
       <div className="rounded-lg border border-amber-100 bg-amber-50 px-4 py-4 text-sm leading-relaxed text-neutral-800 whitespace-pre-wrap">

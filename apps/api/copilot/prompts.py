@@ -1,6 +1,6 @@
 """
 LLM prompt templates - Task 18
-All prompts receive deterministic data; the LLM adds plain-language explanation only.
+All prompts receive upstream service data; the LLM adds plain-language explanation only.
 """
 
 FORECAST_EXPLANATION_PROMPT = """\
@@ -124,7 +124,6 @@ Total predicted sales: {total_predicted_sales} units
 High waste alerts: {high_waste_count}
 High stockout alerts: {high_stockout_count}
 Critical reorder items: {critical_reorder_count}
-Fallback mode: {fallback_mode}
 
 Top actions JSON:
 {top_actions_json}

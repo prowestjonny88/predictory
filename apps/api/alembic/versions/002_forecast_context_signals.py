@@ -45,7 +45,7 @@ def upgrade() -> None:
         sa.Column("temp_max_c", sa.Float(), nullable=True),
         sa.Column("adjustment_pct", sa.Float(), server_default="0", nullable=False),
         sa.Column("status", sa.String(20), server_default="unavailable", nullable=False),
-        sa.Column("source", sa.String(50), server_default="fallback", nullable=False),
+        sa.Column("source", sa.String(50), server_default="manual", nullable=False),
         sa.Column("raw_json", sa.JSON(), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
         sa.UniqueConstraint("outlet_id", "target_date", name="uq_weather_snapshot_outlet_date"),

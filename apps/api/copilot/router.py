@@ -12,7 +12,7 @@ from typing import Literal, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy import desc
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, object_session
 
 from alerts.stockout import detect_stockout_risk
 from alerts.waste import detect_waste_risk
@@ -29,10 +29,11 @@ from copilot.scenario import run_scenario_simulation
 from db.database import get_db
 from db.models import DecisionAuditEvent, ForecastRun, Outlet, PrepPlan, PrepPlanLine, ReplenishmentPlan, SKU
 from planning.replenishment import recommend_replenishment
+from services.uncertainty import band_for_prep_line
 
 router = APIRouter()
 
-DEFAULT_GEMINI_MODEL = "gemini/gemini-2.5-flash"
+DEFAULT_GEMINI_MODEL = "gemini/gemini-3-flash-preview"
 SupportedLanguage = Literal["en", "ms", "zh-CN"]
 WEEKDAY_LABELS = {
     "en": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
@@ -74,11 +75,8 @@ def _extract_text(response) -> str:
     return (content or "").strip()
 
 
-def _call_llm(prompt: str, fallback: str = "") -> str:
-    """
-    Call LiteLLM. Returns fallback text if the provider is unavailable.
-    All numbers come from deterministic upstream services.
-    """
+def _call_llm(prompt: str, _provider_text: str = "") -> str:
+    """Call LiteLLM. All numbers come from upstream services."""
     try:
         import litellm
 
@@ -91,9 +89,11 @@ def _call_llm(prompt: str, fallback: str = "") -> str:
             **extra_kwargs,
         )
         text = _extract_text(response)
-        return text or fallback
+        if not text:
+            raise RuntimeError("LLM provider returned empty text")
+        return text
     except Exception as exc:
-        return fallback or f"Explanation unavailable: {exc}"
+        raise HTTPException(status_code=503, detail=f"LLM provider unavailable: {exc}") from exc
 
 
 def _normalize_language(language: str | None) -> SupportedLanguage:
@@ -126,7 +126,7 @@ def _weekday_label(value: date_type, language: SupportedLanguage) -> str:
     return WEEKDAY_LABELS[language][value.weekday()]
 
 
-def _localize_fallback_text(key: str, language: SupportedLanguage, **kwargs) -> str:
+def _localize_message_text(key: str, language: SupportedLanguage, **kwargs) -> str:
     if language == "ms":
         templates = {
             "missing_forecast": "Tiada data ramalan untuk cawangan/SKU/tarikh ini.",
@@ -191,8 +191,8 @@ def _localize_fallback_text(key: str, language: SupportedLanguage, **kwargs) -> 
             "missing_replenishment": "No replenishment recommendation found for this SKU on this date.",
             "forecast": (
                 "Forecast for {sku_name} at {outlet_name} on {plan_date}: total {total} units "
-                "(morning {morning}, midday {midday}, evening {evening}). Based on a weighted "
-                "blend of recent sales and weekday pattern{holiday}{weather}{override}{stockout}."
+                "(morning {morning}, midday {midday}, evening {evening}). Based on the "
+                "trained LightGBM forecast run{holiday}{weather}{override}{stockout}."
             ),
             "prep": "Total prep recommendation for {sku_name} at {outlet_name}: {total_prep} units across all dayparts.",
             "waste": "{sku_name} at {outlet_name} has a {risk_level} waste risk in the {daypart}. {reason}.",
@@ -298,13 +298,12 @@ class AgentAction(BaseModel):
     estimated_impact: str
     target: ActionTarget
     evidence: list[str] = Field(default_factory=list)
-    source_type: Literal["deterministic", "llm_rephrased"]
+    source_type: Literal["rules_based", "llm_rephrased"]
 
 
 class DailyActionsResponse(BaseModel):
     date: str
     brief: str
-    fallback_mode: bool
     top_actions: list[AgentAction] = Field(default_factory=list)
     prep_actions: list[AgentAction] = Field(default_factory=list)
     reorder_actions: list[AgentAction] = Field(default_factory=list)
@@ -324,7 +323,7 @@ class ExplainRecommendationRequest(BaseModel):
 class ExplainRecommendationResponse(BaseModel):
     explanation: str
     evidence: dict
-    source_type: Literal["deterministic", "llm_rephrased"]
+    source_type: Literal["rules_based", "llm_rephrased"]
 
 
 class ManagerNoteRequest(BaseModel):
@@ -437,11 +436,17 @@ def _line_forecast_values(line: PrepPlanLine, forecast_run: ForecastRun) -> tupl
         ),
         None,
     )
-    if forecast_line:
-        p50 = float(getattr(forecast_line, line.daypart, forecast_line.total))
-    else:
-        p50 = float(line.recommended_units)
-    return round(max(0, p50 * 0.8), 2), round(p50, 2), round(max(p50, p50 * 1.25), 2)
+    if not forecast_line:
+        raise HTTPException(status_code=422, detail="Forecast line is required for uncertainty values")
+    session = object_session(line)
+    if session is None:
+        raise HTTPException(status_code=422, detail="Prep line is not attached to a database session")
+    sku = session.query(SKU).filter(SKU.id == line.sku_id).first()
+    outlet = session.query(Outlet).filter(Outlet.id == line.outlet_id).first()
+    if not sku or not outlet:
+        raise HTTPException(status_code=422, detail="Outlet and SKU are required for uncertainty values")
+    band = band_for_prep_line(prep_line=line, forecast_line=forecast_line, sku=sku, outlet_code=outlet.code)
+    return band.p10, band.p50, band.p90
 
 
 @router.post("/copilot/explain-recommendation", response_model=ExplainRecommendationResponse)
@@ -482,7 +487,9 @@ def explain_recommendation(body: ExplainRecommendationRequest, db: Session = Dep
 
     outlet = db.query(Outlet).filter(Outlet.id == line.outlet_id).first()
     sku = db.query(SKU).filter(SKU.id == line.sku_id).first()
-    p10, p50, p90 = _line_forecast_values(line, forecast_run) if forecast_run else (0.0, float(line.recommended_units), 0.0)
+    if not forecast_run:
+        raise HTTPException(status_code=422, detail="Forecast run is required for recommendation explanation")
+    p10, p50, p90 = _line_forecast_values(line, forecast_run)
     final_units = line.edited_units if line.edited_units is not None else line.recommended_units
     evidence = {
         "forecast_run_id": forecast_run.forecast_run_id if forecast_run else None,
@@ -499,22 +506,17 @@ def explain_recommendation(body: ExplainRecommendationRequest, db: Session = Dep
         "current_stock": line.current_stock,
         "status": line.status,
     }
-    fallback = (
-        f"{evidence['sku_name']} at {evidence['outlet_name']} for {line.daypart}: "
-        f"p50 demand is {p50}, current stock is {line.current_stock}, and recommended prep is "
-        f"{line.recommended_units}. This explanation uses only saved forecast and prep-plan data."
-    )
     prompt = (
         f"{_language_prompt_prefix(language)}\n\n"
         "Explain this prep recommendation using only the provided JSON evidence. "
         "Do not create or change any numbers.\n\n"
         f"{evidence}"
     )
-    explanation = _call_llm(prompt, fallback)
+    explanation = _call_llm(prompt)
     return ExplainRecommendationResponse(
         explanation=explanation,
         evidence=evidence,
-        source_type="llm_rephrased" if explanation != fallback else "deterministic",
+        source_type="llm_rephrased",
     )
 
 
@@ -635,12 +637,7 @@ def explain_plan(body: ExplainPlanRequest, db: Session = Depends(get_db)):
             None,
         )
         if not line:
-            return ExplainPlanResponse(
-                explanation=_localize_fallback_text("missing_forecast", language),
-                context_type=ctx,
-                outlet_name=outlet.name,
-                sku_name=sku.name,
-            )
+            raise HTTPException(status_code=404, detail="No forecast data found for this outlet/SKU/date")
 
         rationale = line.rationale_json or {}
         trend_tags = rationale.get("reason_tags", [])
@@ -680,7 +677,7 @@ def explain_plan(body: ExplainPlanRequest, db: Session = Depends(get_db)):
             reason_tags=", ".join(trend_tags) or "None",
             trend_summary=", ".join(trend_tags) or "Stable",
         )
-        fallback = _localize_fallback_text(
+        _message_text = _localize_message_text(
             "forecast",
             language,
             sku_name=sku.name,
@@ -741,12 +738,7 @@ def explain_plan(body: ExplainPlanRequest, db: Session = Depends(get_db)):
             if line.outlet_id == body.outlet_id and line.sku_id == body.sku_id
         ]
         if not lines:
-            return ExplainPlanResponse(
-                explanation=_localize_fallback_text("missing_prep", language),
-                context_type=ctx,
-                outlet_name=outlet.name,
-                sku_name=sku.name,
-            )
+            raise HTTPException(status_code=404, detail="No prep plan data found for this outlet/SKU/date")
 
         rationale = lines[0].rationale_json or {}
         total_prep = sum(line.recommended_units for line in lines)
@@ -764,7 +756,7 @@ def explain_plan(body: ExplainPlanRequest, db: Session = Depends(get_db)):
             midday=lines[1].recommended_units if len(lines) > 1 else 0,
             evening=lines[2].recommended_units if len(lines) > 2 else 0,
         )
-        fallback = _localize_fallback_text(
+        _message_text = _localize_message_text(
             "prep",
             language,
             sku_name=sku.name,
@@ -779,12 +771,7 @@ def explain_plan(body: ExplainPlanRequest, db: Session = Depends(get_db)):
             if alert.outlet_id == body.outlet_id and alert.sku_id == body.sku_id
         ]
         if not alerts:
-            return ExplainPlanResponse(
-                explanation=_localize_fallback_text("missing_waste", language),
-                context_type=ctx,
-                outlet_name=outlet.name,
-                sku_name=sku.name,
-            )
+            raise HTTPException(status_code=404, detail="No waste alert data found for this outlet/SKU/date")
 
         alert = alerts[0]
         prompt = f"{_language_prompt_prefix(language)}\n\n" + WASTE_ALERT_EXPLANATION_PROMPT.format(
@@ -796,7 +783,7 @@ def explain_plan(body: ExplainPlanRequest, db: Session = Depends(get_db)):
             waste_rate_pct=round(alert.waste_rate * 100, 1),
             excess_prep_units=_format_float(alert.excess_prep_units),
         )
-        fallback = _localize_fallback_text(
+        _message_text = _localize_message_text(
             "waste",
             language,
             sku_name=sku.name,
@@ -813,12 +800,7 @@ def explain_plan(body: ExplainPlanRequest, db: Session = Depends(get_db)):
             if alert.outlet_id == body.outlet_id and alert.sku_id == body.sku_id
         ]
         if not alerts:
-            return ExplainPlanResponse(
-                explanation=_localize_fallback_text("missing_stockout", language),
-                context_type=ctx,
-                outlet_name=outlet.name,
-                sku_name=sku.name,
-            )
+            raise HTTPException(status_code=404, detail="No stockout alert data found for this outlet/SKU/date")
 
         alert = alerts[0]
         prompt = f"{_language_prompt_prefix(language)}\n\n" + STOCKOUT_ALERT_EXPLANATION_PROMPT.format(
@@ -829,7 +811,7 @@ def explain_plan(body: ExplainPlanRequest, db: Session = Depends(get_db)):
             coverage_pct=_format_float(alert.coverage_pct),
             reason=alert.reason,
         )
-        fallback = _localize_fallback_text(
+        _message_text = _localize_message_text(
             "stockout",
             language,
             sku_name=sku.name,
@@ -858,12 +840,7 @@ def explain_plan(body: ExplainPlanRequest, db: Session = Depends(get_db)):
         )
 
         if not matching_lines:
-            return ExplainPlanResponse(
-                explanation=_localize_fallback_text("missing_replenishment", language),
-                context_type=ctx,
-                outlet_name=outlet.name,
-                sku_name=sku.name,
-            )
+            raise HTTPException(status_code=404, detail="No replenishment recommendation found for this SKU/date")
 
         line = matching_lines[0]
         ingredient = line.ingredient
@@ -878,7 +855,7 @@ def explain_plan(body: ExplainPlanRequest, db: Session = Depends(get_db)):
             driving_skus=", ".join(line.driving_skus or []),
             sku_name=sku.name,
         )
-        fallback = _localize_fallback_text(
+        _message_text = _localize_message_text(
             "replenishment",
             language,
             sku_name=sku.name,
@@ -890,7 +867,7 @@ def explain_plan(body: ExplainPlanRequest, db: Session = Depends(get_db)):
             unit=unit,
         )
 
-    explanation = _call_llm(prompt, fallback)
+    explanation = _call_llm(prompt)
     return ExplainPlanResponse(
         explanation=explanation,
         context_type=ctx,
@@ -910,6 +887,8 @@ def generate_daily_brief(body: DailyBriefRequest, db: Session = Depends(get_db))
         .order_by(desc(ForecastRun.created_at), desc(ForecastRun.id))
         .first()
     )
+    if not fc_run:
+        raise HTTPException(status_code=404, detail="Forecast run not found for daily brief date")
     total_sales = round(sum(line.total for line in (fc_run.lines if fc_run else [])), 0)
 
     waste_alerts = detect_waste_risk(brief_date, db)
@@ -965,7 +944,7 @@ def generate_daily_brief(body: DailyBriefRequest, db: Session = Depends(get_db))
             else "No outlets are currently flagged as high risk."
         )
     )
-    fallback = _localize_fallback_text(
+    _message_text = _localize_message_text(
         "daily_brief",
         language,
         brief_date=brief_date,
@@ -987,7 +966,7 @@ def generate_daily_brief(body: DailyBriefRequest, db: Session = Depends(get_db))
         ),
     )
 
-    brief = _call_llm(prompt, fallback)
+    brief = _call_llm(prompt)
     return DailyBriefResponse(brief=brief, date=str(brief_date))
 
 
@@ -1009,15 +988,19 @@ def run_scenario(body: ScenarioRequest, db: Session = Depends(get_db)):
 @router.post("/copilot/daily-actions", response_model=DailyActionsResponse)
 def daily_actions(body: DailyActionsRequest, db: Session = Depends(get_db)):
     language = _normalize_language(body.language)
-    llm = lambda prompt, fallback="": _call_llm(
+    llm = lambda prompt, _text="": _call_llm(
         f"{_language_prompt_prefix(language)}\n\n{prompt}",
-        fallback,
+        _text,
     )
-    payload = generate_daily_actions(body.target_date, body.top_n, db, llm, language)
+    try:
+        payload = generate_daily_actions(body.target_date, body.top_n, db, llm, language)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
     return DailyActionsResponse(
         date=payload["date"],
         brief=payload["brief"],
-        fallback_mode=payload["fallback_mode"],
         top_actions=payload["top_actions"],
         prep_actions=payload["prep_actions"],
         reorder_actions=payload["reorder_actions"],

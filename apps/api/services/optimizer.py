@@ -41,7 +41,7 @@ def calculate_optimal_prep(
             "batch_size": batch_size,
         }
 
-    # Calculate cost parameters. Salvage value is zero in the demo data, so
+    # Calculate cost parameters. Salvage value is zero when no recovery value is configured, so
     # waste exposure is represented by unit cost.
     waste_cost = max(unit_cost, 0)
     stockout_cost = max(unit_price - unit_cost, 0)

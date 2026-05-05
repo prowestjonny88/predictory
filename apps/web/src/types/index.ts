@@ -66,9 +66,19 @@ export interface ForecastLine {
 
 export interface ForecastRun {
   id: number;
+  forecast_run_id?: string;
   forecast_date: string;
+  model_run_id?: number | null;
+  engine_name?: string;
+  model_version?: string;
   status: string;
   lines: ForecastLine[];
+}
+
+export interface ForecastReadiness {
+  ready: boolean;
+  target_date: string;
+  blockers: string[];
 }
 
 export interface ForecastSignal {
@@ -273,13 +283,12 @@ export interface AgentAction {
   estimated_impact: string;
   target: ActionTarget;
   evidence: string[];
-  source_type: "deterministic" | "llm_rephrased";
+  source_type: "rules_based" | "llm_rephrased";
 }
 
 export interface DailyActionsResponse {
   date: string;
   brief: string;
-  fallback_mode: boolean;
   top_actions: AgentAction[];
   prep_actions: AgentAction[];
   reorder_actions: AgentAction[];

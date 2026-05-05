@@ -4,7 +4,7 @@ import { useLanguage } from "@/components/i18n/LanguageProvider";
 
 interface Props {
   engineName: string;
-  dataSource: "backend" | "demo_fallback";
+  dataSource: "backend";
   modelStatus: string;
   validationWindow: string;
   wape: number;
@@ -31,9 +31,7 @@ export default function ModelBadge({
         <span className="text-xs text-neutral-500">{t("planning.validation", "Validation")}: {validationWindow}</span>
       </div>
       <div className="flex items-center gap-2">
-        <Badge variant={dataSource === "backend" ? "success" : "medium"}>
-          {t("planning.source", "Source")}: {dataSource === "backend" ? "backend" : "demo fallback"}
-        </Badge>
+        <Badge variant="success">{t("planning.source", "Source")}: {dataSource}</Badge>
         <Badge variant="info">{t("planning.wape", "WAPE")} {(wape * 100).toFixed(1)}%</Badge>
         <Badge variant="low">{t("planning.coverage", "Coverage")} {(coverage * 100).toFixed(0)}%</Badge>
       </div>

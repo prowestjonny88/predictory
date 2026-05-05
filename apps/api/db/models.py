@@ -178,7 +178,7 @@ class ForecastLine(Base):
     midday: Mapped[float] = mapped_column(Float, default=0.0)
     evening: Mapped[float] = mapped_column(Float, default=0.0)
     total: Mapped[float] = mapped_column(Float, default=0.0)
-    method: Mapped[str] = mapped_column(String(50), default="weighted_blend")
+    method: Mapped[str] = mapped_column(String(50), default="lightgbm_p50_v1")
     confidence: Mapped[float] = mapped_column(Float, default=0.80)
     manual_adjustment_pct: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     rationale_json: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
@@ -212,7 +212,7 @@ class WeatherSnapshot(Base):
     temp_max_c: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     adjustment_pct: Mapped[float] = mapped_column(Float, default=0.0)
     status: Mapped[str] = mapped_column(String(20), default="unavailable")
-    source: Mapped[str] = mapped_column(String(50), default="fallback")
+    source: Mapped[str] = mapped_column(String(50), default="manual")
     raw_json: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 

@@ -15,7 +15,7 @@ def _build_session():
     return sessionmaker(bind=engine, autocommit=False, autoflush=False)()
 
 
-def _seed_outlet_sku(db, sku_code: str, freshness_hours: int, safety_buffer_pct: float):
+def _make_outlet_sku(db, sku_code: str, freshness_hours: int, safety_buffer_pct: float):
     outlet = Outlet(name="Test Outlet", code=f"OUT-{sku_code}")
     sku = SKU(
         name=f"SKU {sku_code}",
@@ -33,7 +33,7 @@ def _seed_outlet_sku(db, sku_code: str, freshness_hours: int, safety_buffer_pct:
 
 def test_recommend_prep_zero_stock_uses_formula():
     db = _build_session()
-    outlet, sku = _seed_outlet_sku(db, "SKU-ZERO", freshness_hours=12, safety_buffer_pct=0.10)
+    outlet, sku = _make_outlet_sku(db, "SKU-ZERO", freshness_hours=12, safety_buffer_pct=0.10)
     target = date(2026, 3, 5)
 
     forecast = ForecastResult(
@@ -54,7 +54,7 @@ def test_recommend_prep_zero_stock_uses_formula():
 
 def test_recommend_prep_full_stock_zeroes_prep():
     db = _build_session()
-    outlet, sku = _seed_outlet_sku(db, "SKU-FULL", freshness_hours=12, safety_buffer_pct=0.10)
+    outlet, sku = _make_outlet_sku(db, "SKU-FULL", freshness_hours=12, safety_buffer_pct=0.10)
     target = date(2026, 3, 5)
 
     db.add(
@@ -86,7 +86,7 @@ def test_recommend_prep_full_stock_zeroes_prep():
 
 def test_short_freshness_skips_evening_when_morning_prep_exists():
     db = _build_session()
-    outlet, sku = _seed_outlet_sku(db, "SKU-SHORT", freshness_hours=6, safety_buffer_pct=0.10)
+    outlet, sku = _make_outlet_sku(db, "SKU-SHORT", freshness_hours=6, safety_buffer_pct=0.10)
     target = date(2026, 3, 5)
 
     forecast = ForecastResult(
@@ -106,7 +106,7 @@ def test_short_freshness_skips_evening_when_morning_prep_exists():
 
 def test_high_waste_history_reduces_prep_by_5pct():
     db = _build_session()
-    outlet, sku = _seed_outlet_sku(db, "SKU-WASTE", freshness_hours=12, safety_buffer_pct=0.0)
+    outlet, sku = _make_outlet_sku(db, "SKU-WASTE", freshness_hours=12, safety_buffer_pct=0.0)
     target = date(2026, 3, 10)
 
     # Waste rate over 7 days > 15%
@@ -131,9 +131,9 @@ def test_high_waste_history_reduces_prep_by_5pct():
     assert rec.morning == 19
 
 
-def test_zero_safety_buffer_does_not_fall_back_to_default():
+def test_zero_safety_buffer_is_preserved():
     db = _build_session()
-    outlet, sku = _seed_outlet_sku(db, "SKU-NOBUF", freshness_hours=12, safety_buffer_pct=0.0)
+    outlet, sku = _make_outlet_sku(db, "SKU-NOBUF", freshness_hours=12, safety_buffer_pct=0.0)
     target = date(2026, 3, 12)
 
     forecast = ForecastResult(

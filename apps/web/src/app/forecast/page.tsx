@@ -56,6 +56,12 @@ export default function ForecastPage() {
     staleTime: 30_000,
   });
 
+  const readinessQuery = useQuery({
+    queryKey: ["forecastReadiness", date],
+    queryFn: () => api.forecastReadiness(date),
+    staleTime: 30_000,
+  });
+
   const contextQuery = useQuery({
     queryKey: ["forecastContext", date, outletId, contextSkuId],
     queryFn: () =>
@@ -304,7 +310,7 @@ export default function ForecastPage() {
         />
         <button
           onClick={() => runMutation.mutate()}
-          disabled={runMutation.isPending}
+          disabled={runMutation.isPending || readinessQuery.isLoading || readinessQuery.data?.ready === false}
           className="rounded-md bg-amber-500 px-4 py-1.5 text-sm font-medium text-white transition-colors hover:bg-amber-600 disabled:opacity-60"
         >
           {runMutation.isPending
@@ -315,13 +321,16 @@ export default function ForecastPage() {
 
       <main className="max-w-7xl space-y-6 p-6 page-enter">
         {(forecastsQuery.error ||
+          readinessQuery.error ||
           runMutation.error ||
           adjustMutation.error ||
           createOverrideMutation.error ||
           updateOverrideMutation.error ||
           deleteOverrideMutation.error) && (
           <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {forecastsQuery.error instanceof Error
+            {readinessQuery.error instanceof Error
+              ? readinessQuery.error.message
+              : forecastsQuery.error instanceof Error
               ? forecastsQuery.error.message
               : runMutation.error instanceof Error
                 ? runMutation.error.message
@@ -334,6 +343,28 @@ export default function ForecastPage() {
                       : deleteOverrideMutation.error instanceof Error
                         ? deleteOverrideMutation.error.message
                         : t("dashboard.failedDailyPlan", "Failed to load daily plan")}
+          </div>
+        )}
+
+        {readinessQuery.data && !readinessQuery.data.ready && (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            <p className="font-semibold">{t("forecast.notReady", "Forecast cannot run yet.")}</p>
+            <ul className="mt-2 list-disc space-y-1 pl-5">
+              {readinessQuery.data.blockers.slice(0, 8).map((blocker) => (
+                <li key={blocker}>{blocker}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {currentRun && (
+          <div className="flex flex-wrap items-center gap-2 rounded-lg border border-neutral-200 bg-white px-4 py-3 text-xs text-neutral-600 shadow-sm">
+            <span className="font-semibold text-neutral-800">
+              {currentRun.forecast_run_id ?? `Run ${currentRun.id}`}
+            </span>
+            <span>Engine: {currentRun.engine_name ?? "unknown"}</span>
+            <span>Model: {currentRun.model_version ?? "unknown"}</span>
+            <span>Status: {currentRun.status}</span>
           </div>
         )}
 
@@ -366,13 +397,15 @@ export default function ForecastPage() {
                 <p className="text-xs font-semibold uppercase tracking-wide">{card.label}</p>
                 {forecastsQuery.isLoading ? (
                   <div className="mt-3 h-8 w-24 animate-pulse rounded bg-neutral-200/70" />
-                ) : (
+                ) : currentRun ? (
                   <p className="mt-3 text-3xl font-bold">
                     {card.value.toFixed(1)}
                     <span className="ml-1 text-sm font-normal opacity-60">
                       {t("common.units", "units")}
                     </span>
                   </p>
+                ) : (
+                  <p className="mt-3 text-3xl font-bold">-</p>
                 )}
               </div>
             ))}
