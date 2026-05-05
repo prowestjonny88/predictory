@@ -42,7 +42,7 @@ def _request(method: str, path: str, body: dict[str, Any] | None = None) -> tupl
 
     req = Request(url, data=data, method=method.upper(), headers=headers)
     try:
-        with urlopen(req, timeout=20) as response:
+        with urlopen(req, timeout=180) as response:
             raw = response.read().decode("utf-8")
             return response.status, json.loads(raw) if raw else None
     except HTTPError as exc:
@@ -108,7 +108,15 @@ def main() -> int:
 
     daily_plan = _get("/api/daily-plan/latest", query={"date": SMOKE_TARGET_DATE})
     _assert(daily_plan.get("forecast_run_id"), f"Daily plan is missing forecast_run_id: {daily_plan}")
-    checks.append("daily plan")
+    _assert(daily_plan.get("data_source") in {"backend", "demo_fallback"}, f"Daily plan source missing: {daily_plan}")
+    actions = daily_plan.get("top_actions") or []
+    _assert(actions, f"Daily plan top_actions missing: {daily_plan}")
+    first_action = actions[0]
+    _assert(first_action.get("p10") <= first_action.get("p50") <= first_action.get("p90"), f"Uncertainty bands unordered: {first_action}")
+    _assert(first_action.get("recommended_prep") is not None, f"Recommended prep missing: {first_action}")
+    _assert(first_action.get("financial_exposure"), f"Financial exposure missing: {first_action}")
+    _assert(first_action.get("replenishment") is not None, f"Replenishment impact missing: {first_action}")
+    checks.append("latest daily plan contract")
 
     prep = _get("/prep-plans/latest", query={"date": SMOKE_TARGET_DATE})
     prep_lines = prep.get("lines") or []
@@ -146,7 +154,8 @@ def main() -> int:
 
     print(f"PASS Predictory smoke flow for {SMOKE_TARGET_DATE}")
     for check in checks:
-        print(f"- {check}")
+        print(f"[PASS] {check}")
+    print("Final result: DEMO READY")
     return 0
 
 

@@ -348,7 +348,7 @@ def run_forecast_for_date(target_date: date, db: Session) -> ForecastRun:
         forecast_date=target_date,
         model_run_id=model_run.id,
         status="completed",
-        engine_name="weighted_blend_backend",
+        engine_name="weighted_blend_fallback",
         model_version=model_run.model_version,
     )
     db.add(run)

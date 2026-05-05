@@ -30,7 +30,7 @@ export default function UncertaintyBar({ p10, p50, p90, recommended, className }
         <div
           className="absolute top-1/2 h-3 w-3 -translate-y-1/2 rounded-full bg-neutral-900"
           style={{ left: `calc(${p50Pos}% - 6px)` }}
-          aria-label={t("planning.uncertainty.p50", "p50")}
+          aria-label={t("planning.uncertainty.expected", "Expected")}
         />
         <div
           className="absolute top-1/2 h-3 w-3 -translate-y-1/2 rounded-full border-2 border-amber-500 bg-white"
@@ -39,9 +39,9 @@ export default function UncertaintyBar({ p10, p50, p90, recommended, className }
         />
       </div>
       <div className="flex justify-between text-[11px] text-neutral-500">
-        <span>{t("planning.uncertainty.p10", "p10")} {p10}</span>
-        <span>{t("planning.uncertainty.p50", "p50")} {p50}</span>
-        <span>{t("planning.uncertainty.p90", "p90")} {p90}</span>
+        <span>{t("planning.uncertainty.low", "Low")} {p10}</span>
+        <span>{t("planning.uncertainty.expected", "Expected")} {p50}</span>
+        <span>{t("planning.uncertainty.high", "High")} {p90}</span>
       </div>
     </div>
   );

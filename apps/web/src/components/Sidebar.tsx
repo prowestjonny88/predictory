@@ -7,7 +7,6 @@ import {
   TrendingUp,
   ClipboardList,
   ShoppingCart,
-  Bot,
   ChefHat,
   Package,
 } from "lucide-react";
@@ -18,8 +17,7 @@ import { cn } from "@/lib/utils";
 const NAV = [
   { href: "/dashboard", labelKey: "nav.dashboard", fallback: "Dashboard", icon: BarChart3 },
   { href: "/daily-planning", labelKey: "nav.dailyPlanning", fallback: "Daily Planning", icon: ClipboardList },
-  { href: "/forecast", labelKey: "nav.forecast", fallback: "Forecast", icon: TrendingUp },
-  { href: "/prep-plan", labelKey: "nav.prepPlan", fallback: "Prep Plan", icon: ClipboardList },
+  { href: "/forecast", labelKey: "nav.forecastEvidence", fallback: "Forecast Evidence", icon: TrendingUp },
   {
     href: "/replenishment",
     labelKey: "nav.replenishment",
@@ -27,7 +25,6 @@ const NAV = [
     icon: ShoppingCart,
   },
   { href: "/catalog", labelKey: "nav.catalog", fallback: "SKU Catalog", icon: Package },
-  { href: "/copilot", labelKey: "nav.copilot", fallback: "AI Copilot", icon: Bot },
 ];
 
 export default function Sidebar() {

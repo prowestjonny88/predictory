@@ -62,9 +62,10 @@ export default function RecommendationCard({ item, onOpen }: Props) {
             {item.explanation ??
               t(
                 "planning.recommendation.groundedWhy",
-                "Uses saved forecast range {{p10}}-{{p90}}, opening stock {{stock}}, and prep {{prep}}. Gemini explains these numbers only.",
+                "Uses backend demand range Low {{p10}}, Expected {{p50}}, High {{p90}}, opening stock {{stock}}, and prep {{prep}}. Gemini explains these numbers only.",
                 {
                   p10: item.p10,
+                  p50: item.p50,
                   p90: item.p90,
                   stock: item.opening_stock,
                   prep: item.recommended_prep,

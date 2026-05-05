@@ -25,6 +25,7 @@ class ModelArtifacts:
         self._residual_bands = None
         self._feature_schema = None
         self._metrics = None
+        self.base_path = str(Path(model_path).parent) if model_path else None
 
     @property
     def model(self):
@@ -55,7 +56,7 @@ class ModelArtifacts:
         return self._metrics
 
     def is_loaded(self) -> bool:
-        return self.model is not None
+        return bool(self.model_path and os.path.exists(self.model_path))
 
     def get_engine_name(self) -> str:
         if self.is_loaded():
@@ -82,13 +83,23 @@ def get_model_artifacts() -> ModelArtifacts:
     global _model_artifacts
     if _model_artifacts is None:
         repo_root = Path(__file__).parent.parent.parent.parent
-        base_path = repo_root / "backend" / "models"
+        root_models = repo_root / "models"
+        legacy_models = repo_root / "backend" / "models"
+        base_path = root_models if root_models.exists() else legacy_models
 
         _model_artifacts = ModelArtifacts(
             model_path=str(base_path / "lightgbm_p50_v1.pkl"),
             residual_bands_path=str(base_path / "residual_bands_v1.json"),
             feature_schema_path=str(base_path / "feature_schema_v1.json"),
             metrics_path=str(base_path / "model_metrics_v1.json"),
+        )
+        print(
+            "[model_loader] "
+            f"base_path={base_path} "
+            f"model_path={_model_artifacts.model_path} exists={os.path.exists(_model_artifacts.model_path)} "
+            f"residual_bands_path={_model_artifacts.residual_bands_path} exists={os.path.exists(_model_artifacts.residual_bands_path)} "
+            f"feature_schema_path={_model_artifacts.feature_schema_path} exists={os.path.exists(_model_artifacts.feature_schema_path)} "
+            f"metrics_path={_model_artifacts.metrics_path} exists={os.path.exists(_model_artifacts.metrics_path)}"
         )
 
     return _model_artifacts
@@ -104,4 +115,7 @@ def load_model_for_inference():
         "validation_window": artifacts.get_validation_window(),
         "is_loaded": artifacts.is_loaded(),
         "metrics": artifacts.metrics or {},
+        "artifact_base_path": artifacts.base_path,
+        "offline_model_available": artifacts.is_loaded(),
+        "residual_bands_available": artifacts.residual_bands is not None,
     }

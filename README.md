@@ -157,6 +157,8 @@ The live FastAPI demo still generates operational forecast runs from the local S
 
 Use the frontend fallback/demo payload when you need to show the exact accepted ML-pipeline predictions. Use the live backend route when you need to show the interactive API workflow.
 
+For the current live demo, forecast generation is intentionally labeled as `weighted_blend_fallback` unless LightGBM feature-row inference is wired end to end. The offline LightGBM artifacts remain loaded as validation/model evidence. Daily Planning surfaces `data_source` so rehearsals can distinguish `backend` from `demo_fallback`, and the frontend must not fabricate uncertainty bands or financial exposure when backend fields are missing.
+
 ## Testing
 
 Backend:

@@ -23,6 +23,7 @@ const EMPTY_PLAN: DailyPlanLatestResponse = {
   model_version: "lightgbm_p50_v1",
   engine_name: "lightgbm_mlops_prototype",
   model_status: "Loading",
+  data_source: "backend",
   validation_window: "2022-09-01 to 2022-09-30",
   metrics: {
     wape: 0.38011723175212897,
@@ -397,12 +398,14 @@ export default function DailyPlanningPage() {
           items={actionSummaryItems}
           subtext={t(
             "planning.actionSummary.subtext",
-            "This view prioritizes financially optimal prep and replenishment decisions based on LightGBM demand forecasting."
+            "This view prioritizes cost-aware prep and replenishment decisions from the backend planning engine."
           )}
         />
 
         <ModelBadge
-          engineName={t("planning.modelBadge", "LightGBM MLOps prototype")}
+          engineName={plan.engine_name}
+          dataSource={plan.data_source}
+          modelStatus={plan.model_status}
           validationWindow={plan.validation_window}
           wape={plan.metrics.wape}
           coverage={plan.metrics.p10_p90_coverage}
@@ -489,6 +492,7 @@ export default function DailyPlanningPage() {
         modelVersion={plan.model_version}
         modelStatus={plan.model_status}
         engineName={plan.engine_name}
+        dataSource={plan.data_source}
         validationWindow={plan.validation_window}
         metrics={plan.metrics}
       />

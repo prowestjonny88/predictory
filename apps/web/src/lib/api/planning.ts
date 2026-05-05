@@ -54,6 +54,7 @@ export interface DailyPlanLatestResponse {
   engine_name: string;
   model_status: string;
   validation_window: string;
+  data_source: "backend" | "demo_fallback";
   metrics: DailyPlanMetrics;
   top_actions: DailyPlanTopAction[];
 }
@@ -133,39 +134,6 @@ interface BackendMetrics {
   estimated_mismatch_cost_delta_pct?: number;
 }
 
-interface BackendForecastLine {
-  outlet_id: number;
-  outlet_name: string;
-  sku_id: number;
-  sku_name: string;
-  morning: number;
-  midday: number;
-  evening: number;
-  total: number;
-  reason_tags?: string[];
-}
-
-interface BackendPrepLine {
-  id: number;
-  outlet_id: number;
-  sku_id: number;
-  daypart: string;
-  recommended_units: number;
-  edited_units: number | null;
-  current_stock: number;
-  status: string;
-}
-
-interface BackendReplenishmentLine {
-  ingredient_id: number;
-  ingredient_name: string;
-  need_qty: number;
-  stock_on_hand: number;
-  reorder_qty: number;
-  urgency: string;
-  driving_skus: string[];
-}
-
 interface BackendDailyPlan {
   forecast_run_id: string;
   model_run_id: number | null;
@@ -173,13 +141,9 @@ interface BackendDailyPlan {
   engine_name: string;
   model_status: string;
   validation_window: string;
+  data_source?: "backend" | "demo_fallback";
   metrics: BackendMetrics;
-  date: string;
-  prep_plan_id: number | null;
-  replenishment_plan_id: number | null;
-  forecasts: BackendForecastLine[];
-  prep_plan: BackendPrepLine[];
-  replenishment_plan: BackendReplenishmentLine[];
+  top_actions?: DailyPlanTopAction[];
 }
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
@@ -209,88 +173,7 @@ function normalizeMetrics(metrics: BackendMetrics): DailyPlanMetrics {
   };
 }
 
-function daypartForecast(line: BackendForecastLine | undefined, daypart: string) {
-  if (!line) return 0;
-  const key = daypart.toLowerCase();
-  if (key === "morning") return line.morning;
-  if (key === "midday") return line.midday;
-  if (key === "evening") return line.evening;
-  return line.total;
-}
-
 function toBackendDailyPlan(payload: BackendDailyPlan): DailyPlanLatestResponse {
-  const forecastByKey = new Map(
-    payload.forecasts.map((line) => [`${line.outlet_id}:${line.sku_id}`, line])
-  );
-  const categoryBySkuName = (name: string) => {
-    const lower = name.toLowerCase();
-    if (lower.includes("croissant") || lower.includes("danish") || lower.includes("roll")) return "Pastry";
-    if (lower.includes("muffin")) return "Muffin";
-    if (lower.includes("bread") || lower.includes("loaf")) return "Bread";
-    if (lower.includes("tart")) return "Dessert";
-    return "Bakery";
-  };
-
-  const top_actions = payload.prep_plan
-    .map((line) => {
-      const forecast = forecastByKey.get(`${line.outlet_id}:${line.sku_id}`);
-      const p50 = Math.round(daypartForecast(forecast, line.daypart));
-      const p10 = Math.round(Math.max(0, p50 * 0.8));
-      const p90 = Math.round(Math.max(p50, p50 * 1.25));
-      const finalPrep = line.edited_units ?? line.recommended_units;
-      const skuName = forecast?.sku_name ?? `SKU ${line.sku_id}`;
-      const replenishment = payload.replenishment_plan
-        .filter((repl) => repl.driving_skus?.includes(skuName))
-        .map((repl) => ({
-          ingredient_id: String(repl.ingredient_id),
-          ingredient_name: repl.ingredient_name,
-          required_qty: repl.need_qty,
-          current_stock: repl.stock_on_hand,
-          shortage_qty: Math.max(0, repl.need_qty - repl.stock_on_hand),
-          reorder_qty: repl.reorder_qty,
-          unit: "units",
-          urgency: repl.urgency,
-        }));
-      const stockoutUnits = Math.max(0, p50 - line.current_stock - finalPrep);
-      const wasteUnits = Math.max(0, finalPrep + line.current_stock - p10);
-
-      return {
-        id: String(line.id),
-        plan_id: payload.prep_plan_id ?? undefined,
-        outlet_id: String(line.outlet_id),
-        outlet_name: forecast?.outlet_name ?? `Outlet ${line.outlet_id}`,
-        sku_id: String(line.sku_id),
-        sku_name: skuName,
-        sku_category: categoryBySkuName(skuName),
-        daypart: line.daypart,
-        p10,
-        p50,
-        p90,
-        opening_stock: line.current_stock,
-        recommended_prep: finalPrep,
-        batch_size: 5,
-        waste_cost: 3.5,
-        stockout_cost: 8.5,
-        financial_exposure: {
-          stockout_exposure_rm: Math.round(stockoutUnits * 8.5),
-          waste_exposure_rm: Math.round(wasteUnits * 3.5),
-        },
-        reason_summary:
-          p50 > 0
-            ? `Prep ${finalPrep} units for ${line.daypart}; p50 demand is ${p50}, opening stock is ${line.current_stock}, and the range is ${p10}-${p90}.`
-            : `Prep ${finalPrep} units for ${line.daypart}; backend plan generated this recommendation from saved demand context.`,
-        replenishment,
-        status: line.status,
-      } satisfies DailyPlanTopAction;
-    })
-    .sort(
-      (a, b) =>
-        b.financial_exposure.stockout_exposure_rm +
-        b.financial_exposure.waste_exposure_rm -
-        (a.financial_exposure.stockout_exposure_rm + a.financial_exposure.waste_exposure_rm)
-    )
-    .slice(0, 18);
-
   return {
     forecast_run_id: payload.forecast_run_id,
     model_run_id: payload.model_run_id ? String(payload.model_run_id) : "",
@@ -298,8 +181,9 @@ function toBackendDailyPlan(payload: BackendDailyPlan): DailyPlanLatestResponse 
     engine_name: payload.engine_name,
     model_status: payload.model_status,
     validation_window: payload.validation_window,
+    data_source: payload.data_source ?? "backend",
     metrics: normalizeMetrics(payload.metrics),
-    top_actions,
+    top_actions: payload.top_actions ?? [],
   };
 }
 
@@ -309,7 +193,7 @@ export const planningApi = {
       const payload = await apiFetch<BackendDailyPlan>(`${V1}/api/daily-plan/latest?date=${date}`);
       return toBackendDailyPlan(payload);
     } catch (_error) {
-      return demoLatestPlan();
+      return { ...(await demoLatestPlan()), data_source: "demo_fallback" };
     }
   },
 

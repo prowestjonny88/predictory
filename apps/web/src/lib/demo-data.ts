@@ -320,6 +320,7 @@ export async function demoLatestPlan(): Promise<DailyPlanLatestResponse> {
     engine_name: "lightgbm_mlops_prototype",
     model_status: "demo_artifact",
     validation_window: "2022-09-01 to 2022-09-30",
+    data_source: "demo_fallback",
     metrics: {
       wape: contextPayload.modelQuality.validationWape,
       bias: contextPayload.modelQuality.validationBias,

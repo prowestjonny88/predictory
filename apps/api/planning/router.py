@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Planning router — Task 10
 GET  /api/daily-plan/{date}
@@ -28,7 +30,8 @@ from planning.replenishment import recommend_replenishment
 from forecasting.engine import run_forecast_for_date
 from alerts.waste import detect_waste_risk
 from alerts.stockout import detect_stockout_risk
-from services.model_loader import load_model_for_inference
+from services.model_loader import get_model_artifacts, load_model_for_inference
+from services.optimizer import calculate_optimal_prep
 
 router = APIRouter()
 
@@ -93,6 +96,7 @@ class DailyPlanOut(BaseModel):
     validation_window: str
     metrics: Dict[str, Any]
     date: str
+    data_source: str = "backend"
     prep_plan_id: Optional[int]
     replenishment_plan_id: Optional[int]
     forecasts: list[ForecastLineOut]
@@ -101,6 +105,7 @@ class DailyPlanOut(BaseModel):
     waste_alerts: list[AlertOut]
     stockout_alerts: list[AlertOut]
     summary: SummaryOut
+    top_actions: list[TopActionOut] = []
 
 
 class PlanRunOut(BaseModel):
@@ -121,11 +126,14 @@ class ReplenishmentItemOut(BaseModel):
     required_qty: float
     current_stock: float
     shortage_qty: float
+    reorder_qty: float
     unit: str
+    urgency: str
 
 
 class TopActionOut(BaseModel):
     id: str
+    plan_id: Optional[int] = None
     outlet_id: str
     outlet_name: str
     sku_id: str
@@ -154,6 +162,7 @@ class DailyPlanLatestOut(BaseModel):
     model_status: str
     validation_window: str
     metrics: dict
+    data_source: str
     top_actions: list[TopActionOut]
 
 
@@ -386,13 +395,201 @@ def _forecast_values_for_line(line: PrepPlanLine, db: Session) -> tuple[str, str
         p50 = float(line.recommended_units)
     else:
         p50 = float(getattr(matching, line.daypart, matching.total))
+    p10, p50, p90 = _forecast_band_for_line(line, matching, db)
     return (
         forecast_run.forecast_run_id,
         forecast_run.model_version,
-        round(max(0.0, p50 * 0.8), 2),
-        round(p50, 2),
-        round(max(p50, p50 * 1.25), 2),
+        p10,
+        p50,
+        p90,
     )
+
+
+def _band_residual_for(line: PrepPlanLine, db: Session) -> tuple[float, float, str]:
+    artifacts = get_model_artifacts()
+    bands = artifacts.residual_bands or {}
+    fallback = bands.get("global_residual_band") or {}
+    return (
+        float(fallback.get("residual_p10", -2.0)),
+        float(fallback.get("residual_p90", 3.0)),
+        "residual_bands_v1" if fallback else "fallback_band_default",
+    )
+
+
+def _forecast_band_for_line(
+    line: PrepPlanLine,
+    forecast_line,
+    db: Session,
+) -> tuple[float, float, float]:
+    p50 = float(getattr(forecast_line, line.daypart, forecast_line.total)) if forecast_line else float(line.recommended_units)
+    lower_residual, upper_residual, _source = _band_residual_for(line, db)
+    p10 = max(0.0, p50 + lower_residual)
+    p90 = max(p50, p50 + upper_residual)
+    p10 = min(p10, p50)
+    return round(p10, 2), round(max(0.0, p50), 2), round(p90, 2)
+
+
+def _sku_unit_cost(sku: SKU, db: Session) -> float:
+    bom_rows = db.query(RecipeBOM).filter(RecipeBOM.sku_id == sku.id).all()
+    cost = 0.0
+    for bom in bom_rows:
+        ingredient = db.query(Ingredient).filter(Ingredient.id == bom.ingredient_id).first()
+        if ingredient:
+            cost += float(ingredient.cost_per_unit or 0) * float(bom.quantity_per_unit or 0)
+    return round(cost if cost > 0 else float(sku.price or 0) * 0.4, 2)
+
+
+def _ingredient_impact_for_action(
+    sku: SKU,
+    recommended_prep: int,
+    db: Session,
+) -> list[ReplenishmentItemOut]:
+    items: list[ReplenishmentItemOut] = []
+    for bom in db.query(RecipeBOM).filter(RecipeBOM.sku_id == sku.id).all():
+        ingredient = db.query(Ingredient).filter(Ingredient.id == bom.ingredient_id).first()
+        if not ingredient:
+            continue
+        required = round(recommended_prep * bom.quantity_per_unit, 3)
+        current = round(float(ingredient.stock_on_hand or 0), 3)
+        shortage = round(max(0.0, required - current), 3)
+        reorder = shortage
+        if required <= 0:
+            urgency = "low"
+        else:
+            ratio = current / required
+            urgency = "critical" if ratio < 0.5 else "high" if ratio < 0.8 else "medium" if ratio < 1.0 else "low"
+        items.append(
+            ReplenishmentItemOut(
+                ingredient_id=str(ingredient.id),
+                ingredient_name=ingredient.name,
+                required_qty=required,
+                current_stock=current,
+                shortage_qty=shortage,
+                reorder_qty=reorder,
+                unit=ingredient.unit,
+                urgency=urgency,
+            )
+        )
+    return sorted(items, key=lambda item: item.shortage_qty, reverse=True)[:3]
+
+
+def _optimize_prep_plan_lines(prep_plan: PrepPlan, forecast_run: ForecastRun, db: Session) -> bool:
+    forecast_by_key = {(line.outlet_id, line.sku_id): line for line in forecast_run.lines}
+    changed = False
+    for line in prep_plan.lines:
+        sku = db.query(SKU).filter(SKU.id == line.sku_id).first()
+        if not sku:
+            continue
+        forecast_line = forecast_by_key.get((line.outlet_id, line.sku_id))
+        p10, p50, p90 = _forecast_band_for_line(line, forecast_line, db)
+        decision = calculate_optimal_prep(
+            p10=p10,
+            p50=p50,
+            p90=p90,
+            opening_stock=line.current_stock,
+            unit_price=float(sku.price or 0),
+            unit_cost=_sku_unit_cost(sku, db),
+            batch_size=5,
+            capacity=None,
+            freshness_hours=sku.freshness_hours,
+        )
+        recommended = int(decision["recommended_prep"])
+        rationale = line.rationale_json or {}
+        rationale["uncertainty"] = {"p10": p10, "p50": p50, "p90": p90, "source": _band_residual_for(line, db)[2]}
+        rationale["optimizer"] = decision
+        if line.recommended_units != recommended:
+            line.recommended_units = recommended
+            changed = True
+        line.rationale_json = rationale
+        db.add(line)
+    if changed:
+        db.flush()
+    return changed
+
+
+def _generate_prep_plan_from_forecast(plan_date: date_type, forecast_run: ForecastRun, db: Session) -> PrepPlan:
+    plan = PrepPlan(plan_date=plan_date, status="draft")
+    db.add(plan)
+    db.flush()
+
+    for forecast_line in forecast_run.lines:
+        for daypart in ("morning", "midday", "evening"):
+            p50 = float(getattr(forecast_line, daypart, 0.0))
+            line = PrepPlanLine(
+                plan_id=plan.id,
+                outlet_id=forecast_line.outlet_id,
+                sku_id=forecast_line.sku_id,
+                daypart=daypart,
+                recommended_units=max(0, round(p50)),
+                current_stock=0,
+                status="pending",
+                rationale_json={"source": "forecast_run_fast_builder"},
+            )
+            db.add(line)
+    db.flush()
+    db.refresh(plan)
+    return plan
+
+
+def _build_top_actions_from_plan(prep_plan: PrepPlan, forecast_run: ForecastRun, db: Session) -> list[TopActionOut]:
+    forecast_by_key = {(line.outlet_id, line.sku_id): line for line in forecast_run.lines}
+    outlets = {outlet.id: outlet for outlet in db.query(Outlet).all()}
+    skus = {sku.id: sku for sku in db.query(SKU).all()}
+    actions: list[TopActionOut] = []
+
+    for line in prep_plan.lines:
+        sku = skus.get(line.sku_id)
+        outlet = outlets.get(line.outlet_id)
+        if not sku or not outlet:
+            continue
+        forecast_line = forecast_by_key.get((line.outlet_id, line.sku_id))
+        p10, p50, p90 = _forecast_band_for_line(line, forecast_line, db)
+        decision = calculate_optimal_prep(
+            p10=p10,
+            p50=p50,
+            p90=p90,
+            opening_stock=line.current_stock,
+            unit_price=float(sku.price or 0),
+            unit_cost=_sku_unit_cost(sku, db),
+            batch_size=5,
+            capacity=None,
+            freshness_hours=sku.freshness_hours,
+        )
+        final_prep = line.edited_units if line.edited_units is not None else line.recommended_units
+        financial = decision["financial_exposure"]
+        actions.append(
+            TopActionOut(
+                id=str(line.id),
+                plan_id=prep_plan.id,
+                outlet_id=str(outlet.id),
+                outlet_name=outlet.name,
+                sku_id=str(sku.id),
+                sku_name=sku.name,
+                sku_category=sku.category,
+                daypart=line.daypart,
+                p10=p10,
+                p50=p50,
+                p90=p90,
+                opening_stock=line.current_stock,
+                recommended_prep=final_prep,
+                batch_size=int(decision["batch_size"]),
+                waste_cost=float(decision["waste_cost"]),
+                stockout_cost=float(decision["stockout_cost"]),
+                financial_exposure=FinancialExposureOut(
+                    stockout_exposure_rm=float(financial["stockout_exposure_rm"]),
+                    waste_exposure_rm=float(financial["waste_exposure_rm"]),
+                ),
+                reason_summary=decision["reason_summary"],
+                replenishment=_ingredient_impact_for_action(sku, final_prep, db),
+                status=line.status,
+            )
+        )
+
+    return sorted(
+        actions,
+        key=lambda item: item.financial_exposure.stockout_exposure_rm + item.financial_exposure.waste_exposure_rm,
+        reverse=True,
+    )[:18]
 
 
 def _record_line_decision(
@@ -409,7 +606,7 @@ def _record_line_decision(
     event = DecisionAuditEvent(
         forecast_run_id=forecast_run_id,
         model_version=model_version,
-        engine_name="lightgbm_mlops_prototype" if model_version != "unknown" else "manual",
+        engine_name="weighted_blend_fallback" if model_version != "unknown" else "manual",
         outlet_id=line.outlet_id,
         sku_id=line.sku_id,
         daypart=line.daypart,
@@ -502,8 +699,14 @@ def _build_daily_plan_response(plan_date: date_type, db: Session) -> DailyPlanOu
         .order_by(desc(PrepPlan.created_at), desc(PrepPlan.id))
         .first()
     )
+    prep_plan_created = False
     if not prep_plan:
-        prep_plan = generate_prep_plan(plan_date, db)
+        prep_plan = _generate_prep_plan_from_forecast(plan_date, fc_run, db)
+        prep_plan_created = True
+
+    optimized_changed = _optimize_prep_plan_lines(prep_plan, fc_run, db)
+    if optimized_changed or prep_plan_created:
+        db.commit()
 
     # Run or reuse replenishment plan
     repl_plan = (
@@ -514,6 +717,8 @@ def _build_daily_plan_response(plan_date: date_type, db: Session) -> DailyPlanOu
     )
     if not repl_plan:
         repl_plan = recommend_replenishment(plan_date, db)
+    elif optimized_changed:
+        repl_plan = _refresh_replenishment(plan_date, db)
 
     # Detect alerts
     waste_alerts = detect_waste_risk(plan_date, db)
@@ -583,6 +788,7 @@ def _build_daily_plan_response(plan_date: date_type, db: Session) -> DailyPlanOu
         top_actions=actions,
         at_risk_outlets=at_risk_outlets[:5],
     )
+    top_actions = _build_top_actions_from_plan(prep_plan, fc_run, db)
 
     return DailyPlanOut(
         forecast_run_id=fc_run.forecast_run_id,
@@ -593,6 +799,7 @@ def _build_daily_plan_response(plan_date: date_type, db: Session) -> DailyPlanOu
         validation_window=model_info["validation_window"],
         metrics=model_info["metrics"],
         date=str(plan_date),
+        data_source="backend",
         prep_plan_id=prep_plan.id,
         replenishment_plan_id=repl_plan.id,
         forecasts=forecast_lines,
@@ -619,6 +826,7 @@ def _build_daily_plan_response(plan_date: date_type, db: Session) -> DailyPlanOu
             for a in stockout_alerts
         ],
         summary=summary,
+        top_actions=top_actions,
     )
 
 

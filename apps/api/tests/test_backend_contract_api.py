@@ -101,6 +101,15 @@ def test_prep_replenishment_and_decision_contracts_write_audit_and_refresh_reple
     try:
         daily = client.get(f"/api/v1/api/daily-plan/{target}")
         assert daily.status_code == 200
+        daily_payload = daily.json()
+        assert daily_payload["data_source"] == "backend"
+        assert daily_payload["engine_name"] == "weighted_blend_fallback"
+        assert daily_payload["top_actions"]
+        first_action = daily_payload["top_actions"][0]
+        assert first_action["p10"] <= first_action["p50"] <= first_action["p90"]
+        assert first_action["financial_exposure"]["stockout_exposure_rm"] >= 0
+        assert first_action["financial_exposure"]["waste_exposure_rm"] >= 0
+        assert first_action["replenishment"] is not None
 
         prep = client.get(f"/api/v1/prep-plans/latest?date={target}")
         assert prep.status_code == 200
