@@ -36,7 +36,7 @@ export default function DailyPlanningPage() {
     { id: string; action: string; final_prep: number; reason?: string; timestamp: string }[]
   >([]);
   const [role, setRole] = useState("global");
-  const [outletFilter, setOutletFilter] = useState("KLCC Mall");
+  const [outletFilter, setOutletFilter] = useState("");
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
   const loadLatestPlan = useCallback(async () => {
@@ -53,7 +53,7 @@ export default function DailyPlanningPage() {
       });
       setOutletFilter((current) => {
         const outlets = new Set(response.top_actions.map((item) => item.outlet_name));
-        return outlets.has(current) ? current : response.top_actions[0]?.outlet_name ?? current;
+        return current && outlets.has(current) ? current : response.top_actions[0]?.outlet_name ?? "";
       });
     } catch (error) {
       setPlan(null);
@@ -83,8 +83,10 @@ export default function DailyPlanningPage() {
     const topPrep = visibleActions[0];
     const topShortage = visibleActions
       .flatMap((item) => item.replenishment.map((line) => ({ item, line })))
+      .filter((a) => a.line.shortage_qty > 0)
       .sort((a, b) => b.line.shortage_qty - a.line.shortage_qty)[0];
     const topRisk = [...visibleActions]
+      .filter((a) => a.financial_exposure.stockout_exposure_rm + a.financial_exposure.waste_exposure_rm > 0)
       .sort(
         (a, b) =>
           b.financial_exposure.stockout_exposure_rm + b.financial_exposure.waste_exposure_rm -

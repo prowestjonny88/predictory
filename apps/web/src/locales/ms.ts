@@ -285,7 +285,7 @@ const ms = {
   "planning.filter.sku": "Mengikut SKU",
   "planning.filter.risk": "Mengikut Risiko",
   "planning.managerNote.title": "Penghurai nota pengurus",
-  "planning.managerNote.placeholder": "Kumpulan sekolah melawat KLCC esok pagi, jangka lebih pastri.",
+  "planning.managerNote.placeholder": "Kumpulan sekolah melawat cawangan esok pagi, jangka lebih pastri.",
   "planning.managerNote.parsing": "Menghurai...",
   "planning.managerNote.parse": "Hurai nota",
   "planning.managerNote.suggested": "Pelarasan disyorkan",

@@ -10,7 +10,7 @@ import Header from "@/components/Header";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useLanguage } from "@/components/i18n/LanguageProvider";
-import { planningApi, type DailyPlanLatestResponse } from "@/lib/api/planning";
+import { planningApi, type DailyPlanLatestResponse, type DailyPlanTopAction } from "@/lib/api/planning";
 import { todayISO } from "@/lib/utils";
 
 export default function DashboardPage() {
@@ -82,6 +82,7 @@ export default function DashboardPage() {
 
         {plan && (
           <>
+            <DashboardBriefCard topActions={topActions} />
         <section className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
           <Card>
             <CardHeader>
@@ -256,5 +257,41 @@ function ReadinessItem({
         <span className="text-sm font-semibold text-neutral-900">{value}</span>
       </div>
     </div>
+  );
+}
+
+function DashboardBriefCard({ topActions }: { topActions: DailyPlanTopAction[] }) {
+  const { t } = useLanguage();
+  
+  if (topActions.length === 0) return null;
+  
+  const topAction = topActions[0];
+  const shortage = topActions.flatMap(a => a.replenishment).find(l => l.shortage_qty > 0);
+  
+  let brief = t(
+    "dashboard.brief.risk",
+    "Tomorrow's main risk involves {{sku}} demand at {{outlet}}.",
+    { sku: topAction.sku_name, outlet: topAction.outlet_name }
+  );
+  
+  if (shortage) {
+    brief += " " + t(
+      "dashboard.brief.shortage",
+      "{{ingredient}} shortage affects prep.",
+      { ingredient: shortage.ingredient_name }
+    );
+  }
+  
+  brief += " " + t("dashboard.brief.cta", "Review and approve the plan.");
+
+  return (
+    <Card className="border-l-4 border-l-amber-500 bg-amber-50">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-amber-900">{t("dashboard.tomorrowBrief", "Tomorrow Brief")}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <p className="text-sm text-amber-800">{brief}</p>
+      </CardContent>
+    </Card>
   );
 }

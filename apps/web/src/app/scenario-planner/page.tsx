@@ -11,59 +11,7 @@ import { api } from "@/lib/api";
 import { todayISO } from "@/lib/utils";
 import type { ScenarioResult } from "@/types";
 
-const PRESETS = {
-  en: [
-    {
-      id: "cut-croissant",
-      text: "Reduce croissant prep at Bangsar by 15%",
-      label: "Reduce croissant prep at Bangsar by 15%",
-    },
-    {
-      id: "butter-delay",
-      text: "Promo at KLCC by 25%",
-      label: "Promo at KLCC by 25%",
-    },
-    {
-      id: "demand-spike",
-      text: "Increase croissant prep at Mid Valley by 30%",
-      label: "Increase croissant prep at Mid Valley by 30%",
-    },
-  ],
-  ms: [
-    {
-      id: "cut-croissant",
-      text: "Kurangkan prep croissant di Bangsar sebanyak 15%",
-      label: "Kurangkan prep croissant di Bangsar sebanyak 15%",
-    },
-    {
-      id: "butter-delay",
-      text: "Promosi di KLCC sebanyak 25%",
-      label: "Promosi di KLCC sebanyak 25%",
-    },
-    {
-      id: "demand-spike",
-      text: "Tingkatkan prep croissant di Mid Valley sebanyak 30%",
-      label: "Tingkatkan prep croissant di Mid Valley sebanyak 30%",
-    },
-  ],
-  "zh-CN": [
-    {
-      id: "cut-croissant",
-      text: "将 Bangsar 的 croissant 备货减少 15%",
-      label: "将 Bangsar 的 croissant 备货减少 15%",
-    },
-    {
-      id: "butter-delay",
-      text: "在 KLCC 做 25% 促销活动",
-      label: "在 KLCC 做 25% 促销活动",
-    },
-    {
-      id: "demand-spike",
-      text: "将 Mid Valley 的 croissant 备货增加 30%",
-      label: "将 Mid Valley 的 croissant 备货增加 30%",
-    },
-  ],
-} as const;
+import { useQuery } from "@tanstack/react-query";
 
 export default function ScenarioPlannerPage() {
   const [date, setDate] = useState(todayISO);
@@ -71,7 +19,38 @@ export default function ScenarioPlannerPage() {
   const [customText, setCustomText] = useState("");
   const { language, t } = useLanguage();
 
-  const presets = PRESETS[language];
+  const { data: outlets = [] } = useQuery({ queryKey: ["outlets"], queryFn: api.outlets });
+  const { data: skus = [] } = useQuery({ queryKey: ["skus"], queryFn: api.skus });
+
+  const outlet1 = outlets[0]?.name ?? "Bangsar";
+  const outlet2 = outlets[1]?.name ?? "KLCC";
+  const outlet3 = outlets[2]?.name ?? "Mid Valley";
+  const sku1 = skus.find(s => s.name.toLowerCase().includes("croissant"))?.name ?? skus[0]?.name ?? "Croissant";
+
+  const getPresets = () => {
+    switch (language) {
+      case "ms":
+        return [
+          { id: "cut", text: `Kurangkan prep ${sku1} di ${outlet1} sebanyak 15%`, label: `Kurangkan prep ${sku1} di ${outlet1} sebanyak 15%` },
+          { id: "promo", text: `Promosi di ${outlet2} sebanyak 25%`, label: `Promosi di ${outlet2} sebanyak 25%` },
+          { id: "spike", text: `Tingkatkan prep ${sku1} di ${outlet3} sebanyak 30%`, label: `Tingkatkan prep ${sku1} di ${outlet3} sebanyak 30%` },
+        ];
+      case "zh-CN":
+        return [
+          { id: "cut", text: `将 ${outlet1} 的 ${sku1} 备货减少 15%`, label: `将 ${outlet1} 的 ${sku1} 备货减少 15%` },
+          { id: "promo", text: `在 ${outlet2} 做 25% 促销活动`, label: `在 ${outlet2} 做 25% 促销活动` },
+          { id: "spike", text: `将 ${outlet3} 的 ${sku1} 备货增加 30%`, label: `将 ${outlet3} 的 ${sku1} 备货增加 30%` },
+        ];
+      default:
+        return [
+          { id: "cut", text: `Reduce ${sku1} prep at ${outlet1} by 15%`, label: `Reduce ${sku1} prep at ${outlet1} by 15%` },
+          { id: "promo", text: `Promo at ${outlet2} by 25%`, label: `Promo at ${outlet2} by 25%` },
+          { id: "spike", text: `Increase ${sku1} prep at ${outlet3} by 30%`, label: `Increase ${sku1} prep at ${outlet3} by 30%` },
+        ];
+    }
+  };
+
+  const presets = getPresets();
   const scenarioText = selectedPreset
     ? (presets.find((preset) => preset.id === selectedPreset)?.text ?? "")
     : customText;

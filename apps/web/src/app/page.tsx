@@ -133,7 +133,7 @@ export default function RootPage() {
             <div className="group relative flex min-h-[320px] flex-col overflow-hidden rounded-lg border border-stone-200 bg-stone-50 p-6 shadow-sm transition-colors hover:bg-brand-amber-light md:col-span-2">
               <AlertTriangle className="mb-4 h-8 w-8 text-brand-amber-dark" />
               <h3 className="mb-2 text-xl font-bold text-stone-900">
-                {t("landing.feature.risk.title", "减少浪费与缺货")}
+                {t("landing.feature.risk.title", "Reduce Waste & Prevent Stockouts")}
               </h3>
               <p className="mb-6 flex-grow text-sm leading-6 text-stone-600">
                 {t(

@@ -285,7 +285,7 @@ const en = {
   "planning.filter.sku": "By SKU",
   "planning.filter.risk": "By Risk",
   "planning.managerNote.title": "Manager note parser",
-  "planning.managerNote.placeholder": "School group visiting KLCC tomorrow morning, expect more pastries.",
+  "planning.managerNote.placeholder": "School group visiting the outlet tomorrow morning, expect more pastries.",
   "planning.managerNote.parsing": "Parsing...",
   "planning.managerNote.parse": "Parse note",
   "planning.managerNote.suggested": "Suggested adjustment",
