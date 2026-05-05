@@ -39,6 +39,26 @@ SOURCE_RANK = {
 }
 
 
+def _language_prompt_prefix(language: str) -> str:
+    if language == "ms":
+        return (
+            "Respond in clear operational Bahasa Melayu. Keep outlet/place names and SKU product "
+            "names exactly in English as provided. Translate every other word into Bahasa Melayu. "
+            "Do not translate the place names or SKU names."
+        )
+    if language == "zh-CN":
+        return (
+            "Respond in clear operational Simplified Chinese. Keep outlet/place names and SKU product "
+            "names exactly in English as provided. Translate every other word into Simplified Chinese. "
+            "Do not translate the place names or SKU names."
+        )
+    return (
+        "Respond in clear operational English. Keep outlet/place names and SKU product names exactly "
+        "in English as provided. Translate every other word into English. Do not translate the "
+        "place names or SKU names."
+    )
+
+
 def _local_daypart(language: str, daypart: str) -> str:
     if language == "ms":
         return {"morning": "pagi", "midday": "tengah hari", "evening": "petang"}.get(daypart, daypart)
@@ -735,7 +755,7 @@ def generate_daily_actions(
         ]
 
         if candidate_payload:
-            prompt = DAILY_ACTIONS_RANKING_PROMPT.format(
+            prompt = f"{_language_prompt_prefix(language)}\n\n" + DAILY_ACTIONS_RANKING_PROMPT.format(
                 date=str(state["target_date"]),
                 top_n=state["top_n"],
                 candidate_actions_json=json.dumps(candidate_payload, indent=2),
@@ -774,7 +794,7 @@ def generate_daily_actions(
                 fallback_mode = True
 
         brief_fallback = _deterministic_brief(state, top_actions, language)
-        brief_prompt = DAILY_ACTIONS_BRIEF_PROMPT.format(
+        brief_prompt = f"{_language_prompt_prefix(language)}\n\n" + DAILY_ACTIONS_BRIEF_PROMPT.format(
             date=str(state["target_date"]),
             weekday=DAY_LABELS_BY_LANGUAGE.get(language, DAY_LABELS)[state["target_date"].weekday()],
             total_predicted_sales=state["total_predicted_sales"],

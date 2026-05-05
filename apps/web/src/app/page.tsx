@@ -1,37 +1,61 @@
+"use client";
+
 import Link from "next/link";
 import { ArrowRight, Sparkles, TrendingUp, AlertTriangle, Truck, Bot, LogOut } from "lucide-react";
 
+import { useLanguage } from "@/components/i18n/LanguageProvider";
+
 export default function RootPage() {
+  const { t } = useLanguage();
+
   const features = [
     {
       icon: TrendingUp,
-      title: "Smart Demand Forecasting",
-      description: "AI-powered predictions based on historical sales, weather, and seasonal patterns to guide your daily bake quantities.",
+      title: t("landing.feature.forecast.title", "Smart Demand Forecasting"),
+      description: t(
+        "landing.feature.forecast.description",
+        "AI-powered predictions based on historical sales, weather, and seasonal patterns to guide your daily bake quantities."
+      ),
     },
     {
       icon: AlertTriangle,
-      title: "Waste & Stockout Prevention",
-      description: "Real-time alerts for overstocked items and potential stockouts, helping you minimize waste and lost sales.",
+      title: t("landing.feature.risk.title", "Waste & Stockout Prevention"),
+      description: t(
+        "landing.feature.risk.description",
+        "Real-time alerts for overstocked items and potential stockouts, helping you minimize waste and lost sales."
+      ),
     },
     {
       icon: Truck,
-      title: "Optimized Replenishment",
-      description: "Automated suggestions for ingredient orders and product transfers between locations based on predicted demand.",
+      title: t("landing.feature.replenishment.title", "Optimized Replenishment"),
+      description: t(
+        "landing.feature.replenishment.description",
+        "Automated suggestions for ingredient orders and product transfers between locations based on predicted demand."
+      ),
     },
     {
       icon: Bot,
-      title: "AI Copilot Assistant",
-      description: "Multilingual chat assistant that answers questions about forecasts, inventory, and provides planning recommendations.",
+      title: t("landing.feature.copilot.title", "AI Copilot Assistant"),
+      description: t(
+        "landing.feature.copilot.description",
+        "Multilingual chat assistant that answers questions about forecasts, inventory, and provides planning recommendations."
+      ),
     },
     {
       icon: LogOut,
-      title: "Manager Approvals & Audit Trail",
-      description: "Track all planning decisions with an audit trail and manager approval workflows for compliance and accountability.",
+      title: t("landing.feature.audit.title", "Manager Approvals & Audit Trail"),
+      description: t(
+        "landing.feature.audit.description",
+        "Track all planning decisions with an audit trail and manager approval workflows for compliance and accountability."
+      ),
     },
     {
       icon: Sparkles,
-      title: "Clean, Calm Interface",
-      description: "Designed for bakery teams with a simple, intuitive workspace that reduces cognitive load and accelerates decision-making.",
+      title: t("landing.feature.interface.title", "Clean, Calm Interface"),
+      description: t(
+        "landing.feature.interface.description",
+        "Designed for bakery teams with a simple, intuitive workspace that reduces cognitive load and accelerates decision-making."
+      ),
     },
   ];
 
@@ -64,7 +88,7 @@ export default function RootPage() {
             </div>
             <div>
               <p className="text-xs font-semibold uppercase tracking-widest text-white">Predictory</p>
-              <p className="text-xs text-white/80">Bakery Intelligence Platform</p>
+              <p className="text-xs text-white/80">{t("landing.brandline", "Bakery Intelligence Platform")}</p>
             </div>
           </div>
         </header>
@@ -76,17 +100,19 @@ export default function RootPage() {
               {/* Badge */}
               <div className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/10 px-4 py-2 text-sm font-medium text-white backdrop-blur-sm">
                 <Sparkles className="h-4 w-4" />
-                AI-Powered Planning for Modern Bakeries
+                {t("landing.badge", "AI-Powered Planning for Modern Bakeries")}
               </div>
 
               {/* Main Heading */}
               <div className="space-y-6">
                 <h1 className="text-5xl font-black tracking-tight text-white drop-shadow-lg sm:text-6xl lg:text-7xl">
-                  Plan smarter. Waste less. Earn more.
+                  {t("landing.heroTitle", "Plan smarter. Waste less. Earn more.")}
                 </h1>
                 <p className="max-w-2xl text-lg leading-8 text-white/95 drop-shadow">
-                  Predictory is the daily planning dashboard for bakery and café teams. Transform sales forecasts into
-                  smart prep plans, prevent waste, and give your managers the clarity they need to make confident decisions.
+                  {t(
+                    "landing.heroDescription",
+                    "Predictory is the daily planning dashboard for bakery and café teams. Transform sales forecasts into smart prep plans, prevent waste, and give your managers the clarity they need to make confident decisions."
+                  )}
                 </p>
               </div>
 
@@ -96,7 +122,7 @@ export default function RootPage() {
                   href="/dashboard"
                   className="inline-flex items-center justify-center gap-2 rounded-full bg-white px-8 py-4 text-base font-bold text-amber-900 shadow-2xl transition-all hover:-translate-y-1 hover:shadow-3xl hover:bg-amber-50"
                 >
-                  Go to Dashboard
+                  {t("landing.cta", "Go to Dashboard")}
                   <ArrowRight className="h-5 w-5" />
                 </Link>
               </div>
@@ -108,10 +134,14 @@ export default function RootPage() {
         <section className="relative px-4 py-20 sm:px-6 lg:px-8 bg-white/5 backdrop-blur-sm">
           <div className="mx-auto max-w-6xl">
             <div className="mb-16 space-y-4">
-              <h2 className="text-3xl font-black text-white drop-shadow sm:text-4xl">What Predictory Does</h2>
+              <h2 className="text-3xl font-black text-white drop-shadow sm:text-4xl">
+                {t("landing.whatDoes", "What Predictory Does")}
+              </h2>
               <p className="max-w-2xl text-lg text-white/90 drop-shadow">
-                Everything your bakery team needs to plan confidently, reduce waste, and optimize operations—all in one calm,
-                intuitive interface.
+                {t(
+                  "landing.featureIntro",
+                  "Everything your bakery team needs to plan confidently, reduce waste, and optimize operations—all in one calm, intuitive interface."
+                )}
               </p>
             </div>
 
@@ -140,15 +170,20 @@ export default function RootPage() {
         <section className="relative px-4 py-16 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-4xl">
             <div className="rounded-2xl border border-white/20 bg-white/10 px-8 py-12 backdrop-blur-sm text-center space-y-6">
-              <h2 className="text-3xl font-black text-white drop-shadow">Ready to transform your bakery operations?</h2>
+              <h2 className="text-3xl font-black text-white drop-shadow">
+                {t("landing.ctaHeading", "Ready to transform your bakery operations?")}
+              </h2>
               <p className="max-w-2xl mx-auto text-lg text-white/90 drop-shadow">
-                Join bakery teams that are using Predictory to make smarter decisions and reduce waste by up to 30%.
+                {t(
+                  "landing.ctaBody",
+                  "Join bakery teams that are using Predictory to make smarter decisions and reduce waste by up to 30%."
+                )}
               </p>
               <Link
                 href="/dashboard"
                 className="inline-flex items-center justify-center gap-2 rounded-full bg-white px-8 py-3 text-base font-bold text-amber-900 shadow-xl transition-all hover:-translate-y-0.5 hover:shadow-2xl hover:bg-amber-50"
               >
-                Start Planning Today
+                {t("landing.ctaSecondary", "Start Planning Today")}
                 <ArrowRight className="h-5 w-5" />
               </Link>
             </div>
@@ -157,7 +192,7 @@ export default function RootPage() {
 
         {/* Footer */}
         <footer className="border-t border-white/10 bg-white/5 px-4 py-8 text-center text-sm text-white/70 backdrop-blur-sm">
-          <p>© 2026 Predictory. Designed for bakery teams. Built with care.</p>
+          <p>{t("landing.footer", "© 2026 Predictory. Designed for bakery teams. Built with care.")}</p>
         </footer>
       </main>
     </div>

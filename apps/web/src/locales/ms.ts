@@ -54,6 +54,8 @@ const ms = {
   "language.english": "English",
   "language.malay": "Bahasa Melayu",
   "language.chinese": "中文简体",
+  "landing.brandline": "Platform Kecerdasan Bakeri",
+  "landing.whatDoes": "Apa yang Predictory lakukan",
   "dashboard.title": "Gambaran Eksekutif",
   "dashboard.glance": "Ringkasan Esok",
   "dashboard.predictedSales": "Jualan Diramal",

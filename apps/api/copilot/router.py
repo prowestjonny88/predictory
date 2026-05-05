@@ -105,17 +105,20 @@ def _normalize_language(language: str | None) -> SupportedLanguage:
 def _language_prompt_prefix(language: SupportedLanguage) -> str:
     if language == "ms":
         return (
-            "Respond in clear operational Bahasa Melayu. Keep all numbers, outlet names, SKU names, "
-            "and ingredient names exactly as provided."
+            "Respond in clear operational Bahasa Melayu. Keep outlet/place names and SKU product "
+            "names exactly in English as provided. Translate every other word into Bahasa Melayu. "
+            "Do not translate the place names or SKU names."
         )
     if language == "zh-CN":
         return (
-            "Respond in clear operational Simplified Chinese. Keep all numbers, outlet names, SKU "
-            "names, and ingredient names exactly as provided."
+            "Respond in clear operational Simplified Chinese. Keep outlet/place names and SKU product "
+            "names exactly in English as provided. Translate every other word into Simplified Chinese. "
+            "Do not translate the place names or SKU names."
         )
     return (
-        "Respond in clear operational English. Keep all numbers, outlet names, SKU names, and "
-        "ingredient names exactly as provided."
+        "Respond in clear operational English. Keep outlet/place names and SKU product names exactly "
+        "in English as provided. Translate every other word into English. Do not translate the "
+        "place names or SKU names."
     )
 
 

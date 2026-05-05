@@ -54,6 +54,8 @@ const en = {
   "language.english": "English",
   "language.malay": "Bahasa Melayu",
   "language.chinese": "中文简体",
+  "landing.brandline": "Bakery Intelligence Platform",
+  "landing.whatDoes": "What Predictory Does",
   "dashboard.title": "Executive Overview",
   "dashboard.glance": "Tomorrow at a Glance",
   "dashboard.predictedSales": "Predicted Sales",
