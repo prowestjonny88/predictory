@@ -45,7 +45,15 @@ export default function ScenarioResultPanel({ result }: Props) {
   return (
     <div className="space-y-4 rounded-xl border border-neutral-200 bg-white p-5 shadow-sm">
       <div className="rounded-lg border border-violet-100 bg-violet-50 px-4 py-3">
-        <p className="text-sm font-medium italic text-violet-800">&ldquo;{result.scenario}&rdquo;</p>
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+          <p className="text-sm font-medium italic text-violet-800">&ldquo;{result.scenario}&rdquo;</p>
+          <span className="rounded-full bg-violet-100 px-2 py-1 text-xs font-semibold text-violet-700">
+            {t("scenarioPanel.source", "Heuristic scenario output")}
+          </span>
+        </div>
+        <p className="text-xs text-violet-700">
+          {t("scenarioPanel.sourceHelp", "This compares current backend alerts with simulated downstream impact; it is not a forecast rerun.")}
+        </p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">

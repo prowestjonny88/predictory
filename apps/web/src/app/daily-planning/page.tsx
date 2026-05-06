@@ -23,7 +23,7 @@ function tomorrowISO() {
 }
 
 export default function DailyPlanningPage() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [planDate] = useState(tomorrowISO);
   const [plan, setPlan] = useState<DailyPlanLatestResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -177,7 +177,7 @@ export default function DailyPlanningPage() {
     if (!plan) {
       throw new Error("Load a backend plan before parsing a manager note.");
     }
-    return planningApi.parseManagerNote({ forecast_run_id: plan.forecast_run_id, note });
+    return planningApi.parseManagerNote({ forecast_run_id: plan.forecast_run_id, note, language });
   }
 
   async function handleApply(adjustment: ManagerNoteResponse["parsed_adjustment"]) {
@@ -192,8 +192,10 @@ export default function DailyPlanningPage() {
       });
       await loadLatestPlan();
       setStatusMessage(formatManagerNoteResult(response, t));
+      return response;
     } catch (error) {
       setStatusMessage(error instanceof Error ? error.message : "Manager note apply failed");
+      throw error;
     }
   }
 
@@ -232,7 +234,7 @@ export default function DailyPlanningPage() {
     setDrawerOpen(true);
     if (!item.explanation && item.plan_id) {
       try {
-        const response = await planningApi.explainRecommendation(item.id);
+        const response = await planningApi.explainRecommendation(item.id, language);
         setPlan((current) => current ? ({
           ...current,
           top_actions: current.top_actions.map((candidate) =>

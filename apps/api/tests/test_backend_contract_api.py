@@ -180,7 +180,16 @@ def test_copilot_manager_note_contract_requires_confirmation_and_preserves_groun
     client, _ = _client_with_test_db()
     target = date.today().isoformat()
     original = copilot_router._call_llm
-    copilot_router._call_llm = lambda _prompt, _text="": "Grounded recommendation explanation"
+    def llm(prompt, _text=""):
+        if "Parse this manager note" in prompt:
+            return (
+                '{"outlet_id":"KLCC Mall","daypart":"morning","sku_category":"Pastry",'
+                '"suggested_adjustment_pct":10,"reason":"Manager expects higher pastry demand",'
+                '"requires_confirmation":true,"uncertainty_reason":null}'
+            )
+        return "Grounded Gemini recommendation explanation based only on backend evidence."
+
+    copilot_router._call_llm = llm
     try:
         client.get(f"/api/v1/api/daily-plan/{target}")
         run_id = client.get(f"/api/v1/forecast-runs/latest?forecast_date={target}").json()["forecast_run_id"]
@@ -204,6 +213,7 @@ def test_copilot_manager_note_contract_requires_confirmation_and_preserves_groun
         assert parse.status_code == 200
         parsed = parse.json()["parsed_adjustment"]
         assert parsed["requires_confirmation"] is True
+        assert parsed["parse_source"] == "llm_validated"
 
         blocked = client.post(
             "/api/v1/copilot/apply-note-adjustment",

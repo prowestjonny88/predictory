@@ -200,7 +200,23 @@ Copilot prose endpoints require the configured LLM provider when prose generatio
 
 ### `POST /api/v1/copilot/explain-plan`
 
-Returns `404` if the requested grounding data does not exist.
+Explains forecast, prep, waste, stockout, or replenishment evidence already calculated by backend services. The response includes `evidence` and `source_type: "llm_rephrased"`. Returns `404` if requested grounding data does not exist, `422` for invalid grounding input, and `503` if the LLM provider is unavailable or returns incomplete text.
+
+### `POST /api/v1/copilot/explain-recommendation`
+
+Explains a persisted prep recommendation using its backend evidence. The response includes exact p10/p50/p90, prep, stock, cost, and exposure evidence where available. Gemini must not calculate or change those values.
+
+### `POST /api/v1/copilot/explain-evidence`
+
+Explains client-supplied backend evidence for KPI, replenishment, risk, recommendation, or scenario surfaces. Empty evidence returns `422`; provider failure returns `503`.
+
+### `POST /api/v1/copilot/parse-manager-note`
+
+Uses Gemini to parse a manager note into validated JSON only. Returned `parsed_adjustment` includes `parse_source: "llm_validated"` and optional `uncertainty_reason`. Parsed outlet, daypart, and SKU category must match the allowed forecast context; invalid parse output returns `422`; provider failure returns `503`. This endpoint does not mutate forecast, prep, or replenishment.
+
+### `POST /api/v1/copilot/apply-note-adjustment`
+
+Requires explicit confirmation. Current runtime mode is `application_mode: "prep_edit_only"`: matching prep lines are edited, replenishment is refreshed, and audit events are recorded. It does not rerun LightGBM or create a forecast override.
 
 ### `POST /api/v1/copilot/daily-brief`
 

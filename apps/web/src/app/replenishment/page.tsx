@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2 } from "lucide-react";
 
 import Header from "@/components/Header";
+import ExplainButton from "@/components/copilot/ExplainButton";
 import StockNeedBar from "@/components/StockNeedBar";
 import { useLanguage } from "@/components/i18n/LanguageProvider";
 import { translateRiskLevel } from "@/lib/i18n";
@@ -229,20 +230,38 @@ export default function ReplenishmentPage() {
                           {line.driving_skus.length > 0 ? line.driving_skus.join(", ") : t("common.none", "None")}
                         </TableCell>
                         <TableCell className="text-right">
-                          <button
-                            onClick={() => toggleOrdered(line.ingredient_id)}
-                            className={cn(
-                              "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
-                              isOrdered
-                                ? "border border-green-200 bg-green-50 text-green-700 hover:bg-green-100"
-                                : "border border-neutral-200 bg-white text-neutral-600 hover:bg-neutral-50"
-                            )}
-                          >
-                            <CheckCircle2 className={cn("h-3.5 w-3.5", isOrdered ? "text-green-600" : "text-neutral-400")} />
-                            {isOrdered
-                              ? t("replenishment.ordered", "Ordered")
-                              : t("replenishment.markOrdered", "Mark as Ordered")}
-                          </button>
+                          <div className="flex justify-end gap-2">
+                            <ExplainButton
+                              label={t("replenishment.why", "Why?")}
+                              title={t("replenishment.whyTitle", "Why reorder {{ingredient}}?", {
+                                ingredient: line.ingredient_name,
+                              })}
+                              contextType="replenishment"
+                              evidence={{
+                                ingredient_name: line.ingredient_name,
+                                stock_on_hand: line.stock_on_hand,
+                                need_qty: line.need_qty,
+                                reorder_qty: line.reorder_qty,
+                                urgency: line.urgency,
+                                driving_skus: line.driving_skus,
+                                source: "backend_replenishment_plan",
+                              }}
+                            />
+                            <button
+                              onClick={() => toggleOrdered(line.ingredient_id)}
+                              className={cn(
+                                "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
+                                isOrdered
+                                  ? "border border-green-200 bg-green-50 text-green-700 hover:bg-green-100"
+                                  : "border border-neutral-200 bg-white text-neutral-600 hover:bg-neutral-50"
+                              )}
+                            >
+                              <CheckCircle2 className={cn("h-3.5 w-3.5", isOrdered ? "text-green-600" : "text-neutral-400")} />
+                              {isOrdered
+                                ? t("replenishment.ordered", "Ordered")
+                                : t("replenishment.markOrdered", "Mark as Ordered")}
+                            </button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     );

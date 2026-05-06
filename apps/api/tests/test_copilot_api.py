@@ -112,7 +112,7 @@ def test_explain_plan_supports_all_contexts_with_llm_text():
     db.close()
 
     original = copilot_router._call_llm
-    copilot_router._call_llm = _fixed_llm("Grounded LLM explanation")
+    copilot_router._call_llm = _fixed_llm("Grounded Gemini explanation based only on backend evidence.")
     try:
         _override_app_db(SessionLocal)
         with TestClient(app) as client:
@@ -140,6 +140,8 @@ def test_explain_plan_supports_all_contexts_with_llm_text():
                 assert payload["outlet_name"]
                 assert payload["sku_name"] == "Butter Croissant"
                 assert payload["explanation"]
+                assert payload["source_type"] == "llm_rephrased"
+                assert payload["evidence"]["context_type"] == context_type
     finally:
         copilot_router._call_llm = original
         app.dependency_overrides.clear()
@@ -307,6 +309,110 @@ def test_daily_brief_returns_503_when_llm_output_is_incomplete():
     finally:
         copilot_router._call_llm = original
         app.dependency_overrides.clear()
+
+
+def test_manager_note_parse_uses_llm_validated_json():
+    SessionLocal = _build_session_factory()
+    db = SessionLocal()
+    _load_test_data(db)
+    target_date = date.today()
+    run_forecast_for_date(target_date, db)
+    run = db.query(__import__("db.models", fromlist=["ForecastRun"]).ForecastRun).first()
+    db.close()
+
+    original = copilot_router._call_llm
+    copilot_router._call_llm = lambda _prompt, _text="": (
+        '{"outlet_id":"KLCC Mall","daypart":"morning","sku_category":"Pastry",'
+        '"suggested_adjustment_pct":15,"reason":"School group visiting",'
+        '"requires_confirmation":true,"uncertainty_reason":null}'
+    )
+    try:
+        _override_app_db(SessionLocal)
+        with TestClient(app) as client:
+            resp = client.post(
+                "/api/v1/copilot/parse-manager-note",
+                json={
+                    "forecast_run_id": run.forecast_run_id,
+                    "note": "Increase Pastry at KLCC Mall morning by 15% because a school group is visiting.",
+                },
+            )
+            assert resp.status_code == 200
+            parsed = resp.json()["parsed_adjustment"]
+            assert parsed["parse_source"] == "llm_validated"
+            assert parsed["outlet_id"] == "KLCC Mall"
+            assert parsed["daypart"] == "morning"
+            assert parsed["sku_category"] == "Pastry"
+    finally:
+        copilot_router._call_llm = original
+        app.dependency_overrides.clear()
+
+
+def test_manager_note_parse_rejects_invalid_llm_target():
+    SessionLocal = _build_session_factory()
+    db = SessionLocal()
+    _load_test_data(db)
+    target_date = date.today()
+    run_forecast_for_date(target_date, db)
+    run = db.query(__import__("db.models", fromlist=["ForecastRun"]).ForecastRun).first()
+    db.close()
+
+    original = copilot_router._call_llm
+    copilot_router._call_llm = lambda _prompt, _text="": (
+        '{"outlet_id":"Imaginary Outlet","daypart":"morning","sku_category":"Pastry",'
+        '"suggested_adjustment_pct":15,"reason":"Bad target",'
+        '"requires_confirmation":true,"uncertainty_reason":null}'
+    )
+    try:
+        _override_app_db(SessionLocal)
+        with TestClient(app) as client:
+            resp = client.post(
+                "/api/v1/copilot/parse-manager-note",
+                json={"forecast_run_id": run.forecast_run_id, "note": "Increase pastry."},
+            )
+            assert resp.status_code == 422
+    finally:
+        copilot_router._call_llm = original
+        app.dependency_overrides.clear()
+
+
+def test_explain_evidence_returns_503_when_llm_unavailable():
+    original = copilot_router._call_llm
+    copilot_router._call_llm = lambda _prompt, _text="": (_ for _ in ()).throw(
+        copilot_router.HTTPException(status_code=503, detail="LLM provider unavailable")
+    )
+    try:
+        with TestClient(app) as client:
+            resp = client.post(
+                "/api/v1/copilot/explain-evidence",
+                json={"context_type": "kpi", "evidence": {"metric": "stockout", "value": 10}},
+            )
+            assert resp.status_code == 503
+    finally:
+        copilot_router._call_llm = original
+
+
+def test_explain_evidence_prompt_forbids_number_invention():
+    captured = {}
+    original = copilot_router._call_llm
+
+    def llm(prompt, _text=""):
+        captured["prompt"] = prompt
+        return "Gemini explains the supplied backend evidence without changing values."
+
+    copilot_router._call_llm = llm
+    try:
+        with TestClient(app) as client:
+            resp = client.post(
+                "/api/v1/copilot/explain-evidence",
+                json={"context_type": "kpi", "evidence": {"metric": "stockout", "value": 10}},
+            )
+            assert resp.status_code == 200
+            prompt = captured["prompt"]
+            assert "Use only the provided JSON evidence" in prompt
+            assert "Do not create, change, estimate, or infer new numbers" in prompt
+            assert '"value": 10' in prompt
+    finally:
+        copilot_router._call_llm = original
 
 
 def test_run_scenario_handles_expected_inputs_without_db_writes():

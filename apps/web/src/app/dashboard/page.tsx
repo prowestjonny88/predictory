@@ -7,6 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { AlertTriangle, ArrowRight, CheckCircle2, Clock, Database, ListChecks } from "lucide-react";
 
 import PageHeader from "@/components/PageHeader";
+import ExplainButton from "@/components/copilot/ExplainButton";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { KpiCard } from "@/components/ui/kpi-card";
@@ -109,10 +110,62 @@ export default function DashboardPage() {
             </section>
 
             <section className="grid gap-4 md:grid-cols-4">
-              <KpiCard label={t("dashboard.fullPlanExposure", "Full-plan exposure")} value={`RM ${Math.round(stockoutExposure + wasteExposure)}`} trendDirection="neutral" trend={summary?.scope ?? "full_plan"} />
-              <KpiCard label={t("dashboard.fullPlanStockoutExposure", "Full-plan stockout exposure")} value={`RM ${Math.round(stockoutExposure)}`} trendDirection="neutral" trend="Lost Sales" />
-              <KpiCard label={t("dashboard.fullPlanWasteExposure", "Full-plan waste exposure")} value={`RM ${Math.round(wasteExposure)}`} trendDirection="neutral" trend="Spoilage" />
-              <KpiCard label={t("dashboard.pendingActions", "Pending Approvals")} value={String(pendingActions)} trendDirection={pendingActions > 0 ? "down" : "up"} trend={pendingActions > 0 ? "Requires Attention" : "All Cleared"} />
+              <KpiCard
+                label={t("dashboard.fullPlanExposure", "Full-plan exposure")}
+                value={`RM ${Math.round(stockoutExposure + wasteExposure)}`}
+                trendDirection="neutral"
+                trend={summary?.scope ?? "full_plan"}
+                subtitle={t("dashboard.exposureSubtitle", "Backend full-plan stockout and waste exposure combined.")}
+              />
+              <KpiCard
+                label={t("dashboard.fullPlanStockoutExposure", "Full-plan stockout exposure")}
+                value={`RM ${Math.round(stockoutExposure)}`}
+                trendDirection="neutral"
+                trend="Full plan"
+                subtitle={t("dashboard.stockoutSubtitle", "Potential lost margin from under-prep across the backend plan.")}
+                action={
+                  <ExplainButton
+                    label={t("dashboard.explainStockout", "Explain")}
+                    title={t("dashboard.explainStockoutTitle", "Stockout exposure")}
+                    contextType="kpi"
+                    evidence={{
+                      metric: "full_plan_stockout_exposure_rm",
+                      value_rm: stockoutExposure,
+                      scope: summary?.scope ?? "full_plan",
+                      pending_action_count: pendingActions,
+                      source: "backend_daily_plan_summary",
+                    }}
+                  />
+                }
+              />
+              <KpiCard
+                label={t("dashboard.fullPlanWasteExposure", "Full-plan waste exposure")}
+                value={`RM ${Math.round(wasteExposure)}`}
+                trendDirection="neutral"
+                trend="Full plan"
+                subtitle={t("dashboard.wasteSubtitle", "Potential spoilage exposure from over-prep across the backend plan.")}
+                action={
+                  <ExplainButton
+                    label={t("dashboard.explainWaste", "Explain")}
+                    title={t("dashboard.explainWasteTitle", "Waste exposure")}
+                    contextType="kpi"
+                    evidence={{
+                      metric: "full_plan_waste_exposure_rm",
+                      value_rm: wasteExposure,
+                      scope: summary?.scope ?? "full_plan",
+                      ingredient_shortage_count: shortageCount,
+                      source: "backend_daily_plan_summary",
+                    }}
+                  />
+                }
+              />
+              <KpiCard
+                label={t("dashboard.pendingActions", "Pending Approvals")}
+                value={String(pendingActions)}
+                trendDirection={pendingActions > 0 ? "down" : "up"}
+                trend={pendingActions > 0 ? "Requires Attention" : "All Cleared"}
+                subtitle={t("dashboard.pendingSubtitle", "Number of backend planning actions still awaiting manager review.")}
+              />
             </section>
 
             <section>
@@ -247,7 +300,12 @@ function DashboardBriefCard({ topActions }: { topActions: DailyPlanTopAction[] }
   return (
     <Card className="border-l-4 border-l-amber-500 bg-amber-50/50">
       <CardHeader className="pb-2">
-        <CardTitle className="text-amber-900">{t("dashboard.tomorrowBrief", "Tomorrow Brief")}</CardTitle>
+        <div className="flex items-center justify-between gap-3">
+          <CardTitle className="text-amber-900">{t("dashboard.tomorrowBrief", "Tomorrow Brief")}</CardTitle>
+          <span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-800">
+            {t("dashboard.briefSource", "Operations brief")}
+          </span>
+        </div>
       </CardHeader>
       <CardContent>
         <p className="text-sm text-amber-800">{brief}</p>

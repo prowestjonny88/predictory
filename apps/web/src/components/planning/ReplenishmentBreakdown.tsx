@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import ExplainButton from "@/components/copilot/ExplainButton";
 import StockNeedBar from "@/components/StockNeedBar";
 import { useLanguage } from "@/components/i18n/LanguageProvider";
 import type { DailyPlanTopAction } from "@/lib/api/planning";
@@ -62,6 +63,28 @@ export default function ReplenishmentBreakdown({ item }: Props) {
             <p className="mt-1 text-xs text-neutral-500">
               {t("planning.replenishment.reorder", "Reorder need")}: {line.reorder_qty} {line.unit}
             </p>
+            <div className="mt-3">
+              <ExplainButton
+                label={t("planning.replenishment.whyReorder", "Why reorder?")}
+                title={t("planning.replenishment.whyReorderTitle", "Why reorder {{ingredient}}?", {
+                  ingredient: line.ingredient_name,
+                })}
+                contextType="replenishment"
+                evidence={{
+                  outlet_name: item.outlet_name,
+                  sku_name: item.sku_name,
+                  daypart: item.daypart,
+                  recommended_prep: item.recommended_prep,
+                  ingredient_name: line.ingredient_name,
+                  required_qty: line.required_qty,
+                  current_stock: line.current_stock,
+                  shortage_qty: line.shortage_qty,
+                  reorder_qty: line.reorder_qty,
+                  unit: line.unit,
+                  source: "backend_replenishment_breakdown",
+                }}
+              />
+            </div>
           </div>
         ))}
       </CardContent>

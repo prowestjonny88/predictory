@@ -5,6 +5,7 @@ POST /copilot/daily-brief
 POST /copilot/run-scenario
 POST /copilot/daily-actions
 """
+import json
 import os
 from datetime import date as date_type
 from typing import Literal, Optional
@@ -19,11 +20,6 @@ from alerts.waste import detect_waste_risk
 from copilot.daily_agent import generate_daily_actions
 from copilot.prompts import (
     DAILY_BRIEF_PROMPT,
-    FORECAST_EXPLANATION_PROMPT,
-    PREP_RATIONALE_PROMPT,
-    REPLENISHMENT_RATIONALE_PROMPT,
-    STOCKOUT_ALERT_EXPLANATION_PROMPT,
-    WASTE_ALERT_EXPLANATION_PROMPT,
 )
 from copilot.scenario import run_scenario_simulation
 from db.database import get_db
@@ -138,6 +134,49 @@ def _validate_daily_brief_text(brief: str) -> str:
             detail="LLM provider returned an incomplete daily brief. Retry or check provider configuration.",
         )
     return cleaned
+
+
+def _validate_llm_explanation_text(explanation: str) -> str:
+    cleaned = (explanation or "").strip()
+    if len(cleaned) < 20 or len(cleaned.split()) < 4:
+        raise HTTPException(
+            status_code=503,
+            detail="LLM provider returned an incomplete explanation. Retry or check provider configuration.",
+        )
+    return cleaned
+
+
+def _json_loads_object(raw_text: str, detail: str) -> dict:
+    cleaned = (raw_text or "").strip()
+    if cleaned.startswith("```"):
+        cleaned = cleaned.strip("`").strip()
+        if cleaned.lower().startswith("json"):
+            cleaned = cleaned[4:].strip()
+    try:
+        parsed = json.loads(cleaned)
+    except json.JSONDecodeError as exc:
+        raise HTTPException(status_code=422, detail=detail) from exc
+    if not isinstance(parsed, dict):
+        raise HTTPException(status_code=422, detail=detail)
+    return parsed
+
+
+def _grounded_explanation_prompt(language: SupportedLanguage, context_type: str, evidence: dict) -> str:
+    evidence_json = json.dumps(evidence, ensure_ascii=False, sort_keys=True, default=str)
+    return (
+        f"{_language_prompt_prefix(language)}\n\n"
+        "You are Predictory's Gemini explanation layer for bakery operations.\n"
+        "Use only the provided JSON evidence. Do not create, change, estimate, or infer new numbers. "
+        "Do not introduce quantities, costs, suppliers, outlets, SKUs, dates, or actions that are not present "
+        "in the evidence. If the evidence is insufficient, say what evidence is missing.\n"
+        f"Task: Explain the {context_type} evidence in 1-3 concise operational sentences.\n\n"
+        f"Evidence JSON:\n{evidence_json}"
+    )
+
+
+def _call_grounded_explanation(language: SupportedLanguage, context_type: str, evidence: dict) -> str:
+    prompt = _grounded_explanation_prompt(language, context_type, evidence)
+    return _validate_llm_explanation_text(_invoke_llm(prompt, max_tokens=700))
 
 
 def _normalize_language(language: str | None) -> SupportedLanguage:
@@ -293,6 +332,8 @@ class ExplainPlanResponse(BaseModel):
     context_type: str
     outlet_name: str
     sku_name: str
+    evidence: dict
+    source_type: Literal["llm_rephrased"]
 
 
 class DailyBriefRequest(BaseModel):
@@ -367,12 +408,19 @@ class ExplainRecommendationRequest(BaseModel):
 class ExplainRecommendationResponse(BaseModel):
     explanation: str
     evidence: dict
-    source_type: Literal["rules_based", "llm_rephrased"]
+    source_type: Literal["llm_rephrased"]
+
+
+class ExplainEvidenceRequest(BaseModel):
+    context_type: Literal["forecast", "prep", "waste", "stockout", "replenishment", "recommendation", "kpi", "scenario"]
+    evidence: dict
+    language: str = "en"
 
 
 class ManagerNoteRequest(BaseModel):
     forecast_run_id: str
     note: str
+    language: str = "en"
 
 
 class ParsedAdjustment(BaseModel):
@@ -382,11 +430,14 @@ class ParsedAdjustment(BaseModel):
     suggested_adjustment_pct: float
     reason: str
     requires_confirmation: bool
+    parse_source: Literal["llm_validated"]
+    uncertainty_reason: Optional[str] = None
 
 
 class ManagerNoteResponse(BaseModel):
     parsed_adjustment: ParsedAdjustment
     explanation: str
+    source_type: Literal["llm_rephrased"]
 
 
 class ApplyNoteAdjustmentRequest(BaseModel):
@@ -440,43 +491,84 @@ def _refresh_replenishment_for_date(plan_date: date_type, db: Session) -> Option
     return recommend_replenishment(plan_date, db)
 
 
-def _infer_adjustment_pct(note: str) -> float:
-    import re
+def _manager_note_allowed_values(forecast_run: ForecastRun, db: Session) -> dict:
+    outlet_ids = {line.outlet_id for line in forecast_run.lines}
+    sku_ids = {line.sku_id for line in forecast_run.lines}
+    outlets = (
+        db.query(Outlet)
+        .filter(Outlet.id.in_(outlet_ids))
+        .order_by(Outlet.name)
+        .all()
+        if outlet_ids
+        else []
+    )
+    skus = (
+        db.query(SKU)
+        .filter(SKU.id.in_(sku_ids))
+        .all()
+        if sku_ids
+        else []
+    )
+    categories = sorted({sku.category for sku in skus if sku.category})
+    return {
+        "outlets": [{"id": outlet.id, "name": outlet.name} for outlet in outlets],
+        "dayparts": ["morning", "midday", "evening"],
+        "sku_categories": categories,
+    }
 
-    lower = note.lower()
-    match = re.search(r"([+-]?\d+(?:\.\d+)?)\s*%", lower)
-    if match:
-        value = float(match.group(1))
-        if any(word in lower for word in ("reduce", "cut", "less", "turun", "kurang", "decrease")) and value > 0:
-            return -value
-        return value
-    if any(word in lower for word in ("reduce", "cut", "less", "turun", "kurang", "decrease")):
-        return -10.0
-    if any(word in lower for word in ("increase", "more", "extra", "naik", "tambah", "boost")):
-        return 10.0
-    return 0.0
 
+def _parse_manager_note_with_llm(note: str, forecast_run: ForecastRun, db: Session, language: SupportedLanguage) -> ParsedAdjustment:
+    allowed = _manager_note_allowed_values(forecast_run, db)
+    if not allowed["outlets"] or not allowed["sku_categories"]:
+        raise HTTPException(status_code=422, detail="Forecast run does not contain outlets and SKU categories for note parsing")
 
-def _infer_manager_note_target(note: str, forecast_run: ForecastRun, db: Session) -> tuple[str, str, str]:
-    lower = note.lower()
-    outlets = db.query(Outlet).all()
-    skus = db.query(SKU).all()
+    prompt = (
+        f"{_language_prompt_prefix(language)}\n\n"
+        "Parse this manager note into validated JSON for Predictory. Return JSON only, with no markdown. "
+        "Choose outlet_id as the exact outlet name from allowed_outlets. Choose daypart exactly from allowed_dayparts. "
+        "Choose sku_category exactly from allowed_sku_categories. Do not invent outlets, dayparts, categories, or percentages. "
+        "If the note is ambiguous, set requires_confirmation true and explain uncertainty_reason, but still only use allowed values. "
+        "The adjustment percentage must be a signed number from the note. If the note gives no numeric percent, return 0.\n\n"
+        f"Allowed values JSON:\n{json.dumps(allowed, ensure_ascii=False, sort_keys=True)}\n\n"
+        f"Manager note:\n{note.strip()}\n\n"
+        "Required JSON keys: outlet_id, daypart, sku_category, suggested_adjustment_pct, reason, "
+        "requires_confirmation, uncertainty_reason."
+    )
+    raw = _invoke_llm(prompt, max_tokens=600, response_format={"type": "json_object"})
+    parsed = _json_loads_object(raw, "LLM manager-note parse returned invalid JSON")
 
-    outlet_name = next((outlet.name for outlet in outlets if outlet.name.lower() in lower), None)
-    if outlet_name is None and forecast_run.lines:
-        outlet = db.query(Outlet).filter(Outlet.id == forecast_run.lines[0].outlet_id).first()
-        outlet_name = outlet.name if outlet else ""
+    outlet_names = {item["name"] for item in allowed["outlets"]}
+    dayparts = set(allowed["dayparts"])
+    categories = set(allowed["sku_categories"])
+    outlet_name = str(parsed.get("outlet_id") or "").strip()
+    daypart = str(parsed.get("daypart") or "").strip().lower()
+    sku_category = str(parsed.get("sku_category") or "").strip()
 
-    daypart = next((value for value in ("morning", "midday", "evening") if value in lower), "morning")
+    if outlet_name not in outlet_names:
+        raise HTTPException(status_code=422, detail="LLM manager-note parse selected an unknown outlet")
+    if daypart not in dayparts:
+        raise HTTPException(status_code=422, detail="LLM manager-note parse selected an unknown daypart")
+    if sku_category not in categories:
+        raise HTTPException(status_code=422, detail="LLM manager-note parse selected an unknown SKU category")
 
-    sku_category = next((sku.category for sku in skus if sku.category.lower() in lower), None)
-    if sku_category is None:
-        sku_category = next((sku.category for sku in skus if sku.name.lower() in lower), None)
-    if sku_category is None and forecast_run.lines:
-        sku = db.query(SKU).filter(SKU.id == forecast_run.lines[0].sku_id).first()
-        sku_category = sku.category if sku else ""
+    try:
+        adjustment_pct = float(parsed.get("suggested_adjustment_pct"))
+    except (TypeError, ValueError) as exc:
+        raise HTTPException(status_code=422, detail="LLM manager-note parse returned an invalid adjustment percent") from exc
 
-    return outlet_name or "", daypart, sku_category or ""
+    reason = str(parsed.get("reason") or note.strip() or "Manager note").strip()[:240]
+    uncertainty_reason = parsed.get("uncertainty_reason")
+    uncertainty_text = str(uncertainty_reason).strip()[:240] if uncertainty_reason else None
+    return ParsedAdjustment(
+        outlet_id=outlet_name,
+        daypart=daypart,
+        sku_category=sku_category,
+        suggested_adjustment_pct=adjustment_pct,
+        reason=reason,
+        requires_confirmation=True,
+        parse_source="llm_validated",
+        uncertainty_reason=uncertainty_text,
+    )
 
 
 def _line_forecast_values(line: PrepPlanLine, forecast_run: ForecastRun) -> tuple[float, float, float]:
@@ -543,6 +635,8 @@ def explain_recommendation(body: ExplainRecommendationRequest, db: Session = Dep
         raise HTTPException(status_code=422, detail="Forecast run is required for recommendation explanation")
     p10, p50, p90 = _line_forecast_values(line, forecast_run)
     final_units = line.edited_units if line.edited_units is not None else line.recommended_units
+    optimizer = (line.rationale_json or {}).get("optimizer") or {}
+    financial = optimizer.get("financial_exposure") or {}
     evidence = {
         "forecast_run_id": forecast_run.forecast_run_id if forecast_run else None,
         "outlet_id": line.outlet_id,
@@ -556,18 +650,32 @@ def explain_recommendation(body: ExplainRecommendationRequest, db: Session = Dep
         "recommended_prep": line.recommended_units,
         "final_prep": final_units,
         "current_stock": line.current_stock,
+        "opening_stock": line.current_stock,
+        "batch_size": optimizer.get("batch_size"),
+        "waste_cost": optimizer.get("waste_cost"),
+        "stockout_cost": optimizer.get("stockout_cost"),
+        "stockout_exposure_rm": financial.get("stockout_exposure_rm"),
+        "waste_exposure_rm": financial.get("waste_exposure_rm"),
+        "reason_summary": optimizer.get("reason_summary"),
         "status": line.status,
     }
-    prompt = (
-        f"{_language_prompt_prefix(language)}\n\n"
-        "Explain this prep recommendation using only the provided JSON evidence. "
-        "Do not create or change any numbers.\n\n"
-        f"{evidence}"
-    )
-    explanation = _call_llm(prompt)
+    explanation = _call_grounded_explanation(language, "prep recommendation", evidence)
     return ExplainRecommendationResponse(
         explanation=explanation,
         evidence=evidence,
+        source_type="llm_rephrased",
+    )
+
+
+@router.post("/copilot/explain-evidence", response_model=ExplainRecommendationResponse)
+def explain_evidence(body: ExplainEvidenceRequest):
+    if not body.evidence:
+        raise HTTPException(status_code=422, detail="Evidence is required for explanation")
+    language = _normalize_language(body.language)
+    explanation = _call_grounded_explanation(language, body.context_type, body.evidence)
+    return ExplainRecommendationResponse(
+        explanation=explanation,
+        evidence=body.evidence,
         source_type="llm_rephrased",
     )
 
@@ -577,20 +685,14 @@ def parse_manager_note(body: ManagerNoteRequest, db: Session = Depends(get_db)):
     forecast_run = _latest_forecast_by_public_id(body.forecast_run_id, db)
     if not forecast_run:
         raise HTTPException(status_code=404, detail="Forecast run not found")
-    outlet_name, daypart, sku_category = _infer_manager_note_target(body.note, forecast_run, db)
-    adjustment_pct = _infer_adjustment_pct(body.note)
-    reason = body.note.strip()[:240] or "Manager note"
-    parsed = ParsedAdjustment(
-        outlet_id=outlet_name,
-        daypart=daypart,
-        sku_category=sku_category,
-        suggested_adjustment_pct=adjustment_pct,
-        reason=reason,
-        requires_confirmation=True,
-    )
+    parsed = _parse_manager_note_with_llm(body.note, forecast_run, db, _normalize_language(body.language))
     return ManagerNoteResponse(
         parsed_adjustment=parsed,
-        explanation="Suggested adjustment parsed from the manager note. No prep or replenishment quantity has been changed yet.",
+        explanation=(
+            "Gemini parsed the manager note into validated outlet, daypart, category, and adjustment fields. "
+            "No prep, forecast, or replenishment quantity has been changed yet."
+        ),
+        source_type="llm_rephrased",
     )
 
 
@@ -703,38 +805,30 @@ def explain_plan(body: ExplainPlanRequest, db: Session = Depends(get_db)):
         weather_signal = rationale.get("weather_signal") or {}
         manual_overrides = rationale.get("manual_overrides") or []
         stockout_censoring = rationale.get("stockout_censoring") or {}
-        prompt = f"{_language_prompt_prefix(language)}\n\n" + FORECAST_EXPLANATION_PROMPT.format(
-            outlet_name=outlet.name,
-            sku_name=sku.name,
-            date=str(body.plan_date),
-            weekday=rationale.get("target_weekday", ""),
-            morning=round(line.morning, 1),
-            midday=round(line.midday, 1),
-            evening=round(line.evening, 1),
-            total=round(line.total, 1),
-            method=line.method,
-            baseline_total=round(rationale.get("baseline_total", line.total), 1),
-            context_adjustment_pct=round(rationale.get("context_adjustment_pct", 0.0), 1),
-            holiday_context=holiday_signal.get("label", "None"),
-            weather_context=(
-                f"{weather_signal.get('label', 'None')} "
-                f"({weather_signal.get('adjustment_pct', 0.0):.1f}%)"
-            ),
-            manual_override_summary=(
-                ", ".join(
-                    f"{override.get('title', 'Override')} ({override.get('adjustment_pct', 0.0):.1f}%)"
-                    for override in manual_overrides
-                )
-                or "None"
-            ),
-            stockout_recovery_summary=(
-                f"{stockout_censoring.get('adjusted_history_days', 0)} day(s) adjusted"
-                if stockout_censoring.get("adjusted_history_days", 0) > 0
-                else stockout_censoring.get("note", "None")
-            ),
-            reason_tags=", ".join(trend_tags) or "None",
-            trend_summary=", ".join(trend_tags) or "Stable",
-        )
+        evidence = {
+            "context_type": "forecast",
+            "outlet_id": outlet.id,
+            "outlet_name": outlet.name,
+            "sku_id": sku.id,
+            "sku_name": sku.name,
+            "plan_date": str(body.plan_date),
+            "weekday": rationale.get("target_weekday", ""),
+            "morning": round(line.morning, 1),
+            "midday": round(line.midday, 1),
+            "evening": round(line.evening, 1),
+            "total": round(line.total, 1),
+            "method": line.method,
+            "baseline_total": round(rationale.get("baseline_total", line.total), 1),
+            "context_adjustment_pct": round(rationale.get("context_adjustment_pct", 0.0), 1),
+            "holiday_context": holiday_signal.get("label", "None"),
+            "weather_context": {
+                "label": weather_signal.get("label", "None"),
+                "adjustment_pct": round(weather_signal.get("adjustment_pct", 0.0), 1),
+            },
+            "manual_overrides": manual_overrides,
+            "stockout_recovery": stockout_censoring,
+            "reason_tags": trend_tags,
+        }
         _message_text = _localize_message_text(
             "forecast",
             language,
@@ -800,20 +894,23 @@ def explain_plan(body: ExplainPlanRequest, db: Session = Depends(get_db)):
 
         rationale = lines[0].rationale_json or {}
         total_prep = sum(line.recommended_units for line in lines)
-        prompt = f"{_language_prompt_prefix(language)}\n\n" + PREP_RATIONALE_PROMPT.format(
-            sku_name=sku.name,
-            outlet_name=outlet.name,
-            forecast_total=sum(
-                (rationale.get("forecast_used") or {}).get(daypart, 0)
-                for daypart in ("morning", "midday", "evening")
-            ),
-            current_stock=rationale.get("current_stock", 0),
-            safety_buffer_pct=round(rationale.get("safety_buffer_pct", 0.10) * 100, 0),
-            waste_rate_pct=round(rationale.get("waste_rate_7d", 0) * 100, 1),
-            morning=lines[0].recommended_units if len(lines) > 0 else 0,
-            midday=lines[1].recommended_units if len(lines) > 1 else 0,
-            evening=lines[2].recommended_units if len(lines) > 2 else 0,
-        )
+        forecast_used = rationale.get("forecast_used") or {}
+        evidence = {
+            "context_type": "prep",
+            "outlet_id": outlet.id,
+            "outlet_name": outlet.name,
+            "sku_id": sku.id,
+            "sku_name": sku.name,
+            "plan_date": str(body.plan_date),
+            "forecast_total": sum(forecast_used.get(daypart, 0) for daypart in ("morning", "midday", "evening")),
+            "current_stock": rationale.get("current_stock", 0),
+            "safety_buffer_pct": round(rationale.get("safety_buffer_pct", 0.10) * 100, 0),
+            "waste_rate_pct": round(rationale.get("waste_rate_7d", 0) * 100, 1),
+            "total_prep": total_prep,
+            "morning": lines[0].recommended_units if len(lines) > 0 else 0,
+            "midday": lines[1].recommended_units if len(lines) > 1 else 0,
+            "evening": lines[2].recommended_units if len(lines) > 2 else 0,
+        }
         _message_text = _localize_message_text(
             "prep",
             language,
@@ -832,15 +929,20 @@ def explain_plan(body: ExplainPlanRequest, db: Session = Depends(get_db)):
             raise HTTPException(status_code=404, detail="No waste alert data found for this outlet/SKU/date")
 
         alert = alerts[0]
-        prompt = f"{_language_prompt_prefix(language)}\n\n" + WASTE_ALERT_EXPLANATION_PROMPT.format(
-            outlet_name=outlet.name,
-            sku_name=sku.name,
-            daypart=alert.daypart,
-            risk_level=alert.risk_level,
-            triggers=", ".join(alert.triggers),
-            waste_rate_pct=round(alert.waste_rate * 100, 1),
-            excess_prep_units=_format_float(alert.excess_prep_units),
-        )
+        evidence = {
+            "context_type": "waste",
+            "outlet_id": outlet.id,
+            "outlet_name": outlet.name,
+            "sku_id": sku.id,
+            "sku_name": sku.name,
+            "plan_date": str(body.plan_date),
+            "daypart": alert.daypart,
+            "risk_level": alert.risk_level,
+            "triggers": alert.triggers,
+            "waste_rate_pct": round(alert.waste_rate * 100, 1),
+            "excess_prep_units": _format_float(alert.excess_prep_units),
+            "reason": alert.reason,
+        }
         _message_text = _localize_message_text(
             "waste",
             language,
@@ -861,14 +963,19 @@ def explain_plan(body: ExplainPlanRequest, db: Session = Depends(get_db)):
             raise HTTPException(status_code=404, detail="No stockout alert data found for this outlet/SKU/date")
 
         alert = alerts[0]
-        prompt = f"{_language_prompt_prefix(language)}\n\n" + STOCKOUT_ALERT_EXPLANATION_PROMPT.format(
-            outlet_name=outlet.name,
-            sku_name=sku.name,
-            daypart=alert.affected_daypart,
-            shortage_qty=_format_float(alert.shortage_qty),
-            coverage_pct=_format_float(alert.coverage_pct),
-            reason=alert.reason,
-        )
+        evidence = {
+            "context_type": "stockout",
+            "outlet_id": outlet.id,
+            "outlet_name": outlet.name,
+            "sku_id": sku.id,
+            "sku_name": sku.name,
+            "plan_date": str(body.plan_date),
+            "daypart": alert.affected_daypart,
+            "risk_level": alert.risk_level,
+            "shortage_qty": _format_float(alert.shortage_qty),
+            "coverage_pct": _format_float(alert.coverage_pct),
+            "reason": alert.reason,
+        }
         _message_text = _localize_message_text(
             "stockout",
             language,
@@ -903,16 +1010,21 @@ def explain_plan(body: ExplainPlanRequest, db: Session = Depends(get_db)):
         line = matching_lines[0]
         ingredient = line.ingredient
         unit = ingredient.unit if ingredient else "units"
-        prompt = f"{_language_prompt_prefix(language)}\n\n" + REPLENISHMENT_RATIONALE_PROMPT.format(
-            ingredient_name=ingredient.name if ingredient else "Unknown ingredient",
-            stock_on_hand=_format_float(line.stock_on_hand),
-            unit=unit,
-            need_qty=_format_float(line.need_qty),
-            reorder_qty=_format_float(line.reorder_qty),
-            urgency=line.urgency,
-            driving_skus=", ".join(line.driving_skus or []),
-            sku_name=sku.name,
-        )
+        evidence = {
+            "context_type": "replenishment",
+            "outlet_id": outlet.id,
+            "outlet_name": outlet.name,
+            "sku_id": sku.id,
+            "sku_name": sku.name,
+            "plan_date": str(body.plan_date),
+            "ingredient_name": ingredient.name if ingredient else "Unknown ingredient",
+            "stock_on_hand": _format_float(line.stock_on_hand),
+            "unit": unit,
+            "need_qty": _format_float(line.need_qty),
+            "reorder_qty": _format_float(line.reorder_qty),
+            "urgency": line.urgency,
+            "driving_skus": line.driving_skus or [],
+        }
         _message_text = _localize_message_text(
             "replenishment",
             language,
@@ -925,12 +1037,14 @@ def explain_plan(body: ExplainPlanRequest, db: Session = Depends(get_db)):
             unit=unit,
         )
 
-    explanation = _call_llm(prompt)
+    explanation = _call_grounded_explanation(language, ctx, evidence)
     return ExplainPlanResponse(
         explanation=explanation,
         context_type=ctx,
         outlet_name=outlet.name,
         sku_name=sku.name,
+        evidence=evidence,
+        source_type="llm_rephrased",
     )
 
 

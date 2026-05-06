@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 
 import Header from "@/components/Header";
+import ExplainButton from "@/components/copilot/ExplainButton";
 import { useLanguage } from "@/components/i18n/LanguageProvider";
 import { api } from "@/lib/api";
 import { translateDaypart, translateRiskLevel } from "@/lib/i18n";
@@ -72,6 +73,7 @@ function RiskBadge({ risk }: { risk: string }) {
 function WasteCard({ alert }: { alert: WasteAlert }) {
   const { language, t } = useLanguage();
   const wasteRatePct = alert.waste_rate * 100;
+  const nextStep = t("risk.nextStepWaste", "Review prep before approval and reduce over-prep if the alert remains high.");
 
   return (
     <div
@@ -112,6 +114,10 @@ function WasteCard({ alert }: { alert: WasteAlert }) {
         {t("common.daypart", "Daypart")}: {translateDaypart(language, alert.daypart)} |{" "}
         {t("risk.excessPrep", "Excess prep")}: {alert.excess_prep_units.toFixed(1)}
       </p>
+      <div className="rounded-md border border-neutral-100 bg-white/70 p-2 text-xs text-neutral-600">
+        <span className="font-semibold">{t("risk.nextStep", "Next step")}: </span>
+        {nextStep}
+      </div>
       {alert.triggers.length > 0 && (
         <div className="flex flex-wrap gap-1 pt-0.5">
           {alert.triggers.map((trigger) => (
@@ -124,12 +130,32 @@ function WasteCard({ alert }: { alert: WasteAlert }) {
           ))}
         </div>
       )}
+      <ExplainButton
+        label={t("risk.explainAlert", "Explain alert")}
+        title={t("risk.explainWasteTitle", "Waste risk explanation")}
+        contextType="waste"
+        evidence={{
+          outlet_id: alert.outlet_id,
+          outlet_name: alert.outlet_name,
+          sku_id: alert.sku_id,
+          sku_name: alert.sku_name,
+          daypart: alert.daypart,
+          risk_level: alert.risk_level,
+          waste_rate_pct: wasteRatePct,
+          excess_prep_units: alert.excess_prep_units,
+          triggers: alert.triggers,
+          reason: alert.reason,
+          suggested_action: nextStep,
+          source: "backend_waste_alert",
+        }}
+      />
     </div>
   );
 }
 
 function StockoutCard({ alert }: { alert: StockoutAlert }) {
   const { language, t } = useLanguage();
+  const nextStep = t("risk.nextStepStockout", "Review the prep and stock position before service and prioritize this SKU if shortages remain.");
 
   return (
     <div
@@ -157,6 +183,28 @@ function StockoutCard({ alert }: { alert: StockoutAlert }) {
         {t("common.daypart", "Daypart")}: {translateDaypart(language, alert.affected_daypart)} |{" "}
         {t("risk.shortage", "Shortage")}: {alert.shortage_qty.toFixed(1)}
       </p>
+      <div className="rounded-md border border-neutral-100 bg-white/70 p-2 text-xs text-neutral-600">
+        <span className="font-semibold">{t("risk.nextStep", "Next step")}: </span>
+        {nextStep}
+      </div>
+      <ExplainButton
+        label={t("risk.explainAlert", "Explain alert")}
+        title={t("risk.explainStockoutTitle", "Stockout risk explanation")}
+        contextType="stockout"
+        evidence={{
+          outlet_id: alert.outlet_id,
+          outlet_name: alert.outlet_name,
+          sku_id: alert.sku_id,
+          sku_name: alert.sku_name,
+          daypart: alert.affected_daypart,
+          risk_level: alert.risk_level,
+          shortage_qty: alert.shortage_qty,
+          coverage_pct: alert.coverage_pct,
+          reason: alert.reason,
+          suggested_action: nextStep,
+          source: "backend_stockout_alert",
+        }}
+      />
     </div>
   );
 }
@@ -331,7 +379,7 @@ export default function RiskCenterPage() {
     }
 
     return actions.slice(0, 6);
-  }, [language, sortedStockout, sortedWaste]);
+  }, [language, sortedStockout, sortedWaste, t]);
 
   const chartHeight = Math.max(outletImbalanceData.length * 44, 100);
 

@@ -1,7 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import ExplainButton from "@/components/copilot/ExplainButton";
 import UncertaintyBar from "@/components/planning/UncertaintyBar";
 import { useLanguage } from "@/components/i18n/LanguageProvider";
 import { translateDaypart, translateStatus } from "@/lib/i18n";
@@ -18,6 +18,24 @@ export default function RecommendationCard({ item, onOpen }: Props) {
 
   const totalExposure = item.financial_exposure.stockout_exposure_rm + item.financial_exposure.waste_exposure_rm;
   const isCritical = totalExposure >= 500;
+  const evidence = {
+    outlet_name: item.outlet_name,
+    sku_name: item.sku_name,
+    sku_category: item.sku_category,
+    daypart: item.daypart,
+    p10: item.p10,
+    p50: item.p50,
+    p90: item.p90,
+    opening_stock: item.opening_stock,
+    recommended_prep: item.recommended_prep,
+    batch_size: item.batch_size,
+    waste_cost: item.waste_cost,
+    stockout_cost: item.stockout_cost,
+    stockout_exposure_rm: item.financial_exposure.stockout_exposure_rm,
+    waste_exposure_rm: item.financial_exposure.waste_exposure_rm,
+    priority_score: item.priority_score,
+    priority_reason: item.priority_reason,
+  };
 
   return (
     <Card className="flex flex-col transition-shadow hover:shadow-md">
@@ -77,33 +95,19 @@ export default function RecommendationCard({ item, onOpen }: Props) {
             <span>{item.reason_summary}</span>
           </div>
 
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <div className="flex cursor-help items-start gap-2 rounded-lg border border-sky-100 bg-sky-50/50 p-3 text-xs text-sky-900 transition-colors hover:bg-sky-50">
-                <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-sky-600" />
-                <span className="line-clamp-2">
-                  <span className="font-semibold">{t("planning.recommendation.why", "AI Reasoning: ")}</span>
-                  {item.explanation ?? t("planning.recommendation.groundedWhy", "Uses backend demand range and current stock limits. Hover to expand.")}
-                </span>
-              </div>
-            </TooltipTrigger>
-            <TooltipContent className="max-w-[300px] bg-sky-950 p-3 text-sky-50">
-              <p className="text-xs leading-relaxed">
-                {item.explanation ??
-                  t(
-                    "planning.recommendation.groundedWhy",
-                    "Uses backend demand range Low {{p10}}, Expected {{p50}}, High {{p90}}, opening stock {{stock}}, and prep {{prep}}. Gemini explains these numbers only.",
-                    {
-                      p10: item.p10,
-                      p50: item.p50,
-                      p90: item.p90,
-                      stock: item.opening_stock,
-                      prep: item.recommended_prep,
-                    }
-                  )}
-              </p>
-            </TooltipContent>
-          </Tooltip>
+          <div className="flex items-center justify-between gap-2 rounded-lg border border-sky-100 bg-sky-50/50 p-3">
+            <div className="flex items-start gap-2 text-xs text-sky-900">
+              <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-sky-600" />
+              <span>{t("planning.recommendation.geminiHelp", "Gemini can explain this prep amount using the displayed backend evidence.")}</span>
+            </div>
+            <ExplainButton
+              label={t("planning.recommendation.whyAmount", "Why this amount?")}
+              title={t("planning.recommendation.whyTitle", "Why prepare {{count}}?", { count: item.recommended_prep })}
+              contextType="recommendation"
+              evidence={evidence}
+              recommendationId={item.id}
+            />
+          </div>
         </div>
       </CardContent>
 

@@ -252,6 +252,16 @@ export interface StockoutAlert {
   coverage_pct: number;
 }
 
+export type ExplainContextType =
+  | "forecast"
+  | "prep"
+  | "waste"
+  | "stockout"
+  | "replenishment"
+  | "recommendation"
+  | "kpi"
+  | "scenario";
+
 export interface ExplainPlanRequest {
   context_type: "forecast" | "prep" | "waste" | "stockout" | "replenishment";
   outlet_id: number;
@@ -265,6 +275,20 @@ export interface ExplainPlanResponse {
   context_type: string;
   outlet_name: string;
   sku_name: string;
+  evidence: Record<string, unknown>;
+  source_type: "llm_rephrased";
+}
+
+export interface ExplainEvidenceResponse {
+  explanation: string;
+  evidence: Record<string, unknown>;
+  source_type: "llm_rephrased";
+}
+
+export interface ExplainEvidenceRequest {
+  context_type: ExplainContextType;
+  evidence: Record<string, unknown>;
+  language?: LanguageCode;
 }
 
 export interface DailyBriefResponse {

@@ -6,6 +6,8 @@ import type {
   DailyPlan,
   ExplainPlanRequest,
   ExplainPlanResponse,
+  ExplainEvidenceRequest,
+  ExplainEvidenceResponse,
   ForecastContext,
   ForecastOverride,
   ForecastOverridePayload,
@@ -129,6 +131,11 @@ export const api = {
 
   explainPlan: (body: ExplainPlanRequest): Promise<ExplainPlanResponse> =>
     apiFetch<ExplainPlanResponse>(`${V1}/copilot/explain-plan`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  explainEvidence: (body: ExplainEvidenceRequest): Promise<ExplainEvidenceResponse> =>
+    apiFetch<ExplainEvidenceResponse>(`${V1}/copilot/explain-evidence`, {
       method: "POST",
       body: JSON.stringify(body),
     }),

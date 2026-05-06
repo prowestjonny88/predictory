@@ -102,6 +102,7 @@ export interface RegeneratePlanResponse {
 export interface ManagerNoteRequest {
   forecast_run_id: string;
   note: string;
+  language?: "en" | "ms" | "zh-CN";
 }
 
 export interface ManagerNoteResponse {
@@ -112,8 +113,11 @@ export interface ManagerNoteResponse {
     suggested_adjustment_pct: number;
     reason: string;
     requires_confirmation: boolean;
+    parse_source: "llm_validated";
+    uncertainty_reason?: string | null;
   };
   explanation: string;
+  source_type: "llm_rephrased";
 }
 
 export interface ApplyAdjustmentRequest {
@@ -154,7 +158,7 @@ export interface DecisionResponse {
 export interface ExplainRecommendationResponse {
   explanation: string;
   evidence: Record<string, unknown>;
-  source_type: "rules_based" | "llm_rephrased";
+  source_type: "llm_rephrased";
 }
 
 interface BackendMetrics {
@@ -262,10 +266,10 @@ export const planningApi = {
       body: JSON.stringify(payload),
     }),
 
-  explainRecommendation: (recommendationId: string): Promise<ExplainRecommendationResponse> =>
+  explainRecommendation: (recommendationId: string, language: "en" | "ms" | "zh-CN" = "en"): Promise<ExplainRecommendationResponse> =>
     apiFetch(`${V1}/copilot/explain-recommendation`, {
       method: "POST",
-      body: JSON.stringify({ recommendation_id: Number(recommendationId) }),
+      body: JSON.stringify({ recommendation_id: Number(recommendationId), language }),
     }),
 
   submitDecision: async (

@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
@@ -6,10 +8,12 @@ interface KpiCardProps {
   value: string;
   trend?: string;
   trendDirection?: "up" | "down" | "neutral";
+  subtitle?: string;
+  action?: ReactNode;
   className?: string;
 }
 
-export function KpiCard({ label, value, trend, trendDirection, className }: KpiCardProps) {
+export function KpiCard({ label, value, trend, trendDirection, subtitle, action, className }: KpiCardProps) {
   return (
     <Card className={cn("overflow-hidden transition-all hover:shadow-md", className)}>
       <CardContent className="p-6">
@@ -32,6 +36,8 @@ export function KpiCard({ label, value, trend, trendDirection, className }: KpiC
             </span>
           )}
         </div>
+        {subtitle && <p className="mt-2 text-xs leading-snug text-muted-foreground">{subtitle}</p>}
+        {action && <div className="mt-4">{action}</div>}
       </CardContent>
     </Card>
   );

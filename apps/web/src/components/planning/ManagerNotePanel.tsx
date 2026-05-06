@@ -3,11 +3,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useLanguage } from "@/components/i18n/LanguageProvider";
 import { translateDaypart } from "@/lib/i18n";
-import type { ManagerNoteResponse } from "@/lib/api/planning";
+import type { ApplyAdjustmentResponse, ManagerNoteResponse } from "@/lib/api/planning";
 
 interface Props {
   onParse: (note: string) => Promise<ManagerNoteResponse | null>;
-  onApply: (adjustment: ManagerNoteResponse["parsed_adjustment"]) => Promise<void>;
+  onApply: (adjustment: ManagerNoteResponse["parsed_adjustment"]) => Promise<ApplyAdjustmentResponse | null>;
 }
 
 export default function ManagerNotePanel({ onParse, onApply }: Props) {
@@ -19,6 +19,7 @@ export default function ManagerNotePanel({ onParse, onApply }: Props) {
   const [applying, setApplying] = useState(false);
   const [adjustmentPct, setAdjustmentPct] = useState("");
   const [adjustmentReason, setAdjustmentReason] = useState("");
+  const [applyResult, setApplyResult] = useState<ApplyAdjustmentResponse | null>(null);
 
   async function handleParse() {
     setParsing(true);
@@ -26,6 +27,7 @@ export default function ManagerNotePanel({ onParse, onApply }: Props) {
     try {
       const response = await onParse(note);
       setResult(response);
+      setApplyResult(null);
       setAdjustmentPct(String(response?.parsed_adjustment.suggested_adjustment_pct ?? 0));
       setAdjustmentReason(response?.parsed_adjustment.reason ?? "");
     } catch (err) {
@@ -42,14 +44,21 @@ export default function ManagerNotePanel({ onParse, onApply }: Props) {
     }
     const parsedPct = Number.parseFloat(adjustmentPct);
     setApplying(true);
-    await onApply({
-      ...result.parsed_adjustment,
-      suggested_adjustment_pct: Number.isNaN(parsedPct) ? result.parsed_adjustment.suggested_adjustment_pct : parsedPct,
-      reason: adjustmentReason.trim() || result.parsed_adjustment.reason,
-      requires_confirmation: true,
-    });
-    setApplying(false);
-    setResult(null);
+    setError(null);
+    try {
+      const response = await onApply({
+        ...result.parsed_adjustment,
+        suggested_adjustment_pct: Number.isNaN(parsedPct) ? result.parsed_adjustment.suggested_adjustment_pct : parsedPct,
+        reason: adjustmentReason.trim() || result.parsed_adjustment.reason,
+        requires_confirmation: true,
+      });
+      setApplyResult(response);
+      setResult(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("planning.managerNote.applyFailed", "Unable to apply note"));
+    } finally {
+      setApplying(false);
+    }
   }
 
   return (
@@ -77,20 +86,48 @@ export default function ManagerNotePanel({ onParse, onApply }: Props) {
         </div>
 
         {result && (
-          <div className="rounded-lg border border-neutral-100 bg-neutral-50 p-3 text-sm">
-            <p className="text-xs uppercase tracking-wide text-neutral-500">
-              {t("planning.managerNote.suggested", "Suggested adjustment")}
-            </p>
-            <p className="font-semibold text-neutral-900">
-              {result.parsed_adjustment.outlet_id} /{" "}
-              {translateDaypart(language, result.parsed_adjustment.daypart.toLowerCase())} /{" "}
-              {result.parsed_adjustment.sku_category}
-            </p>
-            <p className="text-xs text-neutral-500">
-              {result.parsed_adjustment.suggested_adjustment_pct > 0 ? "+" : ""}
-              {result.parsed_adjustment.suggested_adjustment_pct}% / {result.parsed_adjustment.reason}
-            </p>
-            <p className="mt-2 text-xs text-neutral-500">{result.explanation}</p>
+          <div className="space-y-3 rounded-lg border border-neutral-100 bg-neutral-50 p-3 text-sm">
+            <div className="rounded-md border border-sky-100 bg-white p-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
+                {t("planning.managerNote.stepParsed", "Step 1: Parsed context")}
+              </p>
+              <p className="mt-2 font-semibold text-neutral-900">
+                {result.parsed_adjustment.outlet_id} /{" "}
+                {translateDaypart(language, result.parsed_adjustment.daypart.toLowerCase())} /{" "}
+                {result.parsed_adjustment.sku_category}
+              </p>
+              <p className="text-xs text-neutral-500">
+                {result.parsed_adjustment.suggested_adjustment_pct > 0 ? "+" : ""}
+                {result.parsed_adjustment.suggested_adjustment_pct}% / {result.parsed_adjustment.reason}
+              </p>
+              <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                <span className="rounded-full bg-sky-50 px-2 py-1 font-semibold text-sky-700">
+                  {t("planning.managerNote.parseSource", "Parse source")}: Gemini validated
+                </span>
+                <span className="rounded-full bg-sky-50 px-2 py-1 font-semibold text-sky-700">
+                  {t("planning.managerNote.sourceType", "Explanation source")}: Gemini
+                </span>
+              </div>
+              {result.parsed_adjustment.uncertainty_reason && (
+                <p className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-xs text-amber-900">
+                  {result.parsed_adjustment.uncertainty_reason}
+                </p>
+              )}
+              <p className="mt-2 text-xs text-neutral-500">{result.explanation}</p>
+            </div>
+
+            <div className="rounded-md border border-amber-100 bg-white p-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
+                {t("planning.managerNote.stepImpact", "Step 2: What will happen")}
+              </p>
+              <ul className="mt-2 space-y-1 text-xs text-neutral-600">
+                <li>{t("planning.managerNote.modeCopy", "Mode: prep edit only")}</li>
+                <li>{t("planning.managerNote.noForecastRerun", "Forecast will not be rerun.")}</li>
+                <li>{t("planning.managerNote.matchingLines", "Matching prep lines will be adjusted after confirmation.")}</li>
+                <li>{t("planning.managerNote.replenishmentRefreshes", "Replenishment will refresh after prep changes.")}</li>
+                <li>{t("planning.managerNote.auditRecorded", "Audit events will record the confirmed change.")}</li>
+              </ul>
+            </div>
 
             <div className="mt-3 grid gap-2 sm:grid-cols-[120px_1fr]">
               <label className="text-xs text-neutral-500">
@@ -131,6 +168,38 @@ export default function ManagerNotePanel({ onParse, onApply }: Props) {
                 {t("planning.managerNote.ignore", "Ignore")}
               </Button>
             </div>
+          </div>
+        )}
+
+        {applyResult && (
+          <div className="rounded-lg border border-emerald-100 bg-emerald-50 p-3 text-sm text-emerald-950">
+            <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
+              {t("planning.managerNote.appliedTitle", "Manager note applied")}
+            </p>
+            <div className="mt-2 grid gap-2 text-xs sm:grid-cols-2">
+              <span>{t("planning.managerNote.applicationMode", "Application mode")}: {applyResult.application_mode}</span>
+              <span>{t("planning.managerNote.affectedLines", "Affected lines")}: {applyResult.updated_line_ids.length}</span>
+              <span>{t("planning.managerNote.auditCount", "Audit events")}: {applyResult.audit_event_ids.length}</span>
+              <span>
+                {t("planning.managerNote.replenishment", "Replenishment")}:{" "}
+                {applyResult.replenishment_plan_id
+                  ? t("planning.managerNote.refreshed", "refreshed")
+                  : t("planning.managerNote.unavailable", "unavailable")}
+              </span>
+            </div>
+            {applyResult.line_changes && applyResult.line_changes.length > 0 && (
+              <div className="mt-3 space-y-1">
+                {applyResult.line_changes.slice(0, 5).map((change) => (
+                  <p key={change.line_id} className="rounded-md bg-white/70 px-2 py-1 text-xs">
+                    {t("planning.managerNote.lineChange", "Line {{line}}: {{before}} -> {{after}} units", {
+                      line: change.line_id,
+                      before: change.before_prep,
+                      after: change.after_prep,
+                    })}
+                  </p>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </CardContent>
