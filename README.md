@@ -59,7 +59,7 @@ Use local development values:
 ```env
 DATABASE_URL=sqlite:///./predictory.db
 GEMINI_API_KEY=your_google_ai_studio_key
-GEMINI_MODEL=gemini/gemini-2.5-flash
+GEMINI_MODEL=gemini/gemini-3-flash-preview
 SECRET_KEY=change-me-in-production-use-openssl-rand-hex-32
 ENVIRONMENT=development
 ADMIN_API_TOKEN=change-me-local-admin-token
@@ -204,6 +204,7 @@ NEXT_PUBLIC_API_URL=http://127.0.0.1:8000
 
 ## Reference Docs
 
+- [Local Setup Guide](./setup_guide.md)
 - [Product Requirements](./docs/prd.md)
 - [Architecture Notes](./docs/architecture.md)
 - [Documentation](./docs/documentation.md)

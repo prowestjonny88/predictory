@@ -15,7 +15,7 @@ If `language` is omitted, the backend defaults to `en`. Invalid language values 
 Copilot uses Gemini through LiteLLM:
 
 - `GEMINI_API_KEY=...`
-- optional: `GEMINI_MODEL=gemini/gemini-2.5-flash`
+- optional: `GEMINI_MODEL=gemini/gemini-3-flash-preview`
 
 If the provider is missing or unavailable, prose endpoints return `503`. Runtime endpoints do not substitute deterministic prose for provider failures.
 

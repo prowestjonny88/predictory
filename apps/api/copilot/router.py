@@ -138,7 +138,23 @@ def _validate_daily_brief_text(brief: str) -> str:
 
 def _validate_llm_explanation_text(explanation: str) -> str:
     cleaned = (explanation or "").strip()
-    if len(cleaned) < 20 or len(cleaned.split()) < 4:
+    lower = cleaned.lower()
+    incomplete_endings = (
+        "based on",
+        "because",
+        "due to",
+        "from",
+        "using",
+        "with",
+        "and",
+        "or",
+        "the",
+        "a",
+        "an",
+    )
+    has_terminal_punctuation = cleaned.endswith((".", "!", "?", "。", "！", "？"))
+    ends_mid_clause = any(lower.endswith(f" {ending}") or lower == ending for ending in incomplete_endings)
+    if len(cleaned) < 80 or len(cleaned.split()) < 12 or not has_terminal_punctuation or ends_mid_clause:
         raise HTTPException(
             status_code=503,
             detail="LLM provider returned an incomplete explanation. Retry or check provider configuration.",
@@ -169,14 +185,25 @@ def _grounded_explanation_prompt(language: SupportedLanguage, context_type: str,
         "Use only the provided JSON evidence. Do not create, change, estimate, or infer new numbers. "
         "Do not introduce quantities, costs, suppliers, outlets, SKUs, dates, or actions that are not present "
         "in the evidence. If the evidence is insufficient, say what evidence is missing.\n"
-        f"Task: Explain the {context_type} evidence in 1-3 concise operational sentences.\n\n"
+        f"Task: Explain the {context_type} evidence in 2-3 complete operational sentences. "
+        "Every sentence must be complete and end with punctuation.\n\n"
         f"Evidence JSON:\n{evidence_json}"
     )
 
 
 def _call_grounded_explanation(language: SupportedLanguage, context_type: str, evidence: dict) -> str:
     prompt = _grounded_explanation_prompt(language, context_type, evidence)
-    return _validate_llm_explanation_text(_invoke_llm(prompt, max_tokens=700))
+    try:
+        return _validate_llm_explanation_text(_invoke_llm(prompt, max_tokens=900))
+    except HTTPException as exc:
+        if exc.status_code != 503 or "incomplete explanation" not in str(exc.detail):
+            raise
+        retry_prompt = (
+            f"{prompt}\n\n"
+            "Your previous response was incomplete or ended mid-sentence. Return a complete answer now: "
+            "2-3 full sentences, grounded only in the Evidence JSON, with punctuation at the end of every sentence."
+        )
+        return _validate_llm_explanation_text(_invoke_llm(retry_prompt, max_tokens=900))
 
 
 def _normalize_language(language: str | None) -> SupportedLanguage:

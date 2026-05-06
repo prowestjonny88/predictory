@@ -112,7 +112,10 @@ def test_explain_plan_supports_all_contexts_with_llm_text():
     db.close()
 
     original = copilot_router._call_llm
-    copilot_router._call_llm = _fixed_llm("Grounded Gemini explanation based only on backend evidence.")
+    copilot_router._call_llm = _fixed_llm(
+        "Grounded Gemini explanation based only on backend evidence. "
+        "It summarizes the supplied operational context without adding or changing any numbers."
+    )
     try:
         _override_app_db(SessionLocal)
         with TestClient(app) as client:
@@ -237,7 +240,10 @@ def test_explain_plan_forecast_mentions_contextual_drivers_when_present():
     db.close()
 
     original = copilot_router._call_llm
-    copilot_router._call_llm = _fixed_llm("Holiday, weather adjustment, and manual override are reflected in the evidence.")
+    copilot_router._call_llm = _fixed_llm(
+        "Holiday, weather adjustment, and manual override are reflected in the evidence. "
+        "The explanation stays grounded in those supplied drivers without adding new values."
+    )
     try:
         _override_app_db(SessionLocal)
         with TestClient(app) as client:
@@ -397,7 +403,10 @@ def test_explain_evidence_prompt_forbids_number_invention():
 
     def llm(prompt, _text=""):
         captured["prompt"] = prompt
-        return "Gemini explains the supplied backend evidence without changing values."
+        return (
+            "Gemini explains the supplied backend evidence without changing values. "
+            "It keeps the operational recommendation grounded in the provided metric and value."
+        )
 
     copilot_router._call_llm = llm
     try:
@@ -411,6 +420,53 @@ def test_explain_evidence_prompt_forbids_number_invention():
             assert "Use only the provided JSON evidence" in prompt
             assert "Do not create, change, estimate, or infer new numbers" in prompt
             assert '"value": 10' in prompt
+    finally:
+        copilot_router._call_llm = original
+
+
+def test_explain_evidence_rejects_truncated_llm_output():
+    original = copilot_router._call_llm
+    copilot_router._call_llm = lambda _prompt, _text="": (
+        "For the morning daypart at KLCC Mall, the recommended prep for Butter Croissant "
+        "is 35 units. This recommendation is based on"
+    )
+    try:
+        with TestClient(app) as client:
+            resp = client.post(
+                "/api/v1/copilot/explain-evidence",
+                json={"context_type": "recommendation", "evidence": {"recommended_prep": 35}},
+            )
+            assert resp.status_code == 503
+            assert "incomplete explanation" in resp.json()["detail"]
+    finally:
+        copilot_router._call_llm = original
+
+
+def test_explain_evidence_retries_once_after_truncated_llm_output():
+    original = copilot_router._call_llm
+    calls = {"count": 0}
+
+    def llm(_prompt, _text=""):
+        calls["count"] += 1
+        if calls["count"] == 1:
+            return (
+                "For the morning daypart at KLCC Mall, the recommended prep for Butter Croissant "
+                "is 35 units. This recommendation is based on"
+            )
+        return (
+            "For the morning daypart at KLCC Mall, the recommended prep for Butter Croissant is 35 units. "
+            "The explanation stays grounded in the supplied recommendation evidence and does not add new values."
+        )
+
+    copilot_router._call_llm = llm
+    try:
+        with TestClient(app) as client:
+            resp = client.post(
+                "/api/v1/copilot/explain-evidence",
+                json={"context_type": "recommendation", "evidence": {"recommended_prep": 35}},
+            )
+            assert resp.status_code == 200
+            assert calls["count"] == 2
     finally:
         copilot_router._call_llm = original
 

@@ -187,7 +187,10 @@ def test_copilot_manager_note_contract_requires_confirmation_and_preserves_groun
                 '"suggested_adjustment_pct":10,"reason":"Manager expects higher pastry demand",'
                 '"requires_confirmation":true,"uncertainty_reason":null}'
             )
-        return "Grounded Gemini recommendation explanation based only on backend evidence."
+        return (
+            "Grounded Gemini recommendation explanation based only on backend evidence. "
+            "It summarizes the supplied forecast, prep, stock, and exposure values without changing them."
+        )
 
     copilot_router._call_llm = llm
     try:
