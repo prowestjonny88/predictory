@@ -5,8 +5,10 @@ POST /imports/upload — in-memory CSV parse + direct DB commit
 import io
 import csv
 import re
+import os
+import secrets
 from datetime import date, datetime
-from fastapi import APIRouter, Depends, UploadFile, File, HTTPException
+from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, Header
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 
@@ -102,6 +104,22 @@ class UploadResult(BaseModel):
     rows_committed: int
     data_type: str
     errors: list[str]
+
+
+def _require_ingestion_admin_token(authorization: str | None) -> None:
+    environment = os.getenv("ENVIRONMENT", "development").lower()
+    allow_dev_bypass = os.getenv("ALLOW_UNAUTHENTICATED_IMPORTS", "").lower() in {"1", "true", "yes"}
+    if environment == "development" and allow_dev_bypass:
+        return
+
+    expected = os.getenv("ADMIN_API_TOKEN")
+    if not expected:
+        raise HTTPException(status_code=503, detail="ADMIN_API_TOKEN is not configured for ingestion uploads")
+    if not authorization:
+        raise HTTPException(status_code=401, detail="Missing Authorization header")
+    scheme, _, token = authorization.partition(" ")
+    if scheme.lower() != "bearer" or not secrets.compare_digest(token, expected):
+        raise HTTPException(status_code=403, detail="Invalid admin token")
 
 
 def _parse_csv(content: bytes) -> list[dict]:
@@ -762,8 +780,11 @@ async def upload_csv(
     data_type: str = "auto",
     default_outlet_code: str | None = None,
     auto_create_skus: bool = False,
+    authorization: str | None = Header(default=None),
     db: Session = Depends(get_db),
 ):
+    _require_ingestion_admin_token(authorization)
+
     if not file.filename or not file.filename.endswith(".csv"):
         raise HTTPException(status_code=400, detail="Only .csv files are accepted")
 

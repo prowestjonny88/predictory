@@ -63,9 +63,9 @@ GEMINI_MODEL=gemini/gemini-2.5-flash
 SECRET_KEY=change-me-in-production-use-openssl-rand-hex-32
 ENVIRONMENT=development
 ADMIN_API_TOKEN=change-me-local-admin-token
-ALLOWED_ORIGINS=http://localhost:3000
-NEXT_PUBLIC_API_URL=http://localhost:8000
-API_BASE_URL=http://localhost:8000/api/v1
+ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
+NEXT_PUBLIC_API_URL=http://127.0.0.1:8000
+API_BASE_URL=http://127.0.0.1:8000/api/v1
 ```
 
 ### 2. Run Backend
@@ -76,14 +76,14 @@ py -m venv .venv
 .\.venv\Scripts\Activate.ps1
 py -m pip install -r requirements.txt
 alembic upgrade head
-uvicorn main:app --reload --port 8000
+py -m uvicorn main:app --reload --host 127.0.0.1 --port 8000
 ```
 
 Check:
 
 ```text
-http://localhost:8000/health
-http://localhost:8000/docs
+http://127.0.0.1:8000/health
+http://127.0.0.1:8000/docs
 ```
 
 ### 3. Import Operational Data
@@ -101,6 +101,7 @@ Populate a clean database through `/api/v1/imports/upload` before running foreca
 - `holidays`
 
 Required references are strict: sales, inventory, waste, and recipe rows must reference outlets, SKUs, and ingredients that have already been imported.
+CSV import requires `Authorization: Bearer <ADMIN_API_TOKEN>` unless local development explicitly sets `ALLOW_UNAUTHENTICATED_IMPORTS=true`.
 
 Before generating a forecast, check:
 
@@ -114,15 +115,15 @@ In another terminal:
 
 ```powershell
 cd apps/web
-Set-Content .env.local "NEXT_PUBLIC_API_URL=http://localhost:8000"
+Set-Content .env.local "NEXT_PUBLIC_API_URL=http://127.0.0.1:8000"
 npm.cmd install
-npm.cmd run dev
+npm.cmd run dev -- --hostname 127.0.0.1 --port 3000
 ```
 
 Open:
 
 ```text
-http://localhost:3000/daily-planning
+http://127.0.0.1:3000/daily-planning
 ```
 
 The root route redirects to `/daily-planning`.
@@ -198,7 +199,7 @@ Then restart `uvicorn`; environment changes are not picked up by an already-runn
 Check `apps/web/.env.local`:
 
 ```env
-NEXT_PUBLIC_API_URL=http://localhost:8000
+NEXT_PUBLIC_API_URL=http://127.0.0.1:8000
 ```
 
 ## Reference Docs

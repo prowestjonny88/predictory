@@ -14,6 +14,10 @@ Query params:
 - `default_outlet_code` for transaction-style sales uploads
 - `auto_create_skus=true|false` for transaction-style sales uploads
 
+Auth:
+
+- `Authorization: Bearer <ADMIN_API_TOKEN>` is required unless local development explicitly sets `ALLOW_UNAUTHENTICATED_IMPORTS=true`.
+
 Response:
 
 ```json
@@ -43,7 +47,15 @@ Response:
   "target_date": "2026-05-06",
   "blockers": [
     "No historical sales exist before the target date."
-  ]
+  ],
+  "grouped_blockers": {
+    "sales_coverage": [
+      "No historical sales exist before the target date."
+    ]
+  },
+  "artifact_files_found": true,
+  "artifact_validated_for_inference": true,
+  "artifact_validation_error": null
 }
 ```
 
@@ -146,13 +158,23 @@ Important response fields:
       "p50": 11.0,
       "p90": 15.0,
       "recommended_prep": 12,
+      "priority_score": 24.7,
+      "priority_reason": "highest financial exposure",
       "financial_exposure": {
         "stockout_exposure_rm": 20.5,
         "waste_exposure_rm": 4.2
       },
       "replenishment": {}
     }
-  ]
+  ],
+  "summary": {
+    "scope": "full_plan",
+    "total_recommended_prep_units": 284,
+    "total_stockout_exposure_rm": 132.5,
+    "total_waste_exposure_rm": 68.0,
+    "ingredient_shortage_count": 3,
+    "pending_action_count": 18
+  }
 }
 ```
 

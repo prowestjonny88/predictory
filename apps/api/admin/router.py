@@ -1,5 +1,6 @@
 """Admin model registry endpoints."""
 import os
+import secrets
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -93,7 +94,7 @@ def _require_admin_token(authorization: Optional[str]) -> None:
     if not authorization:
         raise HTTPException(status_code=401, detail="Missing Authorization header")
     scheme, _, token = authorization.partition(" ")
-    if scheme.lower() != "bearer" or token != expected:
+    if scheme.lower() != "bearer" or not secrets.compare_digest(token, expected):
         raise HTTPException(status_code=403, detail="Invalid admin token")
 
 

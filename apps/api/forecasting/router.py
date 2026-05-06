@@ -42,7 +42,6 @@ class ForecastLineOut(BaseModel):
     evening: float
     total: float
     method: str
-    confidence: float
     manual_adjustment_pct: Optional[float]
     rationale_json: Optional[dict]
     model_config = {"from_attributes": True}
@@ -83,6 +82,10 @@ class ReadinessOut(BaseModel):
     ready: bool
     target_date: str
     blockers: list[str]
+    grouped_blockers: dict[str, list[str]] = Field(default_factory=dict)
+    artifact_files_found: bool = False
+    artifact_validated_for_inference: bool = False
+    artifact_validation_error: Optional[str] = None
 
 
 class AdjustmentRequest(BaseModel):
@@ -233,7 +236,6 @@ def _forecast_line_out(
         evening=line.evening,
         total=line.total,
         method=line.method,
-        confidence=line.confidence,
         manual_adjustment_pct=line.manual_adjustment_pct,
         rationale_json=line.rationale_json,
     )

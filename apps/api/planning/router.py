@@ -30,8 +30,15 @@ from planning.replenishment import recommend_replenishment
 from forecasting.engine import run_forecast_for_date
 from alerts.waste import detect_waste_risk
 from alerts.stockout import detect_stockout_risk
-from services.daily_plan_builder import build_forecast_source_fields
-from services.lightgbm_inference import FeatureBuildError, OperationalDataError
+from services.daily_plan_builder import (
+    build_forecast_line_payloads,
+    build_forecast_source_fields,
+    build_full_plan_summary,
+    build_prep_line_payloads,
+    build_priority_fields,
+    build_replenishment_line_payloads,
+)
+from services.lightgbm_inference import ENGINE_NAME as ACTIVE_FORECAST_ENGINE, FeatureBuildError, OperationalDataError
 from services.model_loader import ModelArtifactError, load_model_for_inference
 from services.optimizer import calculate_optimal_prep
 from services.runtime_readiness import ReadinessError
@@ -43,11 +50,17 @@ router = APIRouter()
 # ─── Response schemas ─────────────────────────────────────────────────────────
 
 class SummaryOut(BaseModel):
+    scope: str = "full_plan"
     total_predicted_sales: float
     waste_risk_score: int         # 0-100
     stockout_risk_score: int      # 0-100
     top_actions: list[str]
     at_risk_outlets: list[str]
+    total_recommended_prep_units: int = 0
+    total_stockout_exposure_rm: float = 0.0
+    total_waste_exposure_rm: float = 0.0
+    ingredient_shortage_count: int = 0
+    pending_action_count: int = 0
 
 
 class ForecastLineOut(BaseModel):
@@ -157,6 +170,8 @@ class TopActionOut(BaseModel):
     waste_cost: float
     stockout_cost: float
     financial_exposure: FinancialExposureOut
+    priority_score: float
+    priority_reason: str
     reason_summary: str
     replenishment: list[ReplenishmentItemOut]
     status: str
@@ -175,6 +190,7 @@ class DailyPlanLatestOut(BaseModel):
     validation_window: str
     metrics: dict
     data_source: str
+    summary: SummaryOut
     top_actions: list[TopActionOut]
 
 
@@ -339,16 +355,24 @@ def _to_http_error(exc: Exception) -> HTTPException:
 
 def _get_or_build_forecast_run(plan_date: date_type, db: Session) -> ForecastRun:
     forecast_run = _latest_forecast_for_date(plan_date, db)
-    if forecast_run:
+    if forecast_run and forecast_run.engine_name == ACTIVE_FORECAST_ENGINE:
         return forecast_run
     return run_forecast_for_date(plan_date, db)
+
+
+def _prep_plan_is_stale(prep_plan: PrepPlan, forecast_run: ForecastRun) -> bool:
+    return bool(
+        forecast_run.created_at
+        and prep_plan.created_at
+        and prep_plan.created_at < forecast_run.created_at
+    )
 
 
 def _get_or_build_optimizer_prep_plan(plan_date: date_type, db: Session) -> tuple[PrepPlan, ForecastRun]:
     forecast_run = _get_or_build_forecast_run(plan_date, db)
     prep_plan = _latest_prep_plan(plan_date, db)
     created = False
-    if not prep_plan:
+    if not prep_plan or _prep_plan_is_stale(prep_plan, forecast_run):
         prep_plan = _generate_prep_plan_from_forecast(plan_date, forecast_run, db)
         created = True
     changed = _optimize_prep_plan_lines(prep_plan, forecast_run, db)
@@ -584,7 +608,12 @@ def _generate_prep_plan_from_forecast(plan_date: date_type, forecast_run: Foreca
     return plan
 
 
-def _build_top_actions_from_plan(prep_plan: PrepPlan, forecast_run: ForecastRun, db: Session) -> list[TopActionOut]:
+def _build_top_actions_from_plan(
+    prep_plan: PrepPlan,
+    forecast_run: ForecastRun,
+    db: Session,
+    limit: Optional[int] = 18,
+) -> list[TopActionOut]:
     forecast_by_key = {(line.outlet_id, line.sku_id): line for line in forecast_run.lines}
     outlets = {outlet.id: outlet for outlet in db.query(Outlet).all()}
     skus = {sku.id: sku for sku in db.query(SKU).all()}
@@ -610,6 +639,12 @@ def _build_top_actions_from_plan(prep_plan: PrepPlan, forecast_run: ForecastRun,
         )
         final_prep = line.edited_units if line.edited_units is not None else line.recommended_units
         financial = decision["financial_exposure"]
+        replenishment = _ingredient_impact_for_action(sku, final_prep, db)
+        financial_payload = {
+            "stockout_exposure_rm": float(financial["stockout_exposure_rm"]),
+            "waste_exposure_rm": float(financial["waste_exposure_rm"]),
+        }
+        priority = build_priority_fields(financial_payload, replenishment)
         actions.append(
             TopActionOut(
                 id=str(line.id),
@@ -629,20 +664,23 @@ def _build_top_actions_from_plan(prep_plan: PrepPlan, forecast_run: ForecastRun,
                 waste_cost=float(decision["waste_cost"]),
                 stockout_cost=float(decision["stockout_cost"]),
                 financial_exposure=FinancialExposureOut(
-                    stockout_exposure_rm=float(financial["stockout_exposure_rm"]),
-                    waste_exposure_rm=float(financial["waste_exposure_rm"]),
+                    stockout_exposure_rm=financial_payload["stockout_exposure_rm"],
+                    waste_exposure_rm=financial_payload["waste_exposure_rm"],
                 ),
+                priority_score=priority["priority_score"],
+                priority_reason=priority["priority_reason"],
                 reason_summary=decision["reason_summary"],
-                replenishment=_ingredient_impact_for_action(sku, final_prep, db),
+                replenishment=replenishment,
                 status=line.status,
             )
         )
 
-    return sorted(
+    sorted_actions = sorted(
         actions,
-        key=lambda item: item.financial_exposure.stockout_exposure_rm + item.financial_exposure.waste_exposure_rm,
+        key=lambda item: item.priority_score,
         reverse=True,
-    )[:18]
+    )
+    return sorted_actions if limit is None else sorted_actions[:limit]
 
 
 def _record_line_decision(
@@ -748,7 +786,7 @@ def _build_daily_plan_response(plan_date: date_type, db: Session) -> DailyPlanOu
         .order_by(desc(ForecastRun.created_at), desc(ForecastRun.id))
         .first()
     )
-    if not fc_run:
+    if not fc_run or fc_run.engine_name != ACTIVE_FORECAST_ENGINE:
         fc_run = run_forecast_for_date(plan_date, db)
 
     # Run or reuse prep plan
@@ -759,7 +797,7 @@ def _build_daily_plan_response(plan_date: date_type, db: Session) -> DailyPlanOu
         .first()
     )
     prep_plan_created = False
-    if not prep_plan:
+    if not prep_plan or _prep_plan_is_stale(prep_plan, fc_run):
         prep_plan = _generate_prep_plan_from_forecast(plan_date, fc_run, db)
         prep_plan_created = True
 
@@ -776,7 +814,7 @@ def _build_daily_plan_response(plan_date: date_type, db: Session) -> DailyPlanOu
     )
     if not repl_plan:
         repl_plan = recommend_replenishment(plan_date, db)
-    elif optimized_changed:
+    elif optimized_changed or prep_plan_created:
         repl_plan = _refresh_replenishment(plan_date, db)
 
     # Detect alerts
@@ -787,50 +825,9 @@ def _build_daily_plan_response(plan_date: date_type, db: Session) -> DailyPlanOu
     model_info = load_model_for_inference()
     model_run = fc_run.model_run
 
-    # Build forecast lines
-    forecast_lines = [
-        ForecastLineOut(
-            outlet_id=l.outlet_id,
-            outlet_name=outlets_map.get(l.outlet_id, ""),
-            sku_id=l.sku_id,
-            sku_name=skus_map.get(l.sku_id, ""),
-            morning=round(l.morning, 1),
-            midday=round(l.midday, 1),
-            evening=round(l.evening, 1),
-            total=round(l.total, 1),
-            reason_tags=(l.rationale_json or {}).get("reason_tags", []),
-        )
-        for l in fc_run.lines
-    ]
-
-    # Build prep plan lines
-    prep_lines = [
-        PrepLineOut(
-            id=l.id,
-            outlet_id=l.outlet_id,
-            sku_id=l.sku_id,
-            daypart=l.daypart,
-            recommended_units=l.recommended_units,
-            edited_units=l.edited_units,
-            current_stock=l.current_stock,
-            status=l.status,
-        )
-        for l in prep_plan.lines
-    ]
-
-    # Build replenishment lines
-    repl_lines_out = [
-        ReplenLineOut(
-            ingredient_id=l.ingredient_id,
-            ingredient_name=l.ingredient.name if l.ingredient else "",
-            need_qty=round(l.need_qty, 2),
-            stock_on_hand=round(l.stock_on_hand, 2),
-            reorder_qty=round(l.reorder_qty, 2),
-            urgency=l.urgency,
-            driving_skus=l.driving_skus or [],
-        )
-        for l in repl_plan.lines
-    ]
+    forecast_lines = [ForecastLineOut(**payload) for payload in build_forecast_line_payloads(fc_run.lines, outlets_map, skus_map)]
+    prep_lines = [PrepLineOut(**payload) for payload in build_prep_line_payloads(prep_plan.lines)]
+    repl_lines_out = [ReplenLineOut(**payload) for payload in build_replenishment_line_payloads(repl_plan.lines)]
 
     # Summary
     total_sales = sum(l.total for l in fc_run.lines)
@@ -840,14 +837,20 @@ def _build_daily_plan_response(plan_date: date_type, db: Session) -> DailyPlanOu
     actions = _build_top_actions(waste_alerts, stockout_alerts, repl_plan.lines)
     at_risk_outlets = list({a.outlet_name for a in (waste_alerts + stockout_alerts) if a.risk_level == "high"})
 
+    all_action_candidates = _build_top_actions_from_plan(prep_plan, fc_run, db, limit=None)
     summary = SummaryOut(
-        total_predicted_sales=round(total_sales, 0),
-        waste_risk_score=waste_score,
-        stockout_risk_score=stockout_score,
-        top_actions=actions,
-        at_risk_outlets=at_risk_outlets[:5],
+        **build_full_plan_summary(
+            total_predicted_sales=total_sales,
+            waste_risk_score=waste_score,
+            stockout_risk_score=stockout_score,
+            legacy_top_actions=actions,
+            at_risk_outlets=at_risk_outlets,
+            prep_lines=prep_plan.lines,
+            action_candidates=all_action_candidates,
+            replenishment_lines=repl_plan.lines,
+        )
     )
-    top_actions = _build_top_actions_from_plan(prep_plan, fc_run, db)
+    top_actions = all_action_candidates[:18]
 
     source_fields = build_forecast_source_fields(fc_run.engine_name, model_info)
 

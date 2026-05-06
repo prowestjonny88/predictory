@@ -1,4 +1,7 @@
 import { useMemo, useState } from "react";
+import { Slider } from "@/components/ui/slider";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import UncertaintyBar from "@/components/planning/UncertaintyBar";
@@ -167,35 +170,49 @@ export default function ApprovalDrawer({ open, item, auditEvents, onClose, onSub
           </div>
 
           {action !== "approved" && (
-            <div className="space-y-2">
-              <label className="text-xs uppercase tracking-wide text-neutral-500">
-                {t("planning.decision.finalPrep", "Final prep")}
-              </label>
-              <input
-                type="number"
-                min={0}
-                className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm"
-                placeholder={`${item.recommended_prep}`}
-                value={finalPrep}
-                onChange={(event) => setFinalPrep(event.target.value)}
-              />
-              <label className="text-xs uppercase tracking-wide text-neutral-500">
-                {t("planning.decision.reason", "Reason")}
-              </label>
-              <textarea
-                className="min-h-[80px] w-full rounded-lg border border-neutral-200 p-3 text-sm"
-                placeholder={t("planning.decision.reasonRequired", "Reason required for edits or rejections")}
-                value={reason}
-                onChange={(event) => setReason(event.target.value)}
-              />
+            <div className="space-y-4 rounded-lg border border-neutral-100 bg-neutral-50/50 p-4">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
+                    {t("planning.decision.finalPrep", "Final prep")}
+                  </label>
+                  <Input
+                    type="number"
+                    min={0}
+                    className="h-8 w-24 text-right"
+                    placeholder={`${item.recommended_prep}`}
+                    value={finalPrep}
+                    onChange={(event) => setFinalPrep(event.target.value)}
+                  />
+                </div>
+                <Slider
+                  value={[effectiveFinalPrep]}
+                  min={0}
+                  max={Math.max(item.recommended_prep * 2, 100)}
+                  step={item.batch_size || 1}
+                  onValueChange={([val]) => setFinalPrep(val.toString())}
+                  className="py-2"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
+                  {t("planning.decision.reason", "Reason")}
+                </label>
+                <Textarea
+                  className="min-h-[80px] w-full resize-none bg-white"
+                  placeholder={t("planning.decision.reasonRequired", "Reason required for edits or rejections")}
+                  value={reason}
+                  onChange={(event) => setReason(event.target.value)}
+                />
+              </div>
             </div>
           )}
 
-            {validationError && (
-              <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
-                {validationError}
-              </div>
-            )}
+          {validationError && (
+            <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+              {validationError}
+            </div>
+          )}
 
           <div className="rounded-lg border border-neutral-100 p-3">
             <p className="text-xs uppercase tracking-wide text-neutral-500">

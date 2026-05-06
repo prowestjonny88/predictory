@@ -33,6 +33,7 @@ class SKUOut(BaseModel):
     is_bestseller: bool
     safety_buffer_pct: float
     price: float
+    unit_cost: Optional[float] = None
     is_active: bool
     model_config = {"from_attributes": True}
 
@@ -97,7 +98,36 @@ def get_outlets(db: Session = Depends(get_db)):
 
 @router.get("/skus", response_model=list[SKUOut])
 def get_skus(db: Session = Depends(get_db)):
-    return db.query(SKU).filter(SKU.is_active == True).all()
+    skus = db.query(SKU).filter(SKU.is_active == True).all()
+    return [
+        SKUOut(
+            id=sku.id,
+            name=sku.name,
+            code=sku.code,
+            category=sku.category,
+            freshness_hours=sku.freshness_hours,
+            is_bestseller=sku.is_bestseller,
+            safety_buffer_pct=sku.safety_buffer_pct,
+            price=sku.price,
+            unit_cost=_sku_unit_cost(sku, db),
+            is_active=sku.is_active,
+        )
+        for sku in skus
+    ]
+
+
+def _sku_unit_cost(sku: SKU, db: Session) -> Optional[float]:
+    rows = db.query(RecipeBOM).filter(RecipeBOM.sku_id == sku.id).all()
+    if not rows:
+        return None
+    cost = 0.0
+    for row in rows:
+        ingredient = db.query(Ingredient).filter(Ingredient.id == row.ingredient_id).first()
+        if not ingredient:
+            return None
+        line_cost = float(ingredient.cost_per_unit or 0.0) * float(row.quantity_per_unit or 0.0)
+        cost += line_cost
+    return round(cost, 4) if cost > 0 else None
 
 
 @router.get("/ingredients", response_model=list[IngredientOut])

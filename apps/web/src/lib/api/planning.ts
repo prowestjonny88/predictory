@@ -21,6 +21,20 @@ export interface ReplenishmentLine {
   urgency?: string;
 }
 
+export interface DailyPlanSummary {
+  scope: "full_plan" | "top_actions";
+  total_predicted_sales: number;
+  waste_risk_score: number;
+  stockout_risk_score: number;
+  top_actions: string[];
+  at_risk_outlets: string[];
+  total_recommended_prep_units: number;
+  total_stockout_exposure_rm: number;
+  total_waste_exposure_rm: number;
+  ingredient_shortage_count: number;
+  pending_action_count: number;
+}
+
 export interface DailyPlanTopAction {
   id: string;
   plan_id?: number;
@@ -39,6 +53,8 @@ export interface DailyPlanTopAction {
   waste_cost: number;
   stockout_cost: number;
   financial_exposure: FinancialExposure;
+  priority_score: number;
+  priority_reason: string;
   reason_summary: string;
   replenishment: ReplenishmentLine[];
   status: string;
@@ -58,6 +74,7 @@ export interface DailyPlanLatestResponse {
   validation_window: string;
   data_source: "backend";
   metrics: DailyPlanMetrics;
+  summary: DailyPlanSummary;
   top_actions: DailyPlanTopAction[];
 }
 
@@ -65,6 +82,10 @@ export interface ForecastReadiness {
   ready: boolean;
   target_date: string;
   blockers: string[];
+  grouped_blockers?: Record<string, string[]>;
+  artifact_files_found?: boolean;
+  artifact_validated_for_inference?: boolean;
+  artifact_validation_error?: string | null;
 }
 
 export interface RegeneratePlanRequest {
@@ -161,6 +182,7 @@ interface BackendDailyPlan {
   validation_window: string;
   data_source?: "backend";
   metrics: BackendMetrics;
+  summary?: DailyPlanSummary;
   top_actions?: DailyPlanTopAction[];
 }
 
@@ -192,6 +214,10 @@ function normalizeMetrics(metrics: BackendMetrics): DailyPlanMetrics {
 }
 
 function toBackendDailyPlan(payload: BackendDailyPlan): DailyPlanLatestResponse {
+  const topActions = payload.top_actions ?? [];
+  if (!payload.summary) {
+    throw new Error("Backend daily plan summary is required.");
+  }
   return {
     forecast_run_id: payload.forecast_run_id,
     model_run_id: payload.model_run_id ? String(payload.model_run_id) : "",
@@ -205,7 +231,8 @@ function toBackendDailyPlan(payload: BackendDailyPlan): DailyPlanLatestResponse 
     validation_window: payload.validation_window,
     data_source: payload.data_source ?? "backend",
     metrics: normalizeMetrics(payload.metrics),
-    top_actions: payload.top_actions ?? [],
+    summary: payload.summary,
+    top_actions: topActions,
   };
 }
 

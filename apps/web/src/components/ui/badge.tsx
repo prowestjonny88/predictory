@@ -1,46 +1,44 @@
-import { cn } from "@/lib/utils";
+import * as React from "react"
+import { cva, type VariantProps } from "class-variance-authority"
 
-export type BadgeVariant =
-  | "default"
-  | "critical"
-  | "high"
-  | "medium"
-  | "low"
-  | "success"
-  | "outline"
-  | "draft"
-  | "approved"
-  | "info";
+import { cn } from "@/lib/utils"
 
-const variantClasses: Record<BadgeVariant, string> = {
-  default:  "bg-neutral-100 text-neutral-700 border-neutral-200",
-  critical: "bg-red-100 text-red-700 border-red-200",
-  high:     "bg-orange-100 text-orange-700 border-orange-200",
-  medium:   "bg-yellow-100 text-yellow-700 border-yellow-200",
-  low:      "bg-green-100 text-green-700 border-green-200",
-  success:  "bg-green-100 text-green-700 border-green-200",
-  outline:  "bg-transparent text-neutral-600 border-neutral-300",
-  draft:    "bg-yellow-50 text-yellow-700 border-yellow-200",
-  approved: "bg-green-50 text-green-700 border-green-300",
-  info:     "bg-sky-100 text-sky-700 border-sky-200",
-};
+const badgeVariants = cva(
+  "inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+  {
+    variants: {
+      variant: {
+        default:
+          "border-transparent bg-primary text-primary-foreground shadow hover:bg-primary/80",
+        secondary:
+          "border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80",
+        destructive:
+          "border-transparent bg-destructive text-destructive-foreground shadow hover:bg-destructive/80",
+        outline: "text-foreground",
+        critical: "border-transparent bg-red-100 text-red-700 shadow hover:bg-red-200",
+        high: "border-transparent bg-orange-100 text-orange-700 shadow hover:bg-orange-200",
+        medium: "border-transparent bg-yellow-100 text-yellow-700 shadow hover:bg-yellow-200",
+        low: "border-transparent bg-green-100 text-green-700 shadow hover:bg-green-200",
+        success: "border-transparent bg-green-100 text-green-700 shadow hover:bg-green-200",
+        draft: "border-transparent bg-yellow-50 text-yellow-700 shadow hover:bg-yellow-100",
+        approved: "border-transparent bg-green-50 text-green-700 shadow hover:bg-green-100",
+        info: "border-transparent bg-sky-100 text-sky-700 shadow hover:bg-sky-200",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+    },
+  }
+)
 
-interface BadgeProps {
-  children: React.ReactNode;
-  variant?: BadgeVariant;
-  className?: string;
-}
+export interface BadgeProps
+  extends React.HTMLAttributes<HTMLDivElement>,
+    VariantProps<typeof badgeVariants> {}
 
-export function Badge({ children, variant = "default", className }: BadgeProps) {
+function Badge({ className, variant, ...props }: BadgeProps) {
   return (
-    <span
-      className={cn(
-        "inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold leading-none",
-        variantClasses[variant],
-        className
-      )}
-    >
-      {children}
-    </span>
-  );
+    <div className={cn(badgeVariants({ variant }), className)} {...props} />
+  )
 }
+
+export { Badge, badgeVariants }

@@ -15,9 +15,22 @@ import {
   Boxes,
   GitBranch,
 } from "lucide-react";
+
 import { useLanguage } from "@/components/i18n/LanguageProvider";
 import LanguageSwitcher from "@/components/i18n/LanguageSwitcher";
-import { cn } from "@/lib/utils";
+import {
+  Sidebar as ShadcnSidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  useSidebar,
+} from "@/components/ui/sidebar";
 
 const CORE_NAV = [
   { href: "/dashboard", labelKey: "nav.dashboard", defaultText: "Dashboard", icon: BarChart3 },
@@ -43,54 +56,41 @@ const MORE_NAV = [
 export default function Sidebar() {
   const pathname = usePathname();
   const { t } = useLanguage();
+  const { setOpenMobile } = useSidebar();
 
   return (
-    <>
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 flex-col border-r border-neutral-200 bg-white md:flex">
-        <div className="flex items-center gap-2 border-b border-neutral-100 px-5 py-5">
+    <ShadcnSidebar>
+      <SidebarHeader className="border-b border-sidebar-border p-4">
+        <div className="flex items-center gap-2">
           <ChefHat className="h-6 w-6 text-amber-500" />
           <span className="text-lg font-bold tracking-tight text-neutral-900">
             Predict<span className="text-amber-500">ory</span>
           </span>
         </div>
+      </SidebarHeader>
 
-        <nav aria-label="Primary" className="scrollbar-hide flex-1 space-y-5 overflow-y-auto px-3 py-4">
-          <NavGroup items={CORE_NAV} pathname={pathname} title={t("nav.core", "Core")} t={t} />
-          <NavGroup items={MORE_NAV} pathname={pathname} title={t("nav.moreTools", "More Tools")} t={t} />
-        </nav>
+      <SidebarContent>
+        <NavGroup
+          items={CORE_NAV}
+          pathname={pathname}
+          title={t("nav.core", "Core")}
+          t={t}
+          onNavigate={() => setOpenMobile(false)}
+        />
+        <NavGroup
+          items={MORE_NAV}
+          pathname={pathname}
+          title={t("nav.moreTools", "More Tools")}
+          t={t}
+          onNavigate={() => setOpenMobile(false)}
+        />
+      </SidebarContent>
 
-        <div className="space-y-3 border-t border-neutral-100 px-5 py-4">
-          <LanguageSwitcher compact={false} />
-          <div className="text-xs text-neutral-400">{t("nav.footer", "Predictory v2")}</div>
-        </div>
-      </aside>
-
-      <nav
-        aria-label="Bottom"
-        className="fixed inset-x-0 bottom-0 z-40 border-t border-neutral-200 bg-white/95 px-2 py-2 backdrop-blur md:hidden"
-      >
-        <ul className="scrollbar-hide flex gap-1 overflow-x-auto">
-          {[...CORE_NAV, ...MORE_NAV].map(({ href, labelKey, defaultText, icon: Icon }) => {
-            const active = pathname === href || pathname.startsWith(href + "/");
-            return (
-              <li key={href} className="min-w-[84px] shrink-0">
-                <Link
-                  href={href}
-                  aria-current={active ? "page" : undefined}
-                  className={cn(
-                    "flex flex-col items-center gap-1 rounded-md px-1 py-2 text-[11px] font-medium",
-                    active ? "bg-amber-50 text-amber-700" : "text-neutral-500"
-                  )}
-                >
-                  <Icon className={cn("h-4 w-4", active ? "text-amber-600" : "text-neutral-400")} />
-                  <span className="truncate">{t(labelKey, defaultText)}</span>
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
-      </nav>
-    </>
+      <SidebarFooter className="border-t border-sidebar-border p-4 space-y-3">
+        <LanguageSwitcher compact={false} />
+        <div className="text-xs text-neutral-400">{t("nav.footer", "Predictory v2")}</div>
+      </SidebarFooter>
+    </ShadcnSidebar>
   );
 }
 
@@ -99,34 +99,41 @@ function NavGroup({
   pathname,
   title,
   t,
+  onNavigate,
 }: {
   items: typeof CORE_NAV;
   pathname: string;
   title: string;
   t: (key: string, fallback: string) => string;
+  onNavigate: () => void;
 }) {
   return (
-    <div className="space-y-1">
-      <p className="px-3 text-[11px] font-semibold uppercase tracking-wide text-neutral-400">{title}</p>
-      {items.map(({ href, labelKey, defaultText, icon: Icon }) => {
-        const active = pathname === href || pathname.startsWith(href + "/");
-        return (
-          <Link
-            key={href}
-            href={href}
-            aria-current={active ? "page" : undefined}
-            className={cn(
-              "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-              active
-                ? "border border-amber-200 bg-amber-50 text-amber-800"
-                : "text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900"
-            )}
-          >
-            <Icon className={cn("h-4 w-4", active ? "text-amber-600" : "text-neutral-400")} />
-            {t(labelKey, defaultText)}
-          </Link>
-        );
-      })}
-    </div>
+    <SidebarGroup>
+      <SidebarGroupLabel>{title}</SidebarGroupLabel>
+      <SidebarGroupContent>
+        <SidebarMenu>
+          {items.map(({ href, labelKey, defaultText, icon: Icon }) => {
+            const active = pathname === href || pathname.startsWith(href + "/");
+            return (
+              <SidebarMenuItem key={href}>
+                <SidebarMenuButton
+                  asChild
+                  isActive={active}
+                  tooltip={t(labelKey, defaultText)}
+                  onClick={onNavigate}
+                >
+                  <Link href={href}>
+                    <Icon className={active ? "text-amber-600" : "text-neutral-500"} />
+                    <span className={active ? "font-semibold text-amber-800" : ""}>
+                      {t(labelKey, defaultText)}
+                    </span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            );
+          })}
+        </SidebarMenu>
+      </SidebarGroupContent>
+    </SidebarGroup>
   );
 }

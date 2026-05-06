@@ -11,6 +11,8 @@ import { translateRiskLevel } from "@/lib/i18n";
 import { api } from "@/lib/api";
 import { cn, todayISO } from "@/lib/utils";
 import type { DailyPlan, DailyPlanReplenishmentLine, UrgencyLevel } from "@/types";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Card } from "@/components/ui/card";
 
 const URGENCY_STYLES: Record<UrgencyLevel, string> = {
   critical: "bg-red-100 text-red-700",
@@ -138,34 +140,34 @@ export default function ReplenishmentPage() {
           </div>
         )}
 
-        <div className="overflow-x-auto overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-neutral-200 bg-neutral-50 text-left text-xs font-semibold uppercase tracking-wide text-neutral-500">
-                <th className="px-4 py-3">{t("replenishment.ingredient", "Ingredient")}</th>
-                <th className="px-4 py-3 text-right">{t("replenishment.stockOnHand", "Stock On Hand")}</th>
-                <th className="px-4 py-3 text-right">{t("replenishment.needQty", "Need Qty")}</th>
-                <th className="px-4 py-3">{t("replenishment.stockNeed", "Stock vs Need")}</th>
-                <th className="px-4 py-3 text-right">{t("replenishment.reorderQty", "Reorder Qty")}</th>
-                <th className="px-4 py-3">{t("replenishment.urgency", "Urgency")}</th>
-                <th className="px-4 py-3">{t("replenishment.drivingSkus", "Driving SKUs")}</th>
-                <th className="px-4 py-3" />
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-neutral-100">
+        <Card>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>{t("replenishment.ingredient", "Ingredient")}</TableHead>
+                <TableHead className="text-right">{t("replenishment.stockOnHand", "Stock On Hand")}</TableHead>
+                <TableHead className="text-right">{t("replenishment.needQty", "Need Qty")}</TableHead>
+                <TableHead>{t("replenishment.stockNeed", "Stock vs Need")}</TableHead>
+                <TableHead className="text-right">{t("replenishment.reorderQty", "Reorder Qty")}</TableHead>
+                <TableHead>{t("replenishment.urgency", "Urgency")}</TableHead>
+                <TableHead>{t("replenishment.drivingSkus", "Driving SKUs")}</TableHead>
+                <TableHead />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {dailyPlanQuery.isLoading ? (
                 Array.from({ length: 6 }).map((_, rowIndex) => (
-                  <tr key={rowIndex}>
+                  <TableRow key={rowIndex}>
                     {Array.from({ length: 8 }).map((__, cellIndex) => (
-                      <td key={cellIndex} className="px-4 py-3">
+                      <TableCell key={cellIndex}>
                         <div className="h-4 animate-pulse rounded bg-neutral-100" />
-                      </td>
+                      </TableCell>
                     ))}
-                  </tr>
+                  </TableRow>
                 ))
               ) : lines.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="px-4 py-12 text-center text-sm text-neutral-400">
+                <TableRow>
+                  <TableCell colSpan={8} className="px-4 py-12 text-center text-sm text-neutral-400">
                     {t("replenishment.noData", "No replenishment data.")}{" "}
                     <button
                       onClick={() => runMutation.mutate()}
@@ -174,13 +176,13 @@ export default function ReplenishmentPage() {
                       {t("replenishment.run", "Run Replenishment")}
                     </button>{" "}
                     {t("replenishment.toGenerate", "to generate one.")}
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ) : (
                 lines.map((line) => {
                     const isOrdered = orderedIds.has(line.ingredient_id);
                     return (
-                      <tr
+                      <TableRow
                         key={`${line.ingredient_id}-${line.ingredient_name}`}
                         className={cn(
                           "transition-colors hover:bg-neutral-50",
@@ -188,32 +190,32 @@ export default function ReplenishmentPage() {
                           isOrdered && "opacity-60"
                         )}
                       >
-                        <td className="px-4 py-3">
+                        <TableCell>
                           <p className={cn("font-medium text-neutral-800", isOrdered && "line-through text-neutral-400")}>
                             {line.ingredient_name}
                           </p>
                           <p className="mt-0.5 text-xs italic text-neutral-400">
                             {derivedReason(line)}
                           </p>
-                        </td>
-                        <td className="px-4 py-3 text-right tabular-nums text-neutral-500">
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums text-neutral-500">
                           {line.stock_on_hand.toFixed(1)}
-                        </td>
-                        <td className="px-4 py-3 text-right tabular-nums text-neutral-700">
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums text-neutral-700">
                           {line.need_qty.toFixed(1)}
-                        </td>
-                        <td className="px-4 py-3">
+                        </TableCell>
+                        <TableCell>
                           <StockNeedBar
                             stock={line.stock_on_hand}
                             need={line.need_qty}
                             shortage={line.reorder_qty}
                             unit=""
                           />
-                        </td>
-                        <td className="px-4 py-3 text-right tabular-nums font-semibold text-neutral-800">
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums font-semibold text-neutral-800">
                           {line.reorder_qty.toFixed(1)}
-                        </td>
-                        <td className="px-4 py-3">
+                        </TableCell>
+                        <TableCell>
                           <span
                             className={cn(
                               "rounded-full px-2 py-0.5 text-xs font-semibold capitalize",
@@ -222,11 +224,11 @@ export default function ReplenishmentPage() {
                           >
                             {translateRiskLevel(language, line.urgency)}
                           </span>
-                        </td>
-                        <td className="px-4 py-3 text-xs text-neutral-500">
+                        </TableCell>
+                        <TableCell className="text-xs text-neutral-500">
                           {line.driving_skus.length > 0 ? line.driving_skus.join(", ") : t("common.none", "None")}
-                        </td>
-                        <td className="px-4 py-3 text-right">
+                        </TableCell>
+                        <TableCell className="text-right">
                           <button
                             onClick={() => toggleOrdered(line.ingredient_id)}
                             className={cn(
@@ -241,14 +243,14 @@ export default function ReplenishmentPage() {
                               ? t("replenishment.ordered", "Ordered")
                               : t("replenishment.markOrdered", "Mark as Ordered")}
                           </button>
-                        </td>
-                      </tr>
+                        </TableCell>
+                      </TableRow>
                     );
                   })
               )}
-            </tbody>
-          </table>
-        </div>
+            </TableBody>
+          </Table>
+        </Card>
       </main>
     </div>
   );

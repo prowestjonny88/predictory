@@ -18,6 +18,7 @@ export interface SKU {
   name: string;
   category: string;
   price: number;
+  unit_cost?: number | null;
   freshness_hours: number;
   shelf_life_hours?: number;
   is_bestseller: boolean;
@@ -78,6 +79,10 @@ export interface ForecastReadiness {
   ready: boolean;
   target_date: string;
   blockers: string[];
+  grouped_blockers?: Record<string, string[]>;
+  artifact_files_found?: boolean;
+  artifact_validated_for_inference?: boolean;
+  artifact_validation_error?: string | null;
 }
 
 export interface ForecastSignal {
@@ -197,11 +202,17 @@ export interface DailyPlanAlert {
 }
 
 export interface DailyPlanSummary {
+  scope: "full_plan" | "top_actions";
   total_predicted_sales: number;
   waste_risk_score: number;
   stockout_risk_score: number;
   top_actions: string[];
   at_risk_outlets: string[];
+  total_recommended_prep_units: number;
+  total_stockout_exposure_rm: number;
+  total_waste_exposure_rm: number;
+  ingredient_shortage_count: number;
+  pending_action_count: number;
 }
 
 export interface DailyPlan {

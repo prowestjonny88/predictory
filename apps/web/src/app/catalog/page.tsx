@@ -12,12 +12,6 @@ function formatPrice(value: number) {
   return `RM ${value.toFixed(2)}`;
 }
 
-const UNIT_COST_RATIO = 0.4;
-
-function formatUnitCost(price: number) {
-  return formatPrice(price * UNIT_COST_RATIO);
-}
-
 export default function CatalogPage() {
   const { t } = useLanguage();
   const skusQuery = useQuery<SKU[]>({
@@ -40,8 +34,7 @@ export default function CatalogPage() {
           <p className="text-xs text-neutral-500">
             {t(
               "catalog.section.unitCostHelper",
-              "Unit cost is derived from imported recipe and ingredient cost data.",
-              { ratio: UNIT_COST_RATIO.toFixed(2) }
+              "Unit cost is shown only when imported recipe and ingredient cost data is available."
             )}
           </p>
         </div>
@@ -91,7 +84,7 @@ export default function CatalogPage() {
                       {formatPrice(sku.price)}
                     </td>
                     <td className="px-4 py-3 text-right text-neutral-700">
-                      {formatUnitCost(sku.price)}
+                      {sku.unit_cost == null ? t("common.unavailable", "Unavailable") : formatPrice(sku.unit_cost)}
                     </td>
                     <td className="px-4 py-3 text-right text-neutral-600">{sku.freshness_hours}</td>
                     <td className="px-4 py-3 text-center text-neutral-600">

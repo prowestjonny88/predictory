@@ -1,5 +1,6 @@
 from datetime import date
 
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -9,6 +10,11 @@ from db.database import Base, get_db
 from db.models import AuditEvent, HolidayCalendar, Outlet, PrepPlan, PrepPlanLine, SKU, SalesFact
 from factories import load_test_dataset, load_test_master_data
 from main import app
+
+
+@pytest.fixture(autouse=True)
+def _allow_test_imports(monkeypatch):
+    monkeypatch.setenv("ALLOW_UNAUTHENTICATED_IMPORTS", "true")
 
 
 def _build_session_factory():

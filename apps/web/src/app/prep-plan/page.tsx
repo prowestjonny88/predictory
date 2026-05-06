@@ -10,6 +10,8 @@ import { api } from "@/lib/api";
 import { translateDaypart, translateStatus } from "@/lib/i18n";
 import { cn, todayISO } from "@/lib/utils";
 import type { DailyPlan, Outlet, SKU } from "@/types";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Card } from "@/components/ui/card";
 
 const STATUS_STYLES: Record<string, string> = {
   pending: "bg-neutral-100 text-neutral-600",
@@ -326,69 +328,69 @@ export default function PrepPlanPage() {
                 {t("prep.centralKitchen", "Central Kitchen Summary")}
               </h2>
             </div>
-            <div className="overflow-x-auto overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-neutral-200 bg-neutral-50 text-left text-xs font-semibold uppercase tracking-wide text-neutral-500">
-                    <th className="px-4 py-2.5">{t("forecast.sku", "SKU")}</th>
-                    <th className="px-4 py-2.5 text-right">{t("common.daypart.morning", "Morning")}</th>
-                    <th className="px-4 py-2.5 text-right">{t("common.daypart.midday", "Midday")}</th>
-                    <th className="px-4 py-2.5 text-right">{t("common.daypart.evening", "Evening")}</th>
-                    <th className="px-4 py-2.5 text-right text-neutral-700">{t("forecast.total", "Total")}</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-neutral-100">
+            <Card>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>{t("forecast.sku", "SKU")}</TableHead>
+                    <TableHead className="text-right">{t("common.daypart.morning", "Morning")}</TableHead>
+                    <TableHead className="text-right">{t("common.daypart.midday", "Midday")}</TableHead>
+                    <TableHead className="text-right">{t("common.daypart.evening", "Evening")}</TableHead>
+                    <TableHead className="text-right text-neutral-700">{t("forecast.total", "Total")}</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {kitchenAllocation.map((row) => (
-                    <tr key={row.sku_name} className="hover:bg-neutral-50">
-                      <td className="px-4 py-2 font-medium text-neutral-800">{row.sku_name}</td>
-                      <td className="px-4 py-2 text-right tabular-nums text-neutral-500">
+                    <TableRow key={row.sku_name} className="hover:bg-neutral-50">
+                      <TableCell className="font-medium text-neutral-800">{row.sku_name}</TableCell>
+                      <TableCell className="text-right tabular-nums text-neutral-500">
                         {row.morning || "-"}
-                      </td>
-                      <td className="px-4 py-2 text-right tabular-nums text-neutral-500">
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums text-neutral-500">
                         {row.midday || "-"}
-                      </td>
-                      <td className="px-4 py-2 text-right tabular-nums text-neutral-500">
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums text-neutral-500">
                         {row.evening || "-"}
-                      </td>
-                      <td className="px-4 py-2 text-right tabular-nums font-bold text-neutral-800">
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums font-bold text-neutral-800">
                         {row.total}
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   ))}
-                </tbody>
-              </table>
-            </div>
+                </TableBody>
+              </Table>
+            </Card>
           </section>
         )}
 
-        <div className="overflow-x-auto overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-neutral-200 bg-neutral-50 text-left text-xs font-semibold uppercase tracking-wide text-neutral-500">
-                <th className="px-4 py-3">{t("forecast.sku", "SKU")}</th>
-                <th className="px-4 py-3">{t("forecast.outlet", "Outlet")}</th>
-                <th className="px-4 py-3">{t("common.daypart", "Daypart")}</th>
-                <th className="px-4 py-3 text-right">{t("prep.forecast", "Forecast")}</th>
-                <th className="px-4 py-3 text-right">{t("prep.recommended", "Recommended")}</th>
-                <th className="px-4 py-3 text-right">{t("prep.override", "Override")}</th>
-                <th className="px-4 py-3">{t("prep.status", "Status")}</th>
-                <th className="px-4 py-3 w-12" />
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-neutral-100">
+        <Card>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>{t("forecast.sku", "SKU")}</TableHead>
+                <TableHead>{t("forecast.outlet", "Outlet")}</TableHead>
+                <TableHead>{t("common.daypart", "Daypart")}</TableHead>
+                <TableHead className="text-right">{t("prep.forecast", "Forecast")}</TableHead>
+                <TableHead className="text-right">{t("prep.recommended", "Recommended")}</TableHead>
+                <TableHead className="text-right">{t("prep.override", "Override")}</TableHead>
+                <TableHead>{t("prep.status", "Status")}</TableHead>
+                <TableHead className="w-12" />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {dailyPlanQuery.isLoading ? (
                 Array.from({ length: 6 }).map((_, rowIndex) => (
-                  <tr key={rowIndex}>
+                  <TableRow key={rowIndex}>
                     {Array.from({ length: 8 }).map((__, cellIndex) => (
-                      <td key={cellIndex} className="px-4 py-3">
+                      <TableCell key={cellIndex}>
                         <div className="h-4 animate-pulse rounded bg-neutral-100" />
-                      </td>
+                      </TableCell>
                     ))}
-                  </tr>
+                  </TableRow>
                 ))
               ) : lines.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="px-4 py-12 text-center text-sm text-neutral-400">
+                <TableRow>
+                  <TableCell colSpan={8} className="px-4 py-12 text-center text-sm text-neutral-400">
                     {t("prep.noPlan", "No prep plan yet. Click")}{" "}
                     <button
                       onClick={() => runMutation.mutate()}
@@ -397,8 +399,8 @@ export default function PrepPlanPage() {
                       {t("prep.generatePlan", "Generate Plan")}
                     </button>{" "}
                     {t("prep.toCreate", "to create one.")}
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ) : (
                 lines.map((line) => {
                   const forecastLine = forecastMap.get(`${line.outlet_id}:${line.sku_id}`);
@@ -409,24 +411,24 @@ export default function PrepPlanPage() {
 
                   return (
                     <Fragment key={line.id}>
-                      <tr
+                      <TableRow
                         className={cn(
                           "transition-colors hover:bg-neutral-50",
                           line.status === "edited" && "bg-blue-50/30"
                         )}
                       >
-                        <td className="px-4 py-3 font-medium text-neutral-800">{skuName}</td>
-                        <td className="px-4 py-3 text-xs text-neutral-500">{outletName}</td>
-                        <td className="px-4 py-3 capitalize text-neutral-600">
+                        <TableCell className="font-medium text-neutral-800">{skuName}</TableCell>
+                        <TableCell className="text-xs text-neutral-500">{outletName}</TableCell>
+                        <TableCell className="capitalize text-neutral-600">
                           {translateDaypart(language, line.daypart)}
-                        </td>
-                        <td className="px-4 py-3 text-right tabular-nums text-neutral-500">
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums text-neutral-500">
                           {forecastQty.toFixed(1)}
-                        </td>
-                        <td className="px-4 py-3 text-right tabular-nums font-semibold text-neutral-800">
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums font-semibold text-neutral-800">
                           {line.recommended_units}
-                        </td>
-                        <td className="px-4 py-3">
+                        </TableCell>
+                        <TableCell>
                           <input
                             type="number"
                             min={0}
@@ -438,8 +440,8 @@ export default function PrepPlanPage() {
                             disabled={prepStatus === "approved"}
                             className="w-20 rounded border border-neutral-300 px-2 py-1 text-right text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-amber-400 disabled:opacity-40"
                           />
-                        </td>
-                        <td className="px-4 py-3">
+                        </TableCell>
+                        <TableCell>
                           <span
                             className={cn(
                               "rounded-full px-2 py-0.5 text-xs font-semibold capitalize",
@@ -448,8 +450,8 @@ export default function PrepPlanPage() {
                           >
                             {translateStatus(language, line.status)}
                           </span>
-                        </td>
-                        <td className="px-4 py-3">
+                        </TableCell>
+                        <TableCell>
                           <div className="flex items-center gap-2">
                             {prepPlanId != null && prepStatus !== "approved" && edits[line.id] && (
                               <button
@@ -476,11 +478,11 @@ export default function PrepPlanPage() {
                               )}
                             </button>
                           </div>
-                        </td>
-                      </tr>
+                        </TableCell>
+                      </TableRow>
                       {expandedLines.has(line.id) && (
-                        <tr>
-                          <td colSpan={8} className="border-t border-amber-100 bg-amber-50 px-6 py-3">
+                        <TableRow>
+                          <TableCell colSpan={8} className="border-t border-amber-100 bg-amber-50 px-6 py-3">
                             {explanations[line.id]?.loading ? (
                               <div className="flex items-center gap-2 text-sm text-neutral-500">
                                 <div className="h-3 w-3 animate-pulse rounded-full bg-amber-300" />
@@ -495,16 +497,16 @@ export default function PrepPlanPage() {
                                 {explanations[line.id]?.text}
                               </p>
                             ) : null}
-                          </td>
-                        </tr>
+                          </TableCell>
+                        </TableRow>
                       )}
                     </Fragment>
                   );
                 })
               )}
-            </tbody>
-          </table>
-        </div>
+            </TableBody>
+          </Table>
+        </Card>
       </main>
     </div>
   );

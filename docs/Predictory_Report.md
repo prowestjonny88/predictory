@@ -687,7 +687,7 @@ For bakeries with sufficient data history (12+ months), evaluate pretrained time
 #### ML Governance Principles
 Predictory's ML integration will follow strict human-in-the-loop governance:
 - no ML model output replaces a human decision without an override path
-- all model predictions are surfaced with confidence signals and explainability context
+- all model predictions are surfaced with validation metrics, uncertainty bands, and explainability context
 - production forecast and planning endpoints fail closed when required data or model artifacts are missing
 - model performance is monitored continuously; degradation blocks automated planning until reviewed
 

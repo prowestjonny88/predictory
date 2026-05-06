@@ -36,6 +36,9 @@ app = FastAPI(
 # ─── CORS ────────────────────────────────────────────────────────────────────
 allowed_origins_raw = os.getenv("ALLOWED_ORIGINS", "*")
 allowed_origins = [o.strip() for o in allowed_origins_raw.split(",")]
+environment = os.getenv("ENVIRONMENT", "development").lower()
+if environment == "production" and ("*" in allowed_origins or not allowed_origins_raw.strip()):
+    raise RuntimeError("Production requires explicit ALLOWED_ORIGINS; wildcard CORS is not allowed.")
 
 app.add_middleware(
     CORSMiddleware,

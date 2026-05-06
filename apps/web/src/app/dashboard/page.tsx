@@ -6,9 +6,10 @@ import type { ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { AlertTriangle, ArrowRight, CheckCircle2, Clock, Database, ListChecks } from "lucide-react";
 
-import Header from "@/components/Header";
+import PageHeader from "@/components/PageHeader";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { KpiCard } from "@/components/ui/kpi-card";
 import { useLanguage } from "@/components/i18n/LanguageProvider";
 import { planningApi, type DailyPlanLatestResponse, type DailyPlanTopAction } from "@/lib/api/planning";
 import { todayISO } from "@/lib/utils";
@@ -26,37 +27,27 @@ export default function DashboardPage() {
   const plan = planQuery.data;
   const topActions = useMemo(() => plan?.top_actions ?? [], [plan?.top_actions]);
   const topExceptions = topActions.slice(0, 3);
-  const stockoutExposure = topActions.reduce(
-    (sum, action) => sum + action.financial_exposure.stockout_exposure_rm,
-    0
-  );
-  const wasteExposure = topActions.reduce(
-    (sum, action) => sum + action.financial_exposure.waste_exposure_rm,
-    0
-  );
-  const shortageCount = useMemo(
-    () =>
-      topActions.flatMap((action) => action.replenishment).filter((line) => line.shortage_qty > 0)
-        .length,
-    [topActions]
-  );
-  const pendingActions = topActions.filter((action) => action.status !== "accepted").length;
+  const summary = plan?.summary;
+  const stockoutExposure = summary?.total_stockout_exposure_rm ?? 0;
+  const wasteExposure = summary?.total_waste_exposure_rm ?? 0;
+  const shortageCount = summary?.ingredient_shortage_count ?? 0;
+  const pendingActions = summary?.pending_action_count ?? 0;
 
   return (
-    <div className="min-h-screen">
-      <Header title={t("dashboard.title", "Business Overview")} date={date}>
-        <label className="flex items-center gap-2 text-sm text-neutral-500">
+    <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
+      <PageHeader title={t("dashboard.title", "Business Overview")} description={t("dashboard.description", "Monitor tomorrow's operations, risks, and required actions.")} date={date}>
+        <label className="flex items-center gap-2 text-sm text-muted-foreground">
           {t("common.planDate", "Plan date")}
           <input
             type="date"
             value={date}
             onChange={(event) => setDate(event.target.value)}
-            className="rounded-md border border-neutral-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+            className="rounded-md border border-input bg-background px-3 py-1.5 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
           />
         </label>
-      </Header>
+      </PageHeader>
 
-      <main className="mx-auto max-w-6xl space-y-6 p-6">
+      <main className="mx-auto w-full space-y-6">
         {planQuery.error && (
           <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             {t("dashboard.failedDailyPlan", "Failed to load daily plan")}:{" "}
@@ -81,163 +72,122 @@ export default function DashboardPage() {
         )}
 
         {plan && (
-          <>
-            <DashboardBriefCard topActions={topActions} />
-        <section className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
-          <Card>
-            <CardHeader>
-              <CardTitle>{t("dashboard.readiness", "Tomorrow readiness")}</CardTitle>
-            </CardHeader>
-            <CardContent className="grid gap-3 sm:grid-cols-2">
-              <ReadinessItem
-                icon={<Database className="h-4 w-4" />}
-                label={t("dashboard.forecastRun", "Forecast run")}
-                value={plan?.forecast_run_id || (planQuery.isLoading ? "Loading" : "Missing")}
-                tone={plan?.forecast_run_id ? "ok" : "warn"}
-              />
-              <ReadinessItem
-                icon={<ListChecks className="h-4 w-4" />}
-                label={t("dashboard.prepPlan", "Prep plan")}
-                value={pendingActions > 0 ? `${pendingActions} pending` : "Ready"}
-                tone={pendingActions > 0 ? "warn" : "ok"}
-              />
-              <ReadinessItem
-                icon={<AlertTriangle className="h-4 w-4" />}
-                label={t("dashboard.replenishment", "Replenishment")}
-                value={shortageCount > 0 ? `${shortageCount} shortages` : "No shortage"}
-                tone={shortageCount > 0 ? "warn" : "ok"}
-              />
-              <ReadinessItem
-                icon={<Clock className="h-4 w-4" />}
-                label={t("dashboard.approval", "Approval")}
-                value={pendingActions > 0 ? "Pending review" : "Approved"}
-                tone={pendingActions > 0 ? "warn" : "ok"}
-              />
-            </CardContent>
-          </Card>
+          <div className="space-y-6">
+            <section className="grid gap-4 lg:grid-cols-2">
+              <DashboardBriefCard topActions={topActions} />
+              <Card>
+                <CardHeader>
+                  <CardTitle>{t("dashboard.readiness", "Tomorrow readiness")}</CardTitle>
+                </CardHeader>
+                <CardContent className="grid gap-3 sm:grid-cols-2">
+                  <ReadinessItem
+                    icon={<Database className="h-4 w-4" />}
+                    label={t("dashboard.forecastRun", "Forecast run")}
+                    value={plan?.forecast_run_id || (planQuery.isLoading ? "Loading" : "Missing")}
+                    tone={plan?.forecast_run_id ? "ok" : "warn"}
+                  />
+                  <ReadinessItem
+                    icon={<ListChecks className="h-4 w-4" />}
+                    label={t("dashboard.prepPlan", "Prep plan")}
+                    value={pendingActions > 0 ? `${pendingActions} pending` : "Ready"}
+                    tone={pendingActions > 0 ? "warn" : "ok"}
+                  />
+                  <ReadinessItem
+                    icon={<AlertTriangle className="h-4 w-4" />}
+                    label={t("dashboard.replenishment", "Replenishment")}
+                    value={shortageCount > 0 ? `${shortageCount} shortages` : "No shortage"}
+                    tone={shortageCount > 0 ? "warn" : "ok"}
+                  />
+                  <ReadinessItem
+                    icon={<Clock className="h-4 w-4" />}
+                    label={t("dashboard.approval", "Approval")}
+                    value={pendingActions > 0 ? "Pending review" : "Approved"}
+                    tone={pendingActions > 0 ? "warn" : "ok"}
+                  />
+                </CardContent>
+              </Card>
+            </section>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>{t("dashboard.modelDataStatus", "Model and data status")}</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3 text-sm">
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-neutral-500">{t("planning.source", "Source")}</span>
-                <Badge variant="success">{plan.data_source}</Badge>
-              </div>
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-neutral-500">{t("planning.activeEngine", "Active engine")}</span>
-                <span className="font-medium text-neutral-900">{plan?.active_engine_name ?? "-"}</span>
-              </div>
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-neutral-500">{t("planning.artifact", "Artifact")}</span>
-                <span className="font-medium text-neutral-900">{plan?.model_artifact_status ?? "-"}</span>
-              </div>
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-neutral-500">{t("planning.wape", "WAPE")}</span>
-                <span className="font-medium text-neutral-900">
-                  {plan ? `${(plan.metrics.wape * 100).toFixed(1)}%` : "-"}
-                </span>
-              </div>
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-neutral-500">{t("planning.coverage", "Coverage")}</span>
-                <span className="font-medium text-neutral-900">
-                  {plan ? `${(plan.metrics.p10_p90_coverage * 100).toFixed(0)}%` : "-"}
-                </span>
-              </div>
-            </CardContent>
-          </Card>
-        </section>
+            <section className="grid gap-4 md:grid-cols-4">
+              <KpiCard label={t("dashboard.fullPlanExposure", "Full-plan exposure")} value={`RM ${Math.round(stockoutExposure + wasteExposure)}`} trendDirection="neutral" trend={summary?.scope ?? "full_plan"} />
+              <KpiCard label={t("dashboard.fullPlanStockoutExposure", "Full-plan stockout exposure")} value={`RM ${Math.round(stockoutExposure)}`} trendDirection="neutral" trend="Lost Sales" />
+              <KpiCard label={t("dashboard.fullPlanWasteExposure", "Full-plan waste exposure")} value={`RM ${Math.round(wasteExposure)}`} trendDirection="neutral" trend="Spoilage" />
+              <KpiCard label={t("dashboard.pendingActions", "Pending Approvals")} value={String(pendingActions)} trendDirection={pendingActions > 0 ? "down" : "up"} trend={pendingActions > 0 ? "Requires Attention" : "All Cleared"} />
+            </section>
 
-        <section className="grid gap-4 md:grid-cols-4">
-          <ImpactCard label={t("dashboard.topActionExposure", "Top-action exposure")} value={`RM ${Math.round(stockoutExposure + wasteExposure)}`} />
-          <ImpactCard label={t("dashboard.topActionStockoutExposure", "Top-action stockout exposure")} value={`RM ${Math.round(stockoutExposure)}`} />
-          <ImpactCard label={t("dashboard.topActionWasteExposure", "Top-action waste exposure")} value={`RM ${Math.round(wasteExposure)}`} />
-          <ImpactCard label={t("dashboard.pendingActions", "Pending actions")} value={String(pendingActions)} />
-        </section>
+            <section>
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+                <h2 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
+                  {t("dashboard.topExceptions", "Top 3 exceptions")}
+                </h2>
+                <div className="flex items-center gap-3">
+                  <Link
+                    href="/daily-planning"
+                    className="inline-flex items-center gap-2 rounded-md bg-amber-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-amber-600"
+                  >
+                    {t("dashboard.reviewDailyPlan", "Review Tomorrow's Daily Plan")}
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                  <Link
+                    href="/risk-center"
+                    className="inline-flex items-center gap-2 rounded-md border border-neutral-200 bg-white px-4 py-2 text-sm font-semibold text-neutral-700 transition hover:bg-neutral-50"
+                  >
+                    {t("dashboard.openRiskCenter", "Open Risk Center")}
+                  </Link>
+                </div>
+              </div>
 
-        <section>
-          <div className="mb-3 flex items-center justify-between gap-3">
-            <h2 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
-              {t("dashboard.topExceptions", "Top 3 exceptions")}
-            </h2>
-            <Link
-              href="/daily-planning"
-              className="inline-flex items-center gap-2 rounded-md bg-amber-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-amber-600"
-            >
-              {t("dashboard.reviewDailyPlan", "Review Tomorrow's Daily Plan")}
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-            <Link
-              href="/risk-center"
-              className="inline-flex items-center gap-2 rounded-md border border-neutral-200 bg-white px-4 py-2 text-sm font-semibold text-neutral-700 transition hover:bg-neutral-50"
-            >
-              {t("dashboard.openRiskCenter", "Open Risk Center")}
-            </Link>
-          </div>
-
-          {planQuery.isLoading ? (
-            <div className="space-y-2">
-              {[0, 1, 2].map((index) => (
-                <div key={index} className="h-20 animate-pulse rounded-lg bg-neutral-100" />
-              ))}
-            </div>
-          ) : topExceptions.length === 0 ? (
-            <Card>
-              <CardContent className="py-8 text-center text-sm text-neutral-500">
-                {t("dashboard.noExceptions", "No exceptions for this plan date.")}
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="grid gap-3">
-              {topExceptions.map((action, index) => (
-                <Card key={action.id}>
-                  <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex items-start gap-3">
-                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-amber-100 text-sm font-bold text-amber-700">
-                        {index + 1}
-                      </span>
-                      <div>
-                        <p className="font-semibold text-neutral-900">
-                          {action.outlet_name} - {action.sku_name} - {action.daypart}
-                        </p>
-                        <p className="text-sm text-neutral-600">
-                          Prepare {action.recommended_prep} units. Risk: RM{" "}
-                          {Math.round(
-                            action.financial_exposure.stockout_exposure_rm +
-                              action.financial_exposure.waste_exposure_rm
-                          )}{" "}
-                          exposure.
-                        </p>
-                      </div>
-                    </div>
-                    <Link
-                      href="/daily-planning"
-                      className="text-sm font-semibold text-amber-700 hover:text-amber-800"
-                    >
-                      {t("dashboard.review", "Review")}
-                    </Link>
+              {planQuery.isLoading ? (
+                <div className="space-y-2">
+                  {[0, 1, 2].map((index) => (
+                    <div key={index} className="h-20 animate-pulse rounded-lg bg-neutral-100" />
+                  ))}
+                </div>
+              ) : topExceptions.length === 0 ? (
+                <Card>
+                  <CardContent className="py-8 text-center text-sm text-neutral-500">
+                    {t("dashboard.noExceptions", "No exceptions for this plan date.")}
                   </CardContent>
                 </Card>
-              ))}
-            </div>
-          )}
-        </section>
-          </>
+              ) : (
+                <div className="grid gap-3">
+                  {topExceptions.map((action, index) => (
+                    <Card key={action.id}>
+                      <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex items-start gap-3">
+                          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-amber-100 text-sm font-bold text-amber-700">
+                            {index + 1}
+                          </span>
+                          <div>
+                            <p className="font-semibold text-neutral-900">
+                              {action.outlet_name} - {action.sku_name} - {action.daypart}
+                            </p>
+                            <p className="text-sm text-neutral-600">
+                              Prepare {action.recommended_prep} units. Risk: RM{" "}
+                              {Math.round(
+                                action.financial_exposure.stockout_exposure_rm +
+                                  action.financial_exposure.waste_exposure_rm
+                              )}{" "}
+                              exposure.
+                            </p>
+                          </div>
+                        </div>
+                        <Link
+                          href="/daily-planning"
+                          className="text-sm font-semibold text-amber-700 hover:text-amber-800"
+                        >
+                          {t("dashboard.review", "Review")}
+                        </Link>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </section>
+          </div>
         )}
       </main>
     </div>
-  );
-}
-
-function ImpactCard({ label, value }: { label: string; value: string }) {
-  return (
-    <Card>
-      <CardContent className="p-5">
-        <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">{label}</p>
-        <p className="mt-2 text-2xl font-bold text-neutral-900">{value}</p>
-      </CardContent>
-    </Card>
   );
 }
 
@@ -295,7 +245,7 @@ function DashboardBriefCard({ topActions }: { topActions: DailyPlanTopAction[] }
   brief += " " + t("dashboard.brief.cta", "Review and approve the plan.");
 
   return (
-    <Card className="border-l-4 border-l-amber-500 bg-amber-50">
+    <Card className="border-l-4 border-l-amber-500 bg-amber-50/50">
       <CardHeader className="pb-2">
         <CardTitle className="text-amber-900">{t("dashboard.tomorrowBrief", "Tomorrow Brief")}</CardTitle>
       </CardHeader>

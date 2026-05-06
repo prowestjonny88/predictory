@@ -34,11 +34,24 @@ class ModelArtifacts:
         self._metrics = None
         self.base_path = str(Path(model_path).parent) if model_path else None
 
+    def _assert_trusted_path(self, path: str) -> None:
+        # Pickle artifacts execute code while loading; only repo-controlled model paths are trusted.
+        repo_root = Path(__file__).parent.parent.parent.parent.resolve()
+        candidate = Path(path).resolve()
+        if repo_root not in candidate.parents and candidate != repo_root:
+            raise ModelArtifactError(f"Model artifact path is outside the trusted repository tree: {candidate}")
+
     @property
     def model(self):
         if self._model is None and self.model_path and os.path.exists(self.model_path):
-            with open(self.model_path, 'rb') as f:
-                self._model = pickle.load(f)
+            self._assert_trusted_path(self.model_path)
+            try:
+                with open(self.model_path, 'rb') as f:
+                    self._model = pickle.load(f)
+            except ModelArtifactError:
+                raise
+            except Exception as exc:
+                raise ModelArtifactError("LightGBM model artifact could not be loaded") from exc
         return self._model
 
     @property
@@ -85,6 +98,21 @@ class ModelArtifacts:
             )
         )
 
+    def validation_status(self) -> dict[str, Any]:
+        try:
+            self.validate_for_inference()
+        except ModelArtifactError as exc:
+            return {
+                "artifact_files_found": self.is_loaded(),
+                "artifact_validated_for_inference": False,
+                "artifact_validation_error": str(exc),
+            }
+        return {
+            "artifact_files_found": self.is_loaded(),
+            "artifact_validated_for_inference": True,
+            "artifact_validation_error": None,
+        }
+
     def validate_for_inference(self) -> None:
         missing = [
             label
@@ -99,20 +127,29 @@ class ModelArtifacts:
         ]
         if missing:
             raise ModelArtifactError(f"Missing required ML artifact(s): {', '.join(missing)}")
-        if self.model is None:
+        try:
+            model = self.model
+            residual_bands = self.residual_bands
+            feature_schema = self.feature_schema
+            encoded_schema = self.encoded_feature_schema or {}
+            metrics = self.metrics
+        except ModelArtifactError:
+            raise
+        except Exception as exc:
+            raise ModelArtifactError(f"Model artifact validation failed: {exc}") from exc
+        if model is None:
             raise ModelArtifactError("LightGBM model artifact could not be loaded")
-        if not self.residual_bands:
+        if not residual_bands:
             raise ModelArtifactError("Residual band artifact could not be loaded")
-        if not self.feature_schema:
+        if not feature_schema:
             raise ModelArtifactError("Raw feature schema artifact could not be loaded")
-        encoded = self.encoded_feature_schema or {}
-        encoded_columns = encoded.get("encoded_feature_columns") or []
+        encoded_columns = encoded_schema.get("encoded_feature_columns") or []
         if not encoded_columns:
             raise ModelArtifactError("Encoded feature schema has no encoded_feature_columns")
-        model_columns = list(getattr(self.model, "feature_name_", []) or [])
+        model_columns = list(getattr(model, "feature_name_", []) or [])
         if model_columns and model_columns != encoded_columns:
             raise ModelArtifactError("Encoded feature schema does not match model feature order")
-        if not self.metrics:
+        if not metrics:
             raise ModelArtifactError("Model metrics artifact could not be loaded")
 
     def get_engine_name(self) -> str:
@@ -154,15 +191,17 @@ def get_model_artifacts() -> ModelArtifacts:
 def load_model_for_inference():
     """Load model artifacts for inference, return engine info"""
     artifacts = get_model_artifacts()
+    validation = artifacts.validation_status()
 
     return {
         "engine_name": artifacts.get_engine_name(),
         "model_status": artifacts.get_model_status(),
         "validation_window": artifacts.get_validation_window(),
-        "is_loaded": artifacts.is_loaded(),
+        "is_loaded": validation["artifact_validated_for_inference"],
         "metrics": artifacts.metrics or {},
         "artifact_base_path": artifacts.base_path,
-        "offline_model_available": artifacts.is_loaded(),
+        "offline_model_available": validation["artifact_files_found"],
         "residual_bands_available": artifacts.residual_bands is not None,
         "encoded_feature_schema_available": artifacts.encoded_feature_schema is not None,
+        **validation,
     }

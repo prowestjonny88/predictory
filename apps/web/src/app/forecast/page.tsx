@@ -9,6 +9,9 @@ import ForecastChart from "@/components/ForecastChart";
 import ForecastMathPanel from "@/components/forecast/ForecastMathPanel";
 import OverrideEditor from "@/components/forecast/OverrideEditor";
 import Header from "@/components/Header";
+import { Card } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useLanguage } from "@/components/i18n/LanguageProvider";
 import { api } from "@/lib/api";
 import { translateDaypart } from "@/lib/i18n";
@@ -368,241 +371,247 @@ export default function ForecastPage() {
           </div>
         )}
 
-        <section>
-          <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-neutral-500">
-            {t("forecast.predictedByDaypart", "Predicted Demand by Daypart")}
-          </h2>
-          <div className="grid gap-4 md:grid-cols-3">
-            {[
-              {
-                key: "morning",
-                label: t("common.daypart.morning", "Morning"),
-                value: daypartTotals.morning,
-                tone: "border-amber-200 bg-amber-50 text-amber-700",
-              },
-              {
-                key: "midday",
-                label: t("common.daypart.midday", "Midday"),
-                value: daypartTotals.midday,
-                tone: "border-sky-200 bg-sky-50 text-sky-700",
-              },
-              {
-                key: "evening",
-                label: t("common.daypart.evening", "Evening"),
-                value: daypartTotals.evening,
-                tone: "border-violet-200 bg-violet-50 text-violet-700",
-              },
-            ].map((card) => (
-              <div key={card.key} className={`rounded-xl border p-5 ${card.tone}`}>
-                <p className="text-xs font-semibold uppercase tracking-wide">{card.label}</p>
-                {forecastsQuery.isLoading ? (
-                  <div className="mt-3 h-8 w-24 animate-pulse rounded bg-neutral-200/70" />
-                ) : currentRun ? (
-                  <p className="mt-3 text-3xl font-bold">
-                    {card.value.toFixed(1)}
-                    <span className="ml-1 text-sm font-normal opacity-60">
-                      {t("common.units", "units")}
-                    </span>
-                  </p>
-                ) : (
-                  <p className="mt-3 text-3xl font-bold">-</p>
+        <Tabs defaultValue="overview" className="space-y-4">
+          <TabsList>
+            <TabsTrigger value="overview">{t("forecast.tabs.overview", "Overview")}</TabsTrigger>
+            <TabsTrigger value="lines">{t("forecast.tabs.lines", "Forecast Lines")}</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="overview" className="space-y-6">
+            <section>
+              <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-neutral-500">
+                {t("forecast.predictedByDaypart", "Predicted Demand by Daypart")}
+              </h2>
+              <div className="grid gap-4 md:grid-cols-3">
+                {[
+                  {
+                    key: "morning",
+                    label: t("common.daypart.morning", "Morning"),
+                    value: daypartTotals.morning,
+                    tone: "border-amber-200 bg-amber-50 text-amber-700",
+                  },
+                  {
+                    key: "midday",
+                    label: t("common.daypart.midday", "Midday"),
+                    value: daypartTotals.midday,
+                    tone: "border-sky-200 bg-sky-50 text-sky-700",
+                  },
+                  {
+                    key: "evening",
+                    label: t("common.daypart.evening", "Evening"),
+                    value: daypartTotals.evening,
+                    tone: "border-violet-200 bg-violet-50 text-violet-700",
+                  },
+                ].map((card) => (
+                  <Card key={card.key} className={`border p-5 shadow-none ${card.tone}`}>
+                    <p className="text-xs font-semibold uppercase tracking-wide">{card.label}</p>
+                    {forecastsQuery.isLoading ? (
+                      <div className="mt-3 h-8 w-24 animate-pulse rounded bg-neutral-200/70" />
+                    ) : currentRun ? (
+                      <p className="mt-3 text-3xl font-bold">
+                        {card.value.toFixed(1)}
+                        <span className="ml-1 text-sm font-normal opacity-60">
+                          {t("common.units", "units")}
+                        </span>
+                      </p>
+                    ) : (
+                      <p className="mt-3 text-3xl font-bold">-</p>
+                    )}
+                  </Card>
+                ))}
+              </div>
+            </section>
+
+            {lines.length > 0 && (
+              <Card className="p-4">
+                <ForecastChart
+                  lines={lines}
+                  engineName={currentRun?.engine_name}
+                  scopeLabel={t("charts.forecastScope", "selected date/outlet, top forecasted SKUs")}
+                />
+              </Card>
+            )}
+
+            {selectedOutlet ? (
+              <div className="space-y-4">
+                <DemandDriversPanel
+                  outletName={selectedOutlet.name}
+                  context={contextQuery.data}
+                  isLoading={contextQuery.isLoading}
+                  errorMessage={contextQuery.error instanceof Error ? contextQuery.error.message : null}
+                  skus={selectableSkus}
+                  selectedSkuId={contextSkuId}
+                  onSelectedSkuIdChange={setContextSkuId}
+                  onEditOverride={setEditingOverride}
+                  onDeleteOverride={(overrideId) => deleteOverrideMutation.mutate(overrideId)}
+                  deletePending={deleteOverrideMutation.isPending}
+                />
+                <OverrideEditor
+                  targetDate={date}
+                  outletId={selectedOutlet.id}
+                  skus={selectableSkus}
+                  editingOverride={editingOverride}
+                  onCancelEdit={() => setEditingOverride(null)}
+                  onSubmit={handleOverrideSubmit}
+                  isBusy={createOverrideMutation.isPending || updateOverrideMutation.isPending}
+                />
+              </div>
+            ) : (
+              <div className="rounded-xl border border-neutral-200 bg-neutral-50 px-5 py-4 text-sm text-neutral-600">
+                {t(
+                  "forecast.demandDriversPrompt",
+                  "Choose one outlet to inspect demand drivers and manage event or promo overrides."
                 )}
               </div>
-            ))}
-          </div>
-        </section>
-
-        {lines.length > 0 && (
-          <section>
-            <ForecastChart
-              lines={lines}
-              engineName={currentRun?.engine_name}
-              scopeLabel={t("charts.forecastScope", "selected date/outlet, top forecasted SKUs")}
-            />
-          </section>
-        )}
-
-        {selectedOutlet ? (
-          <div className="space-y-4">
-            <DemandDriversPanel
-              outletName={selectedOutlet.name}
-              context={contextQuery.data}
-              isLoading={contextQuery.isLoading}
-              errorMessage={contextQuery.error instanceof Error ? contextQuery.error.message : null}
-              skus={selectableSkus}
-              selectedSkuId={contextSkuId}
-              onSelectedSkuIdChange={setContextSkuId}
-              onEditOverride={setEditingOverride}
-              onDeleteOverride={(overrideId) => deleteOverrideMutation.mutate(overrideId)}
-              deletePending={deleteOverrideMutation.isPending}
-            />
-            <OverrideEditor
-              targetDate={date}
-              outletId={selectedOutlet.id}
-              skus={selectableSkus}
-              editingOverride={editingOverride}
-              onCancelEdit={() => setEditingOverride(null)}
-              onSubmit={handleOverrideSubmit}
-              isBusy={createOverrideMutation.isPending || updateOverrideMutation.isPending}
-            />
-          </div>
-        ) : (
-          <div className="rounded-xl border border-neutral-200 bg-neutral-50 px-5 py-4 text-sm text-neutral-600">
-            {t(
-              "forecast.demandDriversPrompt",
-              "Choose one outlet to inspect demand drivers and manage event or promo overrides."
             )}
-          </div>
-        )}
+          </TabsContent>
 
-        <section>
-          <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-neutral-500">
-            {t("forecast.lines", "Forecast Lines")}
-          </h2>
-          <div className="overflow-x-auto overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-neutral-200 bg-neutral-50 text-left text-xs font-semibold uppercase tracking-wide text-neutral-500">
-                  <th className="px-4 py-3">{t("forecast.sku", "SKU")}</th>
-                  <th className="px-4 py-3">{t("forecast.outlet", "Outlet")}</th>
-                  <th className="px-4 py-3 text-right">{t("common.daypart.morning", "Morning")}</th>
-                  <th className="px-4 py-3 text-right">{t("common.daypart.midday", "Midday")}</th>
-                  <th className="px-4 py-3 text-right">{t("common.daypart.evening", "Evening")}</th>
-                  <th className="px-4 py-3 text-right">{t("forecast.total", "Total")}</th>
-                  <th className="px-4 py-3 text-right">{t("forecast.manualAdj", "Manual Adj.")}</th>
-                  <th className="px-4 py-3 w-16" />
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-neutral-100">
-                {forecastsQuery.isLoading
-                  ? Array.from({ length: 8 }).map((_, rowIndex) => (
-                      <tr key={rowIndex}>
-                        {Array.from({ length: 8 }).map((__, cellIndex) => (
-                          <td key={cellIndex} className="px-4 py-3">
-                            <div className="h-4 animate-pulse rounded bg-neutral-100" />
-                          </td>
-                        ))}
-                      </tr>
-                    ))
-                  : lines.length === 0
-                    ? (
-                      <tr>
-                        <td colSpan={8} className="px-4 py-12 text-center text-sm text-neutral-400">
-                          {t(
-                            "forecast.noData",
-                            "No forecast data available. Run a forecast to generate line items for this date."
-                          )}
-                        </td>
-                      </tr>
-                    )
-                    : lines.map((line) => (
-                        <Fragment key={line.id}>
-                          <tr className="transition-colors hover:bg-neutral-50">
-                            <td className="px-4 py-3 font-medium text-neutral-800">
-                              {line.sku_name ?? `SKU ${line.sku_id}`}
-                            </td>
-                            <td className="px-4 py-3 text-xs text-neutral-500">
-                              {line.outlet_name ?? `Outlet ${line.outlet_id}`}
-                            </td>
-                            <td className="px-4 py-3 text-right tabular-nums text-neutral-700">
-                              {line.morning.toFixed(1)}
-                            </td>
-                            <td className="px-4 py-3 text-right tabular-nums text-neutral-700">
-                              {line.midday.toFixed(1)}
-                            </td>
-                            <td className="px-4 py-3 text-right tabular-nums text-neutral-700">
-                              {line.evening.toFixed(1)}
-                            </td>
-                            <td className="px-4 py-3 text-right tabular-nums font-semibold text-neutral-900">
-                              {line.total.toFixed(1)}
-                            </td>
-                            <td className="px-4 py-3 text-right">
-                              <div className="space-y-2">
-                                <div className="text-xs text-neutral-500">
-                                  {t("forecast.current", "Current")}:{" "}
-                                  {line.manual_adjustment_pct != null
-                                    ? `${line.manual_adjustment_pct.toFixed(1)}%`
-                                    : t("forecast.noCurrentAdjustment", "none")}
-                                </div>
-                                <div className="flex justify-end gap-2">
-                                  <input
-                                    type="number"
-                                    min={-100}
-                                    step={1}
-                                    value={adjustmentInputs[line.id] ?? ""}
-                                    onChange={(event) =>
-                                      setAdjustmentInputs((current) => ({
-                                        ...current,
-                                        [line.id]: event.target.value,
-                                      }))
-                                    }
-                                    placeholder="0"
-                                    className="w-20 rounded border border-neutral-300 px-2 py-1 text-right text-xs tabular-nums focus:outline-none focus:ring-2 focus:ring-amber-400"
-                                  />
-                                  <button
-                                    onClick={() => saveManualAdjustment(line)}
-                                    disabled={
-                                      adjustMutation.isPending ||
-                                      (adjustmentInputs[line.id] ?? "").trim().length === 0
-                                    }
-                                    className="rounded-md border border-neutral-200 px-2 py-1 text-xs font-medium text-neutral-700 hover:bg-neutral-50 disabled:opacity-50"
-                                  >
-                                    {t("common.save", "Save")}
-                                  </button>
-                                </div>
-                              </div>
-                            </td>
-                            <td className="px-4 py-3 text-right">
-                              <button
-                                onClick={() => toggleWhy(line)}
-                                className={`inline-flex items-center gap-1 text-xs font-medium ${
-                                  expandedLines.has(line.id)
-                                    ? "text-amber-700"
-                                    : "text-neutral-400 hover:text-amber-600"
-                                }`}
-                              >
-                                {expandedLines.has(line.id) ? (
-                                  <X className="h-3 w-3" />
-                                ) : (
-                                  <HelpCircle className="h-3 w-3" />
-                                )}
-                                {expandedLines.has(line.id)
-                                  ? t("forecast.closeWhy", "Close")
-                                  : t("forecast.why", "Why?")}
-                              </button>
-                            </td>
-                          </tr>
-                          {expandedLines.has(line.id) && (
-                            <tr>
-                              <td colSpan={8} className="border-t border-amber-100 bg-amber-50 px-6 py-3">
-                                {explanations[line.id]?.loading ? (
-                                  <div className="flex items-center gap-2 text-sm text-neutral-500">
-                                    <div className="h-3 w-3 animate-pulse rounded-full bg-amber-300" />
-                                    {t("forecast.generatingExplanation", "Generating explanation...")}
+          <TabsContent value="lines" className="space-y-6">
+            <Card>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>{t("forecast.sku", "SKU")}</TableHead>
+                    <TableHead>{t("forecast.outlet", "Outlet")}</TableHead>
+                    <TableHead className="text-right">{t("common.daypart.morning", "Morning")}</TableHead>
+                    <TableHead className="text-right">{t("common.daypart.midday", "Midday")}</TableHead>
+                    <TableHead className="text-right">{t("common.daypart.evening", "Evening")}</TableHead>
+                    <TableHead className="text-right">{t("forecast.total", "Total")}</TableHead>
+                    <TableHead className="text-right">{t("forecast.manualAdj", "Manual Adj.")}</TableHead>
+                    <TableHead className="w-16" />
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {forecastsQuery.isLoading
+                    ? Array.from({ length: 8 }).map((_, rowIndex) => (
+                        <TableRow key={rowIndex}>
+                          {Array.from({ length: 8 }).map((__, cellIndex) => (
+                            <TableCell key={cellIndex}>
+                              <div className="h-4 animate-pulse rounded bg-neutral-100" />
+                            </TableCell>
+                          ))}
+                        </TableRow>
+                      ))
+                    : lines.length === 0
+                      ? (
+                        <TableRow>
+                          <TableCell colSpan={8} className="px-4 py-12 text-center text-sm text-neutral-400">
+                            {t(
+                              "forecast.noData",
+                              "No forecast data available. Run a forecast to generate line items for this date."
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      )
+                      : lines.map((line) => (
+                          <Fragment key={line.id}>
+                            <TableRow className="transition-colors hover:bg-neutral-50">
+                              <TableCell className="font-medium text-neutral-800">
+                                {line.sku_name ?? `SKU ${line.sku_id}`}
+                              </TableCell>
+                              <TableCell className="text-xs text-neutral-500">
+                                {line.outlet_name ?? `Outlet ${line.outlet_id}`}
+                              </TableCell>
+                              <TableCell className="text-right tabular-nums text-neutral-700">
+                                {line.morning.toFixed(1)}
+                              </TableCell>
+                              <TableCell className="text-right tabular-nums text-neutral-700">
+                                {line.midday.toFixed(1)}
+                              </TableCell>
+                              <TableCell className="text-right tabular-nums text-neutral-700">
+                                {line.evening.toFixed(1)}
+                              </TableCell>
+                              <TableCell className="text-right tabular-nums font-semibold text-neutral-900">
+                                {line.total.toFixed(1)}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <div className="space-y-2">
+                                  <div className="text-xs text-neutral-500">
+                                    {t("forecast.current", "Current")}:{" "}
+                                    {line.manual_adjustment_pct != null
+                                      ? `${line.manual_adjustment_pct.toFixed(1)}%`
+                                      : t("forecast.noCurrentAdjustment", "none")}
                                   </div>
-                                ) : explanations[line.id]?.error ? (
-                                  <p className="text-xs italic text-neutral-400">
-                                    {t(
-                                      "forecast.explanationUnavailable",
-                                      "Explanation unavailable. Try again later."
-                                    )}
-                                  </p>
-                                ) : explanations[line.id]?.text ? (
-                                  <p className="text-sm leading-relaxed text-neutral-700">
-                                    {explanations[line.id]?.text}
-                                  </p>
-                                ) : null}
-                              </td>
-                            </tr>
-                          )}
-                        </Fragment>
-                      ))}
-              </tbody>
-            </table>
-          </div>
+                                  <div className="flex justify-end gap-2">
+                                    <input
+                                      type="number"
+                                      min={-100}
+                                      step={1}
+                                      value={adjustmentInputs[line.id] ?? ""}
+                                      onChange={(event) =>
+                                        setAdjustmentInputs((current) => ({
+                                          ...current,
+                                          [line.id]: event.target.value,
+                                        }))
+                                      }
+                                      placeholder="0"
+                                      className="w-20 rounded border border-neutral-300 px-2 py-1 text-right text-xs tabular-nums focus:outline-none focus:ring-2 focus:ring-amber-400"
+                                    />
+                                    <button
+                                      onClick={() => saveManualAdjustment(line)}
+                                      disabled={
+                                        adjustMutation.isPending ||
+                                        (adjustmentInputs[line.id] ?? "").trim().length === 0
+                                      }
+                                      className="rounded-md border border-neutral-200 px-2 py-1 text-xs font-medium text-neutral-700 hover:bg-neutral-50 disabled:opacity-50"
+                                    >
+                                      {t("common.save", "Save")}
+                                    </button>
+                                  </div>
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <button
+                                  onClick={() => toggleWhy(line)}
+                                  className={`inline-flex items-center gap-1 text-xs font-medium ${
+                                    expandedLines.has(line.id)
+                                      ? "text-amber-700"
+                                      : "text-neutral-400 hover:text-amber-600"
+                                  }`}
+                                >
+                                  {expandedLines.has(line.id) ? (
+                                    <X className="h-3 w-3" />
+                                  ) : (
+                                    <HelpCircle className="h-3 w-3" />
+                                  )}
+                                  {expandedLines.has(line.id)
+                                    ? t("forecast.closeWhy", "Close")
+                                    : t("forecast.why", "Why?")}
+                                </button>
+                              </TableCell>
+                            </TableRow>
+                            {expandedLines.has(line.id) && (
+                              <TableRow>
+                                <TableCell colSpan={8} className="border-t border-amber-100 bg-amber-50 px-6 py-3">
+                                  {explanations[line.id]?.loading ? (
+                                    <div className="flex items-center gap-2 text-sm text-neutral-500">
+                                      <div className="h-3 w-3 animate-pulse rounded-full bg-amber-300" />
+                                      {t("forecast.generatingExplanation", "Generating explanation...")}
+                                    </div>
+                                  ) : explanations[line.id]?.error ? (
+                                    <p className="text-xs italic text-neutral-400">
+                                      {t(
+                                        "forecast.explanationUnavailable",
+                                        "Explanation unavailable. Try again later."
+                                      )}
+                                    </p>
+                                  ) : explanations[line.id]?.text ? (
+                                    <p className="text-sm leading-relaxed text-neutral-700">
+                                      {explanations[line.id]?.text}
+                                    </p>
+                                  ) : null}
+                                </TableCell>
+                              </TableRow>
+                            )}
+                          </Fragment>
+                        ))}
+                </TableBody>
+              </Table>
+            </Card>
 
-          <ForecastMathPanel line={selectedLine} />
-        </section>
+            <ForecastMathPanel line={selectedLine} />
+          </TabsContent>
+        </Tabs>
       </main>
     </div>
   );
