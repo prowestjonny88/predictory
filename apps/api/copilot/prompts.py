@@ -106,11 +106,12 @@ Rules:
 - Preserve every action_id exactly as given
 - Preserve all outlet names, SKU names, ingredient names, and numeric values
 - Improve wording only; do not invent new actions or entities
-- Return valid JSON only
-- Return an array of objects with exactly these keys:
-  - action_id
-  - action_text
-  - estimated_impact
+- Return valid JSON only, with no markdown fences and no prose
+- Return one object with a top_actions array
+- Each top_actions item must have exactly these keys: action_id, action_text, estimated_impact
+
+Example shape:
+{{"top_actions":[{{"action_id":"example","action_text":"Example action","estimated_impact":"Example impact"}}]}}
 
 Candidate actions JSON:
 {candidate_actions_json}

@@ -57,7 +57,6 @@ export interface ForecastLine {
   evening: number;
   total: number;
   method: string;
-  confidence: number;
   manual_adjustment_pct: number | null;
   rationale_json: Record<string, unknown> | null;
   outlet_name?: string;

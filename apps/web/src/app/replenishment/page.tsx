@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2 } from "lucide-react";
 
 import Header from "@/components/Header";
+import StockNeedBar from "@/components/StockNeedBar";
 import { useLanguage } from "@/components/i18n/LanguageProvider";
 import { translateRiskLevel } from "@/lib/i18n";
 import { api } from "@/lib/api";
@@ -144,6 +145,7 @@ export default function ReplenishmentPage() {
                 <th className="px-4 py-3">{t("replenishment.ingredient", "Ingredient")}</th>
                 <th className="px-4 py-3 text-right">{t("replenishment.stockOnHand", "Stock On Hand")}</th>
                 <th className="px-4 py-3 text-right">{t("replenishment.needQty", "Need Qty")}</th>
+                <th className="px-4 py-3">{t("replenishment.stockNeed", "Stock vs Need")}</th>
                 <th className="px-4 py-3 text-right">{t("replenishment.reorderQty", "Reorder Qty")}</th>
                 <th className="px-4 py-3">{t("replenishment.urgency", "Urgency")}</th>
                 <th className="px-4 py-3">{t("replenishment.drivingSkus", "Driving SKUs")}</th>
@@ -154,7 +156,7 @@ export default function ReplenishmentPage() {
               {dailyPlanQuery.isLoading ? (
                 Array.from({ length: 6 }).map((_, rowIndex) => (
                   <tr key={rowIndex}>
-                    {Array.from({ length: 7 }).map((__, cellIndex) => (
+                    {Array.from({ length: 8 }).map((__, cellIndex) => (
                       <td key={cellIndex} className="px-4 py-3">
                         <div className="h-4 animate-pulse rounded bg-neutral-100" />
                       </td>
@@ -163,7 +165,7 @@ export default function ReplenishmentPage() {
                 ))
               ) : lines.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-12 text-center text-sm text-neutral-400">
+                  <td colSpan={8} className="px-4 py-12 text-center text-sm text-neutral-400">
                     {t("replenishment.noData", "No replenishment data.")}{" "}
                     <button
                       onClick={() => runMutation.mutate()}
@@ -199,6 +201,14 @@ export default function ReplenishmentPage() {
                         </td>
                         <td className="px-4 py-3 text-right tabular-nums text-neutral-700">
                           {line.need_qty.toFixed(1)}
+                        </td>
+                        <td className="px-4 py-3">
+                          <StockNeedBar
+                            stock={line.stock_on_hand}
+                            need={line.need_qty}
+                            shortage={line.reorder_qty}
+                            unit=""
+                          />
                         </td>
                         <td className="px-4 py-3 text-right tabular-nums font-semibold text-neutral-800">
                           {line.reorder_qty.toFixed(1)}

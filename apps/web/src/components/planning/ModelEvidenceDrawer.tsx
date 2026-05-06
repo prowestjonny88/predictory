@@ -8,13 +8,17 @@ interface Props {
   modelVersion: string;
   modelStatus: string;
   engineName: string;
+  activeEngineName: string;
   dataSource: "backend";
+  modelArtifactStatus: string;
+  modelArtifactAvailable: boolean;
+  forecastSourceLabel: string;
   validationWindow: string;
   metrics: {
     wape: number;
     bias: number;
     p10_p90_coverage: number;
-    estimated_mismatch_cost_delta_pct: number;
+    estimated_mismatch_cost_delta_pct: number | null;
   };
 }
 
@@ -24,7 +28,11 @@ export default function ModelEvidenceDrawer({
   modelVersion,
   modelStatus,
   engineName,
+  activeEngineName,
   dataSource,
+  modelArtifactStatus,
+  modelArtifactAvailable,
+  forecastSourceLabel,
   validationWindow,
   metrics,
 }: Props) {
@@ -50,7 +58,12 @@ export default function ModelEvidenceDrawer({
             <p className="text-xs uppercase tracking-wide text-neutral-500">{t("planning.status", "Status")}</p>
             <p className="text-sm font-semibold text-neutral-900">{modelStatus}</p>
             <p className="text-xs text-neutral-500">{t("planning.source", "Source")}: {dataSource}</p>
+            <p className="text-xs text-neutral-500">{t("planning.activeEngine", "Active engine")}: {activeEngineName}</p>
             <p className="text-xs text-neutral-500">{t("planning.engine", "Engine")}: {engineName}</p>
+            <p className="text-xs text-neutral-500">{forecastSourceLabel}</p>
+            <p className="text-xs text-neutral-500">
+              {t("planning.artifact", "Artifact")}: {modelArtifactStatus} ({modelArtifactAvailable ? "available" : "unavailable"})
+            </p>
             <p className="text-xs text-neutral-500">{t("planning.version", "Version")}: {modelVersion}</p>
           </div>
           <div className="grid gap-2">
@@ -68,8 +81,10 @@ export default function ModelEvidenceDrawer({
             </div>
             <div className="flex items-center justify-between rounded-lg border border-neutral-200 px-3 py-2">
               <span className="text-xs text-neutral-500">{t("planning.mismatchDelta", "Mismatch cost delta")}</span>
-              <Badge variant="success">
-                {(metrics.estimated_mismatch_cost_delta_pct * 100).toFixed(0)}%
+              <Badge variant={metrics.estimated_mismatch_cost_delta_pct == null ? "outline" : "success"}>
+                {metrics.estimated_mismatch_cost_delta_pct == null
+                  ? t("common.unavailable", "Unavailable")
+                  : `${(metrics.estimated_mismatch_cost_delta_pct * 100).toFixed(0)}%`}
               </Badge>
             </div>
           </div>

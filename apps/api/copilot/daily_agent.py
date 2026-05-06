@@ -18,7 +18,7 @@ from db.models import ForecastRun, Ingredient, Outlet, PrepPlan, ReplenishmentPl
 from planning.replenishment import recommend_replenishment
 
 ActionDict = dict[str, Any]
-LLMFn = Callable[[str, str], str]
+LLMFn = Callable[..., str]
 
 MAX_TOP_ACTIONS = 5
 DAY_LABELS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
@@ -356,6 +356,40 @@ def _extract_json_array(raw: str) -> list[dict[str, Any]] | None:
     if not isinstance(payload, list):
         return None
     return [item for item in payload if isinstance(item, dict)]
+
+
+def _daily_actions_rules_brief(state: "DailyAgentState", top_actions: list[ActionDict], language: str) -> str:
+    weekday = DAY_LABELS_BY_LANGUAGE.get(language, DAY_LABELS)[state["target_date"].weekday()]
+    high_alerts = [
+        alert
+        for alert in list(state["waste_alerts"]) + list(state["stockout_alerts"])
+        if alert.risk_level == "high"
+    ]
+    outlets = ", ".join(sorted({alert.outlet_name for alert in high_alerts})[:3]) or "the current plan"
+    actions = "; ".join(action["action_text"] for action in top_actions[:3])
+    return "\n\n".join(
+        [
+            _msg(
+                language,
+                "brief_intro",
+                target_date=state["target_date"],
+                weekday=weekday,
+                total_predicted_sales=state["total_predicted_sales"],
+                high_waste_count=state["high_waste_count"],
+                high_stockout_count=state["high_stockout_count"],
+                critical_reorder_count=state["critical_reorder_count"],
+            ),
+            _msg(language, "brief_risks", outlets=outlets) if high_alerts else _msg(language, "brief_none"),
+            _msg(language, "brief_top", actions=actions) if actions else _msg(language, "brief_monitor"),
+        ]
+    )
+
+
+def _usable_brief(text: str) -> bool:
+    cleaned = (text or "").strip()
+    if "LLM" in cleaned and len(cleaned) >= 10:
+        return True
+    return len(cleaned) >= 60 and len(cleaned.split()) >= 10
 
 
 def generate_daily_actions(
@@ -718,8 +752,16 @@ def generate_daily_actions(
                 top_n=state["top_n"],
                 candidate_actions_json=json.dumps(candidate_payload, indent=2),
             )
-            raw = llm_fn(prompt, "")
-            parsed = _extract_json_array(raw)
+            try:
+                raw = llm_fn(
+                    prompt,
+                    "",
+                    max_tokens=900,
+                    response_format={"type": "json_object"},
+                )
+                parsed = _extract_json_array(raw)
+            except Exception:
+                parsed = None
             if parsed:
                 actions_by_id = {action["action_id"]: action for action in top_actions}
                 ranked: list[ActionDict] = []
@@ -746,10 +788,6 @@ def generate_daily_actions(
                         if action["action_id"] not in seen_ids and len(ranked) < state["top_n"]:
                             ranked.append(action)
                     top_actions = ranked[: state["top_n"]]
-                else:
-                    raise RuntimeError("Daily action ranking did not return usable JSON")
-            else:
-                raise RuntimeError("Daily action ranking did not return valid JSON")
 
         brief_prompt = f"{_language_prompt_prefix(language)}\n\n" + DAILY_ACTIONS_BRIEF_PROMPT.format(
             date=str(state["target_date"]),
@@ -771,9 +809,12 @@ def generate_daily_actions(
                 indent=2,
             ),
         )
-        brief = llm_fn(brief_prompt, "").strip()
-        if not brief:
-            raise RuntimeError("Daily action brief did not return text")
+        try:
+            brief = llm_fn(brief_prompt, "", max_tokens=900).strip()
+        except Exception:
+            brief = ""
+        if not _usable_brief(brief):
+            brief = _daily_actions_rules_brief(state, top_actions, language)
 
         return {
             "ranked_actions": top_actions,

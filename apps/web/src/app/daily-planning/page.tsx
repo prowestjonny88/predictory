@@ -14,7 +14,7 @@ import ReplenishmentBreakdown from "@/components/planning/ReplenishmentBreakdown
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useLanguage } from "@/components/i18n/LanguageProvider";
-import { planningApi, type DailyPlanLatestResponse, type DailyPlanTopAction, type ManagerNoteResponse } from "@/lib/api/planning";
+import { planningApi, type ApplyAdjustmentResponse, type DailyPlanLatestResponse, type DailyPlanTopAction, type ManagerNoteResponse } from "@/lib/api/planning";
 
 function tomorrowISO() {
   const date = new Date();
@@ -28,6 +28,7 @@ export default function DailyPlanningPage() {
   const [plan, setPlan] = useState<DailyPlanLatestResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [readinessBlockers, setReadinessBlockers] = useState<string[]>([]);
   const [filter, setFilter] = useState<FilterKey>("top");
   const [selectedAction, setSelectedAction] = useState<DailyPlanTopAction | null>(null);
   const [evidenceOpen, setEvidenceOpen] = useState(false);
@@ -42,7 +43,15 @@ export default function DailyPlanningPage() {
   const loadLatestPlan = useCallback(async () => {
     setLoading(true);
     setLoadError(null);
+    setReadinessBlockers([]);
     try {
+      const readiness = await planningApi.forecastReadiness(planDate);
+      if (!readiness.ready) {
+        setPlan(null);
+        setSelectedAction(null);
+        setReadinessBlockers(readiness.blockers);
+        return;
+      }
       const response = await planningApi.latestPlan(planDate);
       setPlan(response);
       setSelectedAction((current) => {
@@ -114,11 +123,14 @@ export default function DailyPlanningPage() {
       },
       {
         label: t("planning.summary.mismatchCost", "Mismatch cost"),
-        value: t(
-          "planning.summary.mismatchValue",
-          "{{percent}}% validation-window delta",
-          { percent: Math.abs(plan.metrics.estimated_mismatch_cost_delta_pct * 100).toFixed(0) }
-        ),
+        value:
+          plan.metrics.estimated_mismatch_cost_delta_pct == null
+            ? t("common.unavailable", "Unavailable")
+            : t(
+                "planning.summary.mismatchValue",
+                "{{percent}}% validation-window delta",
+                { percent: Math.abs(plan.metrics.estimated_mismatch_cost_delta_pct * 100).toFixed(0) }
+              ),
       },
     ];
   }, [plan, t, visibleActions]);
@@ -146,6 +158,13 @@ export default function DailyPlanningPage() {
   async function handleRegenerate() {
     setStatusMessage(null);
     try {
+      const readiness = await planningApi.forecastReadiness(planDate);
+      if (!readiness.ready) {
+        setReadinessBlockers(readiness.blockers);
+        setPlan(null);
+        setSelectedAction(null);
+        return;
+      }
       const response = await planningApi.regeneratePlan({ date: planDate, reason: "manual_refresh" });
       setStatusMessage(response.message);
       await loadLatestPlan();
@@ -166,13 +185,13 @@ export default function DailyPlanningPage() {
       throw new Error("Load a backend plan before applying a manager note.");
     }
     try {
-      await planningApi.applyManagerNote({
+      const response = await planningApi.applyManagerNote({
         forecast_run_id: plan.forecast_run_id,
         confirmed: true,
         adjustment,
       });
       await loadLatestPlan();
-      setStatusMessage(t("planning.status.noteApplied", "Manager note applied after confirmation."));
+      setStatusMessage(formatManagerNoteResult(response, t));
     } catch (error) {
       setStatusMessage(error instanceof Error ? error.message : "Manager note apply failed");
     }
@@ -291,6 +310,19 @@ export default function DailyPlanningPage() {
           </Card>
         )}
 
+        {readinessBlockers.length > 0 && (
+          <Card className="border-amber-200 bg-amber-50">
+            <CardContent className="text-sm text-amber-900">
+              <p className="font-semibold">{t("forecast.notReady", "Forecast cannot run yet.")}</p>
+              <ul className="mt-2 list-disc space-y-1 pl-5">
+                {readinessBlockers.slice(0, 8).map((blocker) => (
+                  <li key={blocker}>{blocker}</li>
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
+        )}
+
         {loading && (
           <Card>
             <CardContent className="text-sm text-neutral-500">
@@ -320,8 +352,12 @@ export default function DailyPlanningPage() {
 
         <ModelBadge
           engineName={plan.engine_name}
+          activeEngineName={plan.active_engine_name}
           dataSource={plan.data_source}
           modelStatus={plan.model_status}
+          modelArtifactStatus={plan.model_artifact_status}
+          modelArtifactAvailable={plan.model_artifact_available}
+          forecastSourceLabel={plan.forecast_source_label}
           validationWindow={plan.validation_window}
           wape={plan.metrics.wape}
           coverage={plan.metrics.p10_p90_coverage}
@@ -398,7 +434,11 @@ export default function DailyPlanningPage() {
         modelVersion={plan.model_version}
         modelStatus={plan.model_status}
         engineName={plan.engine_name}
+        activeEngineName={plan.active_engine_name}
         dataSource={plan.data_source}
+        modelArtifactStatus={plan.model_artifact_status}
+        modelArtifactAvailable={plan.model_artifact_available}
+        forecastSourceLabel={plan.forecast_source_label}
         validationWindow={plan.validation_window}
         metrics={plan.metrics}
       />
@@ -412,5 +452,34 @@ export default function DailyPlanningPage() {
         onSubmit={handleDecision}
       />
     </div>
+  );
+}
+
+function formatManagerNoteResult(
+  response: ApplyAdjustmentResponse,
+  t: (key: string, fallback: string, values?: Record<string, string | number>) => string
+) {
+  const firstChange = response.line_changes?.[0];
+  const mode = response.application_mode === "prep_edit_only"
+    ? t("planning.managerNote.modePrepOnly", "prep edit only")
+    : t("planning.managerNote.modeForecastRecompute", "forecast override recompute");
+  const replenishment = response.replenishment_plan_id
+    ? t("planning.managerNote.replenishmentRefreshed", "replenishment refreshed")
+    : t("planning.managerNote.replenishmentNotRefreshed", "replenishment not refreshed");
+  const changeText = firstChange
+    ? t("planning.managerNote.firstChange", "first line {{before}} -> {{after}} units", {
+        before: firstChange.before_prep,
+        after: firstChange.after_prep,
+      })
+    : t("planning.managerNote.noLineChange", "no line quantity change returned");
+  return t(
+    "planning.status.noteAppliedMode",
+    "Manager note applied as {{mode}} across {{count}} line(s); {{changeText}}; {{replenishment}}.",
+    {
+      mode,
+      count: response.updated_line_ids.length,
+      changeText,
+      replenishment,
+    }
   );
 }

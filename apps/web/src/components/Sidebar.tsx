@@ -3,18 +3,23 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  AlertTriangle,
   BarChart3,
   TrendingUp,
   ClipboardList,
+  Bot,
   ShoppingCart,
   ChefHat,
   Package,
+  PackageCheck,
+  Boxes,
+  GitBranch,
 } from "lucide-react";
 import { useLanguage } from "@/components/i18n/LanguageProvider";
 import LanguageSwitcher from "@/components/i18n/LanguageSwitcher";
 import { cn } from "@/lib/utils";
 
-const NAV = [
+const CORE_NAV = [
   { href: "/dashboard", labelKey: "nav.dashboard", defaultText: "Dashboard", icon: BarChart3 },
   { href: "/daily-planning", labelKey: "nav.dailyPlanning", defaultText: "Daily Planning", icon: ClipboardList },
   { href: "/forecast", labelKey: "nav.forecastEvidence", defaultText: "Forecast Evidence", icon: TrendingUp },
@@ -25,6 +30,14 @@ const NAV = [
     icon: ShoppingCart,
   },
   { href: "/catalog", labelKey: "nav.catalog", defaultText: "SKU Catalog", icon: Package },
+];
+
+const MORE_NAV = [
+  { href: "/risk-center", labelKey: "nav.riskCenter", defaultText: "Risk Center", icon: AlertTriangle },
+  { href: "/prep-plan", labelKey: "nav.approvedPrepSheet", defaultText: "Approved Prep Sheet", icon: PackageCheck },
+  { href: "/stock", labelKey: "nav.stock", defaultText: "Stock", icon: Boxes },
+  { href: "/copilot", labelKey: "nav.copilot", defaultText: "Copilot", icon: Bot },
+  { href: "/scenario-planner", labelKey: "nav.scenarioPlanner", defaultText: "Scenario Planner", icon: GitBranch },
 ];
 
 export default function Sidebar() {
@@ -41,26 +54,9 @@ export default function Sidebar() {
           </span>
         </div>
 
-        <nav aria-label="Primary" className="scrollbar-hide flex-1 space-y-1 overflow-y-auto px-3 py-4">
-          {NAV.map(({ href, labelKey, defaultText, icon: Icon }) => {
-            const active = pathname === href || pathname.startsWith(href + "/");
-            return (
-              <Link
-                key={href}
-                href={href}
-                aria-current={active ? "page" : undefined}
-                className={cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                  active
-                    ? "border border-amber-200 bg-amber-50 text-amber-800"
-                    : "text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900"
-                )}
-              >
-                <Icon className={cn("h-4 w-4", active ? "text-amber-600" : "text-neutral-400")} />
-                {t(labelKey, defaultText)}
-              </Link>
-            );
-          })}
+        <nav aria-label="Primary" className="scrollbar-hide flex-1 space-y-5 overflow-y-auto px-3 py-4">
+          <NavGroup items={CORE_NAV} pathname={pathname} title={t("nav.core", "Core")} t={t} />
+          <NavGroup items={MORE_NAV} pathname={pathname} title={t("nav.moreTools", "More Tools")} t={t} />
         </nav>
 
         <div className="space-y-3 border-t border-neutral-100 px-5 py-4">
@@ -74,7 +70,7 @@ export default function Sidebar() {
         className="fixed inset-x-0 bottom-0 z-40 border-t border-neutral-200 bg-white/95 px-2 py-2 backdrop-blur md:hidden"
       >
         <ul className="scrollbar-hide flex gap-1 overflow-x-auto">
-          {NAV.map(({ href, labelKey, defaultText, icon: Icon }) => {
+          {[...CORE_NAV, ...MORE_NAV].map(({ href, labelKey, defaultText, icon: Icon }) => {
             const active = pathname === href || pathname.startsWith(href + "/");
             return (
               <li key={href} className="min-w-[84px] shrink-0">
@@ -95,5 +91,42 @@ export default function Sidebar() {
         </ul>
       </nav>
     </>
+  );
+}
+
+function NavGroup({
+  items,
+  pathname,
+  title,
+  t,
+}: {
+  items: typeof CORE_NAV;
+  pathname: string;
+  title: string;
+  t: (key: string, fallback: string) => string;
+}) {
+  return (
+    <div className="space-y-1">
+      <p className="px-3 text-[11px] font-semibold uppercase tracking-wide text-neutral-400">{title}</p>
+      {items.map(({ href, labelKey, defaultText, icon: Icon }) => {
+        const active = pathname === href || pathname.startsWith(href + "/");
+        return (
+          <Link
+            key={href}
+            href={href}
+            aria-current={active ? "page" : undefined}
+            className={cn(
+              "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+              active
+                ? "border border-amber-200 bg-amber-50 text-amber-800"
+                : "text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900"
+            )}
+          >
+            <Icon className={cn("h-4 w-4", active ? "text-amber-600" : "text-neutral-400")} />
+            {t(labelKey, defaultText)}
+          </Link>
+        );
+      })}
+    </div>
   );
 }

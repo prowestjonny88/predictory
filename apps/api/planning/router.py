@@ -30,6 +30,7 @@ from planning.replenishment import recommend_replenishment
 from forecasting.engine import run_forecast_for_date
 from alerts.waste import detect_waste_risk
 from alerts.stockout import detect_stockout_risk
+from services.daily_plan_builder import build_forecast_source_fields
 from services.lightgbm_inference import FeatureBuildError, OperationalDataError
 from services.model_loader import ModelArtifactError, load_model_for_inference
 from services.optimizer import calculate_optimal_prep
@@ -95,7 +96,11 @@ class DailyPlanOut(BaseModel):
     model_run_id: Optional[int]
     model_version: str
     engine_name: str
+    active_engine_name: str
     model_status: str
+    model_artifact_status: str
+    model_artifact_available: bool
+    forecast_source_label: str
     validation_window: str
     metrics: Dict[str, Any]
     date: str
@@ -162,7 +167,11 @@ class DailyPlanLatestOut(BaseModel):
     model_run_id: str
     model_version: str
     engine_name: str
+    active_engine_name: str
     model_status: str
+    model_artifact_status: str
+    model_artifact_available: bool
+    forecast_source_label: str
     validation_window: str
     metrics: dict
     data_source: str
@@ -840,12 +849,18 @@ def _build_daily_plan_response(plan_date: date_type, db: Session) -> DailyPlanOu
     )
     top_actions = _build_top_actions_from_plan(prep_plan, fc_run, db)
 
+    source_fields = build_forecast_source_fields(fc_run.engine_name, model_info)
+
     return DailyPlanOut(
         forecast_run_id=fc_run.forecast_run_id,
         model_run_id=model_run.id if model_run else None,
         model_version=model_run.model_version if model_run else "unknown",
         engine_name=fc_run.engine_name,
+        active_engine_name=source_fields["active_engine_name"],
         model_status=model_info["model_status"],
+        model_artifact_status=source_fields["model_artifact_status"],
+        model_artifact_available=source_fields["model_artifact_available"],
+        forecast_source_label=source_fields["forecast_source_label"],
         validation_window=model_info["validation_window"],
         metrics=model_info["metrics"],
         date=str(plan_date),

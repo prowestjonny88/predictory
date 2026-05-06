@@ -126,8 +126,12 @@ export default function DashboardPage() {
                 <Badge variant="success">{plan.data_source}</Badge>
               </div>
               <div className="flex items-center justify-between gap-3">
-                <span className="text-neutral-500">{t("planning.engine", "Engine")}</span>
-                <span className="font-medium text-neutral-900">{plan?.engine_name ?? "-"}</span>
+                <span className="text-neutral-500">{t("planning.activeEngine", "Active engine")}</span>
+                <span className="font-medium text-neutral-900">{plan?.active_engine_name ?? "-"}</span>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-neutral-500">{t("planning.artifact", "Artifact")}</span>
+                <span className="font-medium text-neutral-900">{plan?.model_artifact_status ?? "-"}</span>
               </div>
               <div className="flex items-center justify-between gap-3">
                 <span className="text-neutral-500">{t("planning.wape", "WAPE")}</span>
@@ -146,9 +150,9 @@ export default function DashboardPage() {
         </section>
 
         <section className="grid gap-4 md:grid-cols-4">
-          <ImpactCard label={t("dashboard.mismatchCost", "Estimated mismatch cost")} value={`RM ${Math.round(stockoutExposure + wasteExposure)}`} />
-          <ImpactCard label={t("dashboard.stockoutExposure", "Stockout exposure")} value={`RM ${Math.round(stockoutExposure)}`} />
-          <ImpactCard label={t("dashboard.wasteExposure", "Waste exposure")} value={`RM ${Math.round(wasteExposure)}`} />
+          <ImpactCard label={t("dashboard.topActionExposure", "Top-action exposure")} value={`RM ${Math.round(stockoutExposure + wasteExposure)}`} />
+          <ImpactCard label={t("dashboard.topActionStockoutExposure", "Top-action stockout exposure")} value={`RM ${Math.round(stockoutExposure)}`} />
+          <ImpactCard label={t("dashboard.topActionWasteExposure", "Top-action waste exposure")} value={`RM ${Math.round(wasteExposure)}`} />
           <ImpactCard label={t("dashboard.pendingActions", "Pending actions")} value={String(pendingActions)} />
         </section>
 
@@ -163,6 +167,12 @@ export default function DashboardPage() {
             >
               {t("dashboard.reviewDailyPlan", "Review Tomorrow's Daily Plan")}
               <ArrowRight className="h-4 w-4" />
+            </Link>
+            <Link
+              href="/risk-center"
+              className="inline-flex items-center gap-2 rounded-md border border-neutral-200 bg-white px-4 py-2 text-sm font-semibold text-neutral-700 transition hover:bg-neutral-50"
+            >
+              {t("dashboard.openRiskCenter", "Open Risk Center")}
             </Link>
           </div>
 

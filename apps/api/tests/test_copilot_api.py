@@ -284,6 +284,31 @@ def test_daily_brief_returns_503_when_llm_unavailable():
         app.dependency_overrides.clear()
 
 
+def test_daily_brief_returns_503_when_llm_output_is_incomplete():
+    SessionLocal = _build_session_factory()
+    db = SessionLocal()
+    _load_test_data(db)
+    target_date = date.today()
+
+    _prepare_planning_context(db, target_date)
+    db.close()
+
+    original = copilot_router._call_llm
+    copilot_router._call_llm = _fixed_llm("Predictory Daily Operations Brief: 2026")
+    try:
+        _override_app_db(SessionLocal)
+        with TestClient(app) as client:
+            resp = client.post(
+                "/api/v1/copilot/daily-brief",
+                json={"brief_date": target_date.isoformat()},
+            )
+            assert resp.status_code == 503
+            assert "incomplete daily brief" in resp.json()["detail"]
+    finally:
+        copilot_router._call_llm = original
+        app.dependency_overrides.clear()
+
+
 def test_run_scenario_handles_expected_inputs_without_db_writes():
     SessionLocal = _build_session_factory()
     db = SessionLocal()
@@ -363,7 +388,7 @@ def test_daily_actions_returns_valid_schema_with_llm_rephrasing():
         app.dependency_overrides.clear()
 
 
-def test_daily_actions_returns_503_when_llm_unavailable():
+def test_daily_actions_uses_rules_based_output_when_llm_unavailable():
     SessionLocal = _build_session_factory()
     db = SessionLocal()
     _load_test_data(db)
@@ -383,7 +408,11 @@ def test_daily_actions_returns_503_when_llm_unavailable():
                 "/api/v1/copilot/daily-actions",
                 json={"target_date": target_date.isoformat(), "top_n": 5},
             )
-            assert resp.status_code == 503
+            assert resp.status_code == 200
+            payload = resp.json()
+            assert payload["top_actions"]
+            assert all(action["source_type"] == "rules_based" for action in payload["top_actions"])
+            assert payload["brief"]
     finally:
         copilot_router._call_llm = original
         app.dependency_overrides.clear()
@@ -547,7 +576,7 @@ def test_daily_brief_localizes_llm_output():
 
     original = copilot_router._call_llm
     copilot_router._call_llm = lambda prompt, _text="": (
-        "Ringkasan harian daripada LLM"
+        "Ringkasan harian daripada LLM.\n\nRisiko utama diterangkan berdasarkan data operasi.\n\nPasukan perlu menyemak tindakan persediaan dan pengisian semula."
         if "Bahasa Melayu" in prompt
         else "æ¯æ—¥ç®€æŠ¥ LLM"
     )
@@ -655,7 +684,9 @@ def test_invalid_language_uses_english_prompt():
     db.close()
 
     original = copilot_router._call_llm
-    copilot_router._call_llm = _fixed_llm("Daily brief for English prompt")
+    copilot_router._call_llm = _fixed_llm(
+        "Daily brief for English prompt.\n\nThe brief uses the provided forecast and risk data only.\n\nReview the highest priority actions before service."
+    )
     try:
         _override_app_db(SessionLocal)
         with TestClient(app) as client:

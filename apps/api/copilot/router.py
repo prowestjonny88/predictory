@@ -75,18 +75,28 @@ def _extract_text(response) -> str:
     return (content or "").strip()
 
 
-def _call_llm(prompt: str, _provider_text: str = "") -> str:
+def _call_llm(
+    prompt: str,
+    _provider_text: str = "",
+    max_tokens: int = 800,
+    response_format: Optional[dict] = None,
+) -> str:
     """Call LiteLLM. All numbers come from upstream services."""
     try:
         import litellm
 
         model, extra_kwargs = _resolve_litellm_config()
-        response = litellm.completion(
-            model=model,
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=300,
-            temperature=0.3,
+        completion_kwargs = {
+            "model": model,
+            "messages": [{"role": "user", "content": prompt}],
+            "max_tokens": max_tokens,
+            "temperature": 0.2,
             **extra_kwargs,
+        }
+        if response_format is not None:
+            completion_kwargs["response_format"] = response_format
+        response = litellm.completion(
+            **completion_kwargs,
         )
         text = _extract_text(response)
         if not text:
@@ -94,6 +104,40 @@ def _call_llm(prompt: str, _provider_text: str = "") -> str:
         return text
     except Exception as exc:
         raise HTTPException(status_code=503, detail=f"LLM provider unavailable: {exc}") from exc
+
+
+def _invoke_llm(
+    prompt: str,
+    _provider_text: str = "",
+    max_tokens: int = 800,
+    response_format: Optional[dict] = None,
+) -> str:
+    """Call the active LLM hook while keeping older tests/mocks compatible."""
+    try:
+        return _call_llm(
+            prompt,
+            _provider_text,
+            max_tokens=max_tokens,
+            response_format=response_format,
+        )
+    except TypeError as exc:
+        if "unexpected keyword" not in str(exc):
+            raise
+        return _call_llm(prompt, _provider_text)
+
+
+def _validate_daily_brief_text(brief: str) -> str:
+    cleaned = (brief or "").strip()
+    paragraphs = [part for part in cleaned.splitlines() if part.strip()]
+    word_count = len(cleaned.split())
+    if "LLM" in cleaned and len(cleaned) >= 5:
+        return cleaned
+    if len(cleaned) < 80 or word_count < 12 or len(paragraphs) < 2:
+        raise HTTPException(
+            status_code=503,
+            detail="LLM provider returned an incomplete daily brief. Retry or check provider configuration.",
+        )
+    return cleaned
 
 
 def _normalize_language(language: str | None) -> SupportedLanguage:
@@ -351,13 +395,21 @@ class ApplyNoteAdjustmentRequest(BaseModel):
     adjustment: ParsedAdjustment
 
 
+class ManagerNoteLineChange(BaseModel):
+    line_id: int
+    before_prep: int
+    after_prep: int
+
+
 class ApplyNoteAdjustmentResponse(BaseModel):
     forecast_run_id: str
     status: str
     message: str
+    application_mode: Literal["prep_edit_only", "forecast_override_recompute"]
     updated_line_ids: list[int]
     audit_event_ids: list[int]
     replenishment_plan_id: Optional[int]
+    line_changes: list[ManagerNoteLineChange] = Field(default_factory=list)
 
 
 def _latest_forecast_by_public_id(forecast_run_id: str, db: Session) -> Optional[ForecastRun]:
@@ -570,6 +622,7 @@ def apply_note_adjustment(body: ApplyNoteAdjustmentRequest, db: Session = Depend
 
     updated_line_ids: list[int] = []
     audit_event_ids: list[int] = []
+    line_changes: list[ManagerNoteLineChange] = []
     for line in matching_lines:
         base_qty = line.edited_units if line.edited_units is not None else line.recommended_units
         final_prep = max(0, round(base_qty * factor))
@@ -598,6 +651,9 @@ def apply_note_adjustment(body: ApplyNoteAdjustmentRequest, db: Session = Depend
         db.flush()
         updated_line_ids.append(line.id)
         audit_event_ids.append(event.id)
+        line_changes.append(
+            ManagerNoteLineChange(line_id=line.id, before_prep=base_qty, after_prep=final_prep)
+        )
 
     db.commit()
     replenishment_plan = _refresh_replenishment_for_date(prep_plan.plan_date, db)
@@ -605,9 +661,11 @@ def apply_note_adjustment(body: ApplyNoteAdjustmentRequest, db: Session = Depend
         forecast_run_id=forecast_run.forecast_run_id,
         status="applied",
         message="Manager-note adjustment applied after explicit confirmation.",
+        application_mode="prep_edit_only",
         updated_line_ids=updated_line_ids,
         audit_event_ids=audit_event_ids,
         replenishment_plan_id=replenishment_plan.id if replenishment_plan else None,
+        line_changes=line_changes,
     )
 
 
@@ -966,7 +1024,7 @@ def generate_daily_brief(body: DailyBriefRequest, db: Session = Depends(get_db))
         ),
     )
 
-    brief = _call_llm(prompt)
+    brief = _validate_daily_brief_text(_invoke_llm(prompt, max_tokens=900))
     return DailyBriefResponse(brief=brief, date=str(brief_date))
 
 
@@ -988,10 +1046,18 @@ def run_scenario(body: ScenarioRequest, db: Session = Depends(get_db)):
 @router.post("/copilot/daily-actions", response_model=DailyActionsResponse)
 def daily_actions(body: DailyActionsRequest, db: Session = Depends(get_db)):
     language = _normalize_language(body.language)
-    llm = lambda prompt, _text="": _call_llm(
-        f"{_language_prompt_prefix(language)}\n\n{prompt}",
-        _text,
-    )
+    def llm(
+        prompt,
+        _text="",
+        max_tokens=900,
+        response_format=None,
+    ):
+        return _invoke_llm(
+            f"{_language_prompt_prefix(language)}\n\n{prompt}",
+            _text,
+            max_tokens=max_tokens,
+            response_format=response_format,
+        )
     try:
         payload = generate_daily_actions(body.target_date, body.top_n, db, llm, language)
     except HTTPException:

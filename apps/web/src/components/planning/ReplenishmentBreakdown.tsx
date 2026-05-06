@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import StockNeedBar from "@/components/StockNeedBar";
 import { useLanguage } from "@/components/i18n/LanguageProvider";
 import type { DailyPlanTopAction } from "@/lib/api/planning";
 
@@ -50,6 +51,14 @@ export default function ReplenishmentBreakdown({ item }: Props) {
             <p className="mt-2 text-xs text-neutral-500">
               {t("planning.replenishment.currentStock", "Current stock")}: {line.current_stock} {line.unit}
             </p>
+            <div className="mt-3">
+              <StockNeedBar
+                stock={line.current_stock}
+                need={line.required_qty}
+                shortage={line.shortage_qty}
+                unit={line.unit}
+              />
+            </div>
             <p className="mt-1 text-xs text-neutral-500">
               {t("planning.replenishment.reorder", "Reorder need")}: {line.reorder_qty} {line.unit}
             </p>

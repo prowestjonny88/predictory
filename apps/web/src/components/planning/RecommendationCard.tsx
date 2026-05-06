@@ -19,9 +19,11 @@ export default function RecommendationCard({ item, onOpen }: Props) {
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <p className="text-xs uppercase tracking-wide text-neutral-500">{item.outlet_name}</p>
-            <h3 className="text-base font-semibold text-neutral-900">{item.sku_name}</h3>
+            <h3 className="text-2xl font-bold text-neutral-950">
+              {t("planning.recommendation.prepareUnits", "Prepare {{count}} units", { count: item.recommended_prep })}
+            </h3>
             <p className="text-xs text-neutral-500">
-              {translateDaypart(language, item.daypart.toLowerCase())} / {item.sku_category}
+              {item.sku_name} / {translateDaypart(language, item.daypart.toLowerCase())} / {item.sku_category}
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -43,8 +45,8 @@ export default function RecommendationCard({ item, onOpen }: Props) {
             <p className="text-sm font-semibold text-neutral-900">{item.opening_stock}</p>
           </div>
           <div className="rounded-lg border border-neutral-100 bg-neutral-50 p-3">
-            <p className="text-xs text-neutral-500">{t("planning.recommendation.recommendedPrep", "Recommended prep")}</p>
-            <p className="text-sm font-semibold text-neutral-900">{item.recommended_prep}</p>
+            <p className="text-xs text-neutral-500">{t("planning.recommendation.expectedDemand", "Expected demand")}</p>
+            <p className="text-sm font-semibold text-neutral-900">{item.p50}</p>
           </div>
           <div className="rounded-lg border border-neutral-100 bg-neutral-50 p-3">
             <p className="text-xs text-neutral-500">{t("planning.recommendation.batchSize", "Batch size")}</p>

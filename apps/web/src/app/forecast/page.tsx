@@ -414,7 +414,11 @@ export default function ForecastPage() {
 
         {lines.length > 0 && (
           <section>
-            <ForecastChart lines={lines} />
+            <ForecastChart
+              lines={lines}
+              engineName={currentRun?.engine_name}
+              scopeLabel={t("charts.forecastScope", "selected date/outlet, top forecasted SKUs")}
+            />
           </section>
         )}
 

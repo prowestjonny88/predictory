@@ -224,7 +224,7 @@ export default function PrepPlanPage() {
 
   return (
     <div className="min-h-screen">
-      <Header title={t("prep.title", "Prep Plan")} date={date}>
+      <Header title={t("prep.title", "Approved Prep Sheet")} date={date}>
         <input
           type="date"
           value={date}
