@@ -51,7 +51,7 @@ def test_admin_model_contract_uses_accepted_artifact_metrics(monkeypatch):
         assert latest.status_code == 200
         payload = latest.json()
         assert payload["model_version"] == "lightgbm_p50_v1"
-        assert payload["validation_window"] == "2022-09-01 to 2022-09-30"
+        assert payload["validation_window"] == "2026-04-01 to 2026-04-30"
         assert payload["metrics"]["wape"] == 0.38011723175212897
 
         assert client.post("/api/v1/admin/models/train").status_code == 401

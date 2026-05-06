@@ -2,7 +2,7 @@
   "model_version": "lightgbm_p50_v1",
   "selected_model_name": "tweedie_count",
   "target": "estimated_true_demand",
-  "validation_window": "2022-09-01 to 2022-09-30",
+  "validation_window": "2026-04-01 to 2026-04-30",
   "validation_metrics": {
     "wape": 0.38011723175212897,
     "bias": -0.04164149684340122

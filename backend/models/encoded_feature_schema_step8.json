@@ -268,8 +268,8 @@
   "validation_rows": 5400,
   "train_date_min": "2022-05-02",
   "train_date_max": "2022-08-31",
-  "validation_date_min": "2022-09-01",
-  "validation_date_max": "2022-09-30",
+  "validation_date_min": "2026-04-01",
+  "validation_date_max": "2026-04-30",
   "numeric_imputation_values": {
     "weekday": 3.0,
     "is_weekend": 0.0,
