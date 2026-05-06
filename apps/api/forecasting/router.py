@@ -12,7 +12,7 @@ DELETE /forecast-overrides/{override_id}
 from datetime import date
 from typing import Literal, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Response
 from pydantic import BaseModel, Field
 from sqlalchemy import desc
 from sqlalchemy.orm import Session
@@ -26,6 +26,7 @@ from services.forecast_runs import get_forecast_run_by_any_id, get_latest_foreca
 from services.lightgbm_inference import FeatureBuildError, OperationalDataError
 from services.model_loader import ModelArtifactError
 from services.runtime_readiness import ReadinessError, check_runtime_readiness
+from services.telegram import send_forecast_summary_to_telegram
 
 router = APIRouter()
 
@@ -178,6 +179,7 @@ def _require_outlet_and_sku(db: Session, outlet_id: int, sku_id: Optional[int] =
 
 @router.post("/forecasts/run", response_model=ForecastRunOut)
 def trigger_forecast(
+    background_tasks: BackgroundTasks,
     target_date: date = Query(default=None),
     db: Session = Depends(get_db),
 ):
@@ -187,6 +189,7 @@ def trigger_forecast(
         target_date = date_mod.today()
     try:
         run = run_forecast_for_date(target_date, db)
+        background_tasks.add_task(send_forecast_summary_to_telegram, run.id, db)
     except ReadinessError as exc:
         raise HTTPException(status_code=422, detail={"blockers": exc.blockers}) from exc
     except OperationalDataError as exc:
@@ -261,6 +264,7 @@ def _forecast_run_out(
 
 @router.post("/forecast-runs/generate", response_model=ForecastGenerateOut)
 def generate_contract_forecast_run(
+    background_tasks: BackgroundTasks,
     target_date: date = Query(default=None),
     db: Session = Depends(get_db),
 ):
@@ -270,6 +274,7 @@ def generate_contract_forecast_run(
         target_date = date_mod.today()
     try:
         run = run_forecast_for_date(target_date, db)
+        background_tasks.add_task(send_forecast_summary_to_telegram, run.id, db)
     except ReadinessError as exc:
         raise HTTPException(status_code=422, detail={"blockers": exc.blockers}) from exc
     except OperationalDataError as exc:
