@@ -6,6 +6,7 @@ import Header from "@/components/Header";
 import ActionSummaryCard from "@/components/planning/ActionSummaryCard";
 import ApprovalDrawer from "@/components/planning/ApprovalDrawer";
 import FilterTabs, { type FilterKey } from "@/components/planning/FilterTabs";
+import AgentCouncilPanel from "@/components/planning/AgentCouncilPanel";
 import ManagerNotePanel from "@/components/planning/ManagerNotePanel";
 import ModelBadge from "@/components/planning/ModelBadge";
 import ModelEvidenceDrawer from "@/components/planning/ModelEvidenceDrawer";
@@ -13,8 +14,11 @@ import RecommendationCard from "@/components/planning/RecommendationCard";
 import ReplenishmentBreakdown from "@/components/planning/ReplenishmentBreakdown";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { useLanguage } from "@/components/i18n/LanguageProvider";
 import { planningApi, type ApplyAdjustmentResponse, type DailyPlanLatestResponse, type DailyPlanTopAction, type ManagerNoteResponse } from "@/lib/api/planning";
+import { agenticApi, type CouncilConfirmResponse, type CouncilReviewResponse } from "@/lib/api/agentic";
 
 function tomorrowISO() {
   const date = new Date();
@@ -33,6 +37,13 @@ export default function DailyPlanningPage() {
   const [selectedAction, setSelectedAction] = useState<DailyPlanTopAction | null>(null);
   const [evidenceOpen, setEvidenceOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [councilOpen, setCouncilOpen] = useState(false);
+  const [councilReview, setCouncilReview] = useState<CouncilReviewResponse | null>(null);
+  const [councilError, setCouncilError] = useState<string | null>(null);
+  const [councilLoading, setCouncilLoading] = useState(false);
+  const [councilConfirming, setCouncilConfirming] = useState(false);
+  const [councilConfirmResult, setCouncilConfirmResult] = useState<CouncilConfirmResponse | null>(null);
+  const [councilManagerAdjustment, setCouncilManagerAdjustment] = useState<ManagerNoteResponse["parsed_adjustment"] | null>(null);
   const [auditEvents, setAuditEvents] = useState<
     { id: string; action: string; final_prep: number; reason?: string; timestamp: string }[]
   >([]);
@@ -250,6 +261,70 @@ export default function DailyPlanningPage() {
     }
   }
 
+  async function handleOpenCouncilReview(item: DailyPlanTopAction) {
+    setSelectedAction(item);
+    setCouncilOpen(true);
+    setCouncilLoading(true);
+    setCouncilError(null);
+    setCouncilReview(null);
+    setCouncilConfirmResult(null);
+    setCouncilManagerAdjustment(null);
+    try {
+      const response = await agenticApi.reviewCouncil(item.id, language);
+      setCouncilReview(response);
+    } catch (error) {
+      setCouncilError(error instanceof Error ? error.message : "Agent Council review failed");
+    } finally {
+      setCouncilLoading(false);
+    }
+  }
+
+  async function handleManagerNoteCouncilPreview(adjustment: ManagerNoteResponse["parsed_adjustment"], note: string) {
+    if (!selectedAction) {
+      throw new Error("Select a recommendation before running council preview.");
+    }
+    setCouncilOpen(true);
+    setCouncilLoading(true);
+    setCouncilError(null);
+    setCouncilReview(null);
+    setCouncilConfirmResult(null);
+    setCouncilManagerAdjustment(adjustment);
+    try {
+      const response = await agenticApi.reviewCouncilWithNote(selectedAction.id, adjustment, note, language);
+      setCouncilReview(response.after_review);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Agent Council preview failed";
+      setCouncilError(message);
+      throw error;
+    } finally {
+      setCouncilLoading(false);
+    }
+  }
+
+  async function handleConfirmCouncil(operatorReason: string) {
+    if (!councilReview) {
+      return;
+    }
+    setCouncilConfirming(true);
+    setCouncilError(null);
+    try {
+      const response = await agenticApi.confirmCouncilRecommendation({
+        recommendation_id: councilReview.recommendation_id,
+        selected_prep: councilReview.judge_recommendation.recommended_prep,
+        manager_adjustment: councilManagerAdjustment ?? undefined,
+        operator_reason: operatorReason,
+        language,
+      });
+      setCouncilConfirmResult(response);
+      setStatusMessage(response.message);
+      await loadLatestPlan();
+    } catch (error) {
+      setCouncilError(error instanceof Error ? error.message : "Agent Council confirm failed");
+    } finally {
+      setCouncilConfirming(false);
+    }
+  }
+
   function renderActionList(items: DailyPlanTopAction[]) {
     if (items.length === 0) {
       return <p className="text-sm text-neutral-500">{t("planning.noActionsFilter", "No actions for this filter.")}</p>;
@@ -261,6 +336,7 @@ export default function DailyPlanningPage() {
             key={item.id}
             item={item}
             onOpen={handleOpenRecommendation}
+            onCouncilReview={handleOpenCouncilReview}
           />
         ))}
       </div>
@@ -326,11 +402,14 @@ export default function DailyPlanningPage() {
         )}
 
         {loading && (
-          <Card>
-            <CardContent className="text-sm text-neutral-500">
-              {t("planning.loadingPlan", "Loading latest plan...")}
-            </CardContent>
-          </Card>
+          <div className="space-y-4">
+            <Skeleton className="h-28" />
+            <div className="grid gap-4 lg:grid-cols-2">
+              {[0, 1, 2, 3].map((index) => (
+                <Skeleton key={index} className="h-80" />
+              ))}
+            </div>
+          </div>
         )}
 
         {!loading && !plan && !loadError && (
@@ -411,7 +490,11 @@ export default function DailyPlanningPage() {
           </div>
 
         <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
-          <ManagerNotePanel onParse={handleParse} onApply={handleApply} />
+          <ManagerNotePanel
+            onParse={handleParse}
+            onApply={handleApply}
+            onCouncilPreview={handleManagerNoteCouncilPreview}
+          />
           <ReplenishmentBreakdown item={selectedAction} />
         </div>
 
@@ -453,6 +536,30 @@ export default function DailyPlanningPage() {
         onClose={() => setDrawerOpen(false)}
         onSubmit={handleDecision}
       />
+
+      <Sheet open={councilOpen} onOpenChange={setCouncilOpen}>
+        <SheetContent side="right" className="w-full overflow-y-auto sm:max-w-2xl">
+          <SheetHeader>
+            <SheetTitle>{t("planning.council.title", "Agent Council Review")}</SheetTitle>
+            <SheetDescription>
+              {t(
+                "planning.council.description",
+                "Tool-backed agents argue from backend evidence. The Judge may only choose a server-generated prep candidate."
+              )}
+            </SheetDescription>
+          </SheetHeader>
+          <div className="mt-6">
+            <AgentCouncilPanel
+              review={councilReview}
+              loading={councilLoading}
+              error={councilError}
+              confirming={councilConfirming}
+              confirmResult={councilConfirmResult}
+              onConfirm={handleConfirmCouncil}
+            />
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

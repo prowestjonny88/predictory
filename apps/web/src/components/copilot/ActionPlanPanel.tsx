@@ -59,6 +59,11 @@ function ActionRow({ action }: { action: AgentAction }) {
       </div>
       <p className="mt-2 text-sm font-semibold text-neutral-800">{action.action_text}</p>
       <p className="mt-1 text-xs text-neutral-500">{action.estimated_impact}</p>
+      {action.priority_reason && (
+        <p className="mt-1 text-xs text-neutral-500">
+          {t("actionPlan.priorityReason", "Priority")}: {action.priority_reason}
+        </p>
+      )}
       {target && (
         <p className="mt-1 text-xs text-neutral-400">
           {t("common.target", "Target")}: {target}
@@ -118,6 +123,29 @@ export default function ActionPlanPanel({ actionPlan, compact = false }: Props) 
       <div className="rounded-lg border border-amber-100 bg-amber-50 px-4 py-4 text-sm leading-relaxed text-neutral-800 whitespace-pre-wrap">
         {actionPlan.brief}
       </div>
+
+      <details className="rounded-lg border border-neutral-200 bg-neutral-50 px-4 py-3 text-xs text-neutral-600">
+        <summary className="cursor-pointer font-semibold text-neutral-700">
+          {t("actionPlan.debugDetails", "Agent run details")}
+        </summary>
+        <div className="mt-3 grid gap-2 sm:grid-cols-3">
+          <span>{t("actionPlan.llmStatus", "LLM status")}: {actionPlan.llm_status}</span>
+          <span>
+            {t("actionPlan.usedFallback", "Used fallback")}:{" "}
+            {actionPlan.used_fallback ? t("common.yes", "Yes") : t("common.no", "No")}
+          </span>
+          <span>{t("actionPlan.traceSteps", "Trace steps")}: {actionPlan.graph_trace.length}</span>
+        </div>
+        {actionPlan.graph_trace.length > 0 && (
+          <ol className="mt-3 space-y-1">
+            {actionPlan.graph_trace.map((step, index) => (
+              <li key={`${index}-${String(step.node ?? "step")}`} className="font-mono text-[11px]">
+                {index + 1}. {JSON.stringify(step)}
+              </li>
+            ))}
+          </ol>
+        )}
+      </details>
 
       <section className="space-y-3">
         <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">

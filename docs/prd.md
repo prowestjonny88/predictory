@@ -483,7 +483,7 @@ Roti Lane currently uses historical averages and manager intuition to decide tom
 - planning time reduction
 - prep variance reduction
 - ingredient over-order reduction
-- forecast accuracy improvement
+- forecast error reduction measured with validation metrics such as WAPE
 
 ### Demo / pitch framing
 For the hackathon, present these as pilot targets or modeled outcomes, for example:

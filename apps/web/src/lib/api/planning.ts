@@ -136,6 +136,9 @@ export interface ApplyAdjustmentResponse {
   replenishment_plan_id: number | null;
   line_changes?: {
     line_id: number;
+    outlet_name: string;
+    sku_name: string;
+    daypart: string;
     before_prep: number;
     after_prep: number;
   }[];

@@ -11,6 +11,7 @@ import ExplainButton from "@/components/copilot/ExplainButton";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { KpiCard } from "@/components/ui/kpi-card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useLanguage } from "@/components/i18n/LanguageProvider";
 import { planningApi, type DailyPlanLatestResponse, type DailyPlanTopAction } from "@/lib/api/planning";
 import { todayISO } from "@/lib/utils";
@@ -57,11 +58,17 @@ export default function DashboardPage() {
         )}
 
         {planQuery.isLoading && (
-          <Card>
-            <CardContent className="py-8 text-sm text-neutral-500">
-              {t("dashboard.loadingDailyPlan", "Loading daily plan...")}
-            </CardContent>
-          </Card>
+          <div className="space-y-6">
+            <section className="grid gap-4 lg:grid-cols-2">
+              <Skeleton className="h-40" />
+              <Skeleton className="h-40" />
+            </section>
+            <section className="grid gap-4 md:grid-cols-4">
+              {[0, 1, 2, 3].map((index) => (
+                <Skeleton key={index} className="h-32" />
+              ))}
+            </section>
+          </div>
         )}
 
         {!planQuery.isLoading && !plan && !planQuery.error && (
@@ -193,7 +200,7 @@ export default function DashboardPage() {
               {planQuery.isLoading ? (
                 <div className="space-y-2">
                   {[0, 1, 2].map((index) => (
-                    <div key={index} className="h-20 animate-pulse rounded-lg bg-neutral-100" />
+                    <Skeleton key={index} className="h-20" />
                   ))}
                 </div>
               ) : topExceptions.length === 0 ? (

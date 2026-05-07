@@ -458,7 +458,7 @@ The system should not yet claim real-world impact metrics such as:
 
 - measured waste reduction in live bakery operations
 - measured stockout reduction in live customer environments
-- validated forecast accuracy on production POS data
+- validated forecast error reduction on production POS data
 - full operational ROI after deployment
 
 These outcomes remain future validation targets, not proven prototype results. The correct claim is that Predictory demonstrates a credible, explainable operational planning prototype with realistic imported evidence and a clear path toward measurable business impact.

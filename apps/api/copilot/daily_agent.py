@@ -4,6 +4,7 @@ Minimal LangGraph daily planning agent for Task 23.
 from __future__ import annotations
 
 import json
+import os
 import re
 from datetime import date
 from typing import Any, Callable, TypedDict
@@ -21,6 +22,7 @@ ActionDict = dict[str, Any]
 LLMFn = Callable[..., str]
 
 MAX_TOP_ACTIONS = 5
+MAX_TOP_ACTIONS_LIMIT = 10
 DAY_LABELS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 DAY_LABELS_BY_LANGUAGE = {
     "en": DAY_LABELS,
@@ -181,6 +183,9 @@ class DailyAgentState(TypedDict, total=False):
     candidate_actions: list[ActionDict]
     ranked_actions: list[ActionDict]
     brief: str
+    llm_status: str
+    used_fallback: bool
+    graph_trace: list[dict[str, Any]]
     total_predicted_sales: int
     high_waste_count: int
     high_stockout_count: int
@@ -189,7 +194,7 @@ class DailyAgentState(TypedDict, total=False):
 
 
 def _clamp_top_n(top_n: int) -> int:
-    return max(1, min(MAX_TOP_ACTIONS, top_n))
+    return max(1, min(_configured_max_top_actions(), top_n))
 
 
 def _get_latest_forecast_run(target_date: date, db: Session):
@@ -265,6 +270,7 @@ def _make_action(
     priority: int,
     source_family: str,
 ) -> ActionDict:
+    priority_reason = _priority_reason(source_family, priority, urgency, evidence)
     return {
         "action_id": action_id,
         "action_type": action_type,
@@ -274,9 +280,28 @@ def _make_action(
         "target": target_data,
         "evidence": _dedupe_strings(evidence),
         "source_type": "rules_based",
+        "priority_reason": priority_reason,
         "_priority": priority,
         "_source_family": source_family,
     }
+
+
+def _priority_reason(source_family: str, priority: int, urgency: str, evidence: list[str]) -> str:
+    evidence_text = " ".join(evidence)
+    has_numeric_evidence = bool(re.search(r"\d", evidence_text))
+    source_label = {
+        "stockout": "stockout risk",
+        "waste": "waste risk",
+        "reorder": "ingredient shortage",
+        "rebalance": "cross-outlet imbalance",
+        "risk": "risk alert",
+    }.get(source_family, "operational risk")
+    metric_text = " with numeric evidence" if has_numeric_evidence else ""
+    if priority >= 90 or urgency == "critical":
+        return f"Highest priority because of {urgency} {source_label}{metric_text}."
+    if priority >= 70:
+        return f"High priority because of {urgency} {source_label}{metric_text}."
+    return f"Prioritized from {source_label}{metric_text}."
 
 
 def _priority_sort_key(action: ActionDict) -> tuple[int, int, int, int, str]:
@@ -327,6 +352,7 @@ def _serialize_action(action: ActionDict) -> ActionDict:
         "target": dict(action["target"]),
         "evidence": list(action["evidence"]),
         "source_type": action["source_type"],
+        "priority_reason": action.get("priority_reason"),
     }
 
 
@@ -392,10 +418,24 @@ def _usable_brief(text: str) -> bool:
     return len(cleaned) >= 60 and len(cleaned.split()) >= 10
 
 
+def _configured_max_top_actions() -> int:
+    raw = os.getenv("DAILY_AGENT_MAX_TOP_ACTIONS")
+    if raw is None:
+        return MAX_TOP_ACTIONS
+    try:
+        parsed = int(raw)
+    except ValueError:
+        return MAX_TOP_ACTIONS
+    return max(1, min(MAX_TOP_ACTIONS_LIMIT, parsed))
+
+
 def generate_daily_actions(
     target_date: date, top_n: int, db: Session, llm_fn: LLMFn, language: str = "en"
 ) -> dict[str, Any]:
     top_n = _clamp_top_n(top_n)
+
+    def trace(state: DailyAgentState, node: str, status: str = "ok", **details: Any) -> list[dict[str, Any]]:
+        return list(state.get("graph_trace", [])) + [{"node": node, "status": status, **details}]
 
     def load_context(state: DailyAgentState) -> DailyAgentState:
         forecast_run = _get_latest_forecast_run(target_date, db)
@@ -426,6 +466,15 @@ def generate_daily_actions(
                 1 for line in replenishment_plan.lines if line.urgency == "critical"
             ),
             "errors": [],
+            "llm_status": "not_needed",
+            "used_fallback": False,
+            "graph_trace": trace(
+                state,
+                "load_context",
+                forecast_run_id=forecast_run.forecast_run_id,
+                waste_alert_count=len(waste_alerts),
+                stockout_alert_count=len(stockout_alerts),
+            ),
         }
 
     def derive_candidate_actions(state: DailyAgentState) -> DailyAgentState:
@@ -728,10 +777,20 @@ def generate_daily_actions(
             "risk_warnings": risk_warnings,
             "rebalance_suggestions": rebalance_suggestions,
             "candidate_actions": candidate_actions,
+            "graph_trace": trace(
+                state,
+                "derive_candidate_actions",
+                candidate_count=len(candidate_actions),
+                prep_count=len(prep_actions),
+                reorder_count=len(reorder_actions),
+                risk_count=len(risk_warnings),
+                rebalance_count=len(rebalance_suggestions),
+            ),
         }
 
     def rank_and_phrase_actions(state: DailyAgentState) -> DailyAgentState:
-        top_actions = _select_top_actions(state.get("candidate_actions", []), state["top_n"])
+        rules_top_actions = _select_top_actions(state.get("candidate_actions", []), state["top_n"])
+        top_actions = rules_top_actions
 
         candidate_payload = [
             {
@@ -743,9 +802,10 @@ def generate_daily_actions(
                 "target": action["target"],
                 "evidence": action["evidence"],
             }
-            for action in top_actions
+            for action in rules_top_actions
         ]
 
+        ranked: list[ActionDict] = []
         if candidate_payload:
             prompt = f"{_language_prompt_prefix(language)}\n\n" + DAILY_ACTIONS_RANKING_PROMPT.format(
                 date=str(state["target_date"]),
@@ -763,14 +823,18 @@ def generate_daily_actions(
             except Exception:
                 parsed = None
             if parsed:
-                actions_by_id = {action["action_id"]: action for action in top_actions}
-                ranked: list[ActionDict] = []
+                actions_by_id = {action["action_id"]: action for action in rules_top_actions}
                 seen_ids: set[str] = set()
                 for item in parsed:
                     action_id = item.get("action_id")
                     if not isinstance(action_id, str) or action_id not in actions_by_id or action_id in seen_ids:
                         continue
-                    action = actions_by_id[action_id]
+                    original_action = actions_by_id[action_id]
+                    action = {
+                        **original_action,
+                        "target": dict(original_action["target"]),
+                        "evidence": list(original_action["evidence"]),
+                    }
                     action_text = item.get("action_text")
                     estimated_impact = item.get("estimated_impact")
                     if isinstance(action_text, str) and action_text.strip():
@@ -784,41 +848,75 @@ def generate_daily_actions(
                         break
 
                 if ranked:
-                    for action in top_actions:
+                    for action in rules_top_actions:
                         if action["action_id"] not in seen_ids and len(ranked) < state["top_n"]:
                             ranked.append(action)
                     top_actions = ranked[: state["top_n"]]
 
-        brief_prompt = f"{_language_prompt_prefix(language)}\n\n" + DAILY_ACTIONS_BRIEF_PROMPT.format(
-            date=str(state["target_date"]),
-            weekday=DAY_LABELS_BY_LANGUAGE.get(language, DAY_LABELS)[state["target_date"].weekday()],
-            total_predicted_sales=state["total_predicted_sales"],
-            high_waste_count=state["high_waste_count"],
-            high_stockout_count=state["high_stockout_count"],
-            critical_reorder_count=state["critical_reorder_count"],
-            top_actions_json=json.dumps(
-                [
-                    {
-                        "action_type": action["action_type"],
-                        "urgency": action["urgency"],
-                        "action_text": action["action_text"],
-                        "estimated_impact": action["estimated_impact"],
-                    }
-                    for action in top_actions
-                ],
-                indent=2,
-            ),
-        )
-        try:
-            brief = llm_fn(brief_prompt, "", max_tokens=900).strip()
-        except Exception:
-            brief = ""
-        if not _usable_brief(brief):
-            brief = _daily_actions_rules_brief(state, top_actions, language)
+        if ranked:
+            brief_prompt = f"{_language_prompt_prefix(language)}\n\n" + DAILY_ACTIONS_BRIEF_PROMPT.format(
+                date=str(state["target_date"]),
+                weekday=DAY_LABELS_BY_LANGUAGE.get(language, DAY_LABELS)[state["target_date"].weekday()],
+                total_predicted_sales=state["total_predicted_sales"],
+                high_waste_count=state["high_waste_count"],
+                high_stockout_count=state["high_stockout_count"],
+                critical_reorder_count=state["critical_reorder_count"],
+                top_actions_json=json.dumps(
+                    [
+                        {
+                            "action_type": action["action_type"],
+                            "urgency": action["urgency"],
+                            "action_text": action["action_text"],
+                            "estimated_impact": action["estimated_impact"],
+                        }
+                        for action in top_actions
+                    ],
+                    indent=2,
+                ),
+            )
+            try:
+                brief = llm_fn(brief_prompt, "", max_tokens=900).strip()
+            except Exception:
+                brief = ""
+            if _usable_brief(brief):
+                return {
+                    "ranked_actions": top_actions,
+                    "brief": brief,
+                    "llm_status": "success",
+                    "used_fallback": False,
+                    "graph_trace": trace(
+                        state,
+                        "rank_and_phrase_actions",
+                        llm_status="success",
+                        final_count=len(top_actions),
+                    ),
+                }
+
+        fallback_actions = rules_top_actions[: state["top_n"]]
+        brief = _daily_actions_rules_brief(state, fallback_actions, language)
 
         return {
-            "ranked_actions": top_actions,
+            "ranked_actions": fallback_actions,
             "brief": brief,
+            "llm_status": "failed",
+            "used_fallback": True,
+            "graph_trace": trace(
+                state,
+                "rank_and_phrase_actions",
+                status="fallback",
+                llm_status="failed",
+                final_count=len(fallback_actions),
+            ),
+        }
+
+    def rules_brief_only(state: DailyAgentState) -> DailyAgentState:
+        brief = _daily_actions_rules_brief(state, [], language)
+        return {
+            "ranked_actions": [],
+            "brief": brief,
+            "llm_status": "not_needed",
+            "used_fallback": False,
+            "graph_trace": trace(state, "rules_brief_only", candidate_count=0),
         }
 
     def validate_and_finalize(state: DailyAgentState) -> DailyAgentState:
@@ -854,23 +952,45 @@ def generate_daily_actions(
                 _serialize_action(action) for action in rebalance_suggestions
             ],
             "ranked_actions": [_serialize_action(action) for action in ranked_actions],
+            "llm_status": state.get("llm_status", "not_needed"),
+            "used_fallback": bool(state.get("used_fallback", False)),
+            "graph_trace": trace(
+                state,
+                "validate_and_finalize",
+                final_count=len(ranked_actions),
+            ),
         }
+
+    def route_after_derive(state: DailyAgentState) -> str:
+        return "rank_and_phrase_actions" if state.get("candidate_actions") else "rules_brief_only"
 
     graph = StateGraph(DailyAgentState)
     graph.add_node("load_context", load_context)
     graph.add_node("derive_candidate_actions", derive_candidate_actions)
     graph.add_node("rank_and_phrase_actions", rank_and_phrase_actions)
+    graph.add_node("rules_brief_only", rules_brief_only)
     graph.add_node("validate_and_finalize", validate_and_finalize)
     graph.set_entry_point("load_context")
     graph.add_edge("load_context", "derive_candidate_actions")
-    graph.add_edge("derive_candidate_actions", "rank_and_phrase_actions")
+    graph.add_conditional_edges(
+        "derive_candidate_actions",
+        route_after_derive,
+        {
+            "rank_and_phrase_actions": "rank_and_phrase_actions",
+            "rules_brief_only": "rules_brief_only",
+        },
+    )
     graph.add_edge("rank_and_phrase_actions", "validate_and_finalize")
+    graph.add_edge("rules_brief_only", "validate_and_finalize")
     graph.add_edge("validate_and_finalize", END)
 
-    final_state = graph.compile().invoke({"target_date": target_date, "top_n": top_n})
+    final_state = graph.compile().invoke({"target_date": target_date, "top_n": top_n, "graph_trace": []})
     return {
         "date": str(target_date),
         "brief": final_state["brief"],
+        "llm_status": final_state.get("llm_status", "not_needed"),
+        "used_fallback": bool(final_state.get("used_fallback", False)),
+        "graph_trace": final_state.get("graph_trace", []),
         "top_actions": final_state["ranked_actions"],
         "prep_actions": final_state["prep_actions"],
         "reorder_actions": final_state["reorder_actions"],

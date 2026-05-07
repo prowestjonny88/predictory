@@ -211,3 +211,6 @@ NEXT_PUBLIC_API_URL=http://127.0.0.1:8000
 - [Project Report](./docs/Predictory_Report.md)
 - [API Contracts](./apps/api/CONTRACTS.md)
 - [Copilot Examples](./apps/api/copilot/EXAMPLES.md)
+- [LangGraph Daily Agent](./docs/langgraph_daily_agent.md)
+- [Manager Note Modes](./docs/manager_note_modes.md)
+- [Agent Council v1](./docs/agentic_framework_rebuild.md)

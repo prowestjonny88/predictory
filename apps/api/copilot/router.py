@@ -139,6 +139,14 @@ def _validate_daily_brief_text(brief: str) -> str:
 def _validate_llm_explanation_text(explanation: str) -> str:
     cleaned = (explanation or "").strip()
     lower = cleaned.lower()
+    leaked_field_names = (
+        "value_rm",
+        "pending_action_count",
+        "full_plan_stockout_exposure_rm",
+        "full_plan_waste_exposure_rm",
+        "backend_daily_plan_summary",
+        "ingredient_shortage_count",
+    )
     incomplete_endings = (
         "based on",
         "because",
@@ -154,10 +162,11 @@ def _validate_llm_explanation_text(explanation: str) -> str:
     )
     has_terminal_punctuation = cleaned.endswith((".", "!", "?", "。", "！", "？"))
     ends_mid_clause = any(lower.endswith(f" {ending}") or lower == ending for ending in incomplete_endings)
-    if len(cleaned) < 80 or len(cleaned.split()) < 12 or not has_terminal_punctuation or ends_mid_clause:
+    leaks_raw_fields = any(field in lower for field in leaked_field_names)
+    if len(cleaned) < 80 or len(cleaned.split()) < 12 or not has_terminal_punctuation or ends_mid_clause or leaks_raw_fields:
         raise HTTPException(
             status_code=503,
-            detail="LLM provider returned an incomplete explanation. Retry or check provider configuration.",
+            detail="LLM provider returned an incomplete or overly technical explanation. Retry or check provider configuration.",
         )
     return cleaned
 
@@ -177,16 +186,62 @@ def _json_loads_object(raw_text: str, detail: str) -> dict:
     return parsed
 
 
+def _human_label_for_evidence_key(key: str) -> str:
+    labels = {
+        "metric": "metric",
+        "value_rm": "amount in RM",
+        "stockout_exposure_rm": "stockout exposure in RM",
+        "waste_exposure_rm": "waste exposure in RM",
+        "full_plan_stockout_exposure_rm": "stockout exposure across the full plan",
+        "full_plan_waste_exposure_rm": "waste exposure across the full plan",
+        "pending_action_count": "actions awaiting manager review",
+        "ingredient_shortage_count": "ingredients with shortages",
+        "scope": "planning scope",
+        "source": "backend source",
+        "backend_daily_plan_summary": "backend daily-plan summary",
+        "recommended_prep": "recommended prep",
+        "final_prep": "final prep",
+        "current_stock": "current stock",
+        "opening_stock": "opening stock",
+        "p10": "low-demand scenario",
+        "p50": "expected-demand scenario",
+        "p90": "high-demand scenario",
+    }
+    return labels.get(key, key.replace("_", " "))
+
+
+def _human_evidence_glossary(evidence: dict) -> str:
+    lines: list[str] = []
+    for key, value in sorted(evidence.items()):
+        if isinstance(value, (dict, list)):
+            continue
+        label = _human_label_for_evidence_key(key)
+        if isinstance(value, str):
+            value_label = _human_label_for_evidence_key(value)
+            lines.append(f"- {key}: call this '{label}'; value meaning: '{value_label}'")
+        else:
+            lines.append(f"- {key}: call this '{label}'")
+    return "\n".join(lines) or "- Use plain bakery operations language for every field."
+
+
 def _grounded_explanation_prompt(language: SupportedLanguage, context_type: str, evidence: dict) -> str:
     evidence_json = json.dumps(evidence, ensure_ascii=False, sort_keys=True, default=str)
+    glossary = _human_evidence_glossary(evidence)
     return (
         f"{_language_prompt_prefix(language)}\n\n"
         "You are Predictory's Gemini explanation layer for bakery operations.\n"
         "Use only the provided JSON evidence. Do not create, change, estimate, or infer new numbers. "
         "Do not introduce quantities, costs, suppliers, outlets, SKUs, dates, or actions that are not present "
         "in the evidence. If the evidence is insufficient, say what evidence is missing.\n"
-        f"Task: Explain the {context_type} evidence in 2-3 complete operational sentences. "
-        "Every sentence must be complete and end with punctuation.\n\n"
+        "Write for a bakery operations manager, not an engineer. Do not repeat raw JSON field names such as "
+        "value_rm, pending_action_count, full_plan_stockout_exposure_rm, or backend_daily_plan_summary. "
+        "Translate them into the business labels below. Do not mention the JSON key names unless no plain label exists.\n\n"
+        f"Business label guide:\n{glossary}\n\n"
+        f"Task: Explain the {context_type} evidence in 3 short, plain-language lines:\n"
+        "What it means: state the main operational meaning.\n"
+        "Why it matters: connect it to prep, stockout, waste, or manager review.\n"
+        "Next step: give a practical action only if the evidence supports one.\n"
+        "Use complete sentences with punctuation. Keep every number exactly as provided.\n\n"
         f"Evidence JSON:\n{evidence_json}"
     )
 
@@ -196,12 +251,16 @@ def _call_grounded_explanation(language: SupportedLanguage, context_type: str, e
     try:
         return _validate_llm_explanation_text(_invoke_llm(prompt, max_tokens=900))
     except HTTPException as exc:
-        if exc.status_code != 503 or "incomplete explanation" not in str(exc.detail):
+        detail = str(exc.detail)
+        if exc.status_code != 503 or (
+            "incomplete" not in detail and "overly technical" not in detail
+        ):
             raise
         retry_prompt = (
             f"{prompt}\n\n"
-            "Your previous response was incomplete or ended mid-sentence. Return a complete answer now: "
-            "2-3 full sentences, grounded only in the Evidence JSON, with punctuation at the end of every sentence."
+            "Your previous response was incomplete, too technical, or ended mid-sentence. Return a complete answer now: "
+            "use the What it means / Why it matters / Next step format, grounded only in the Evidence JSON, "
+            "with no raw JSON field names."
         )
         return _validate_llm_explanation_text(_invoke_llm(retry_prompt, max_tokens=900))
 
@@ -411,11 +470,15 @@ class AgentAction(BaseModel):
     target: ActionTarget
     evidence: list[str] = Field(default_factory=list)
     source_type: Literal["rules_based", "llm_rephrased"]
+    priority_reason: Optional[str] = None
 
 
 class DailyActionsResponse(BaseModel):
     date: str
     brief: str
+    llm_status: Literal["not_needed", "success", "failed"]
+    used_fallback: bool
+    graph_trace: list[dict] = Field(default_factory=list)
     top_actions: list[AgentAction] = Field(default_factory=list)
     prep_actions: list[AgentAction] = Field(default_factory=list)
     reorder_actions: list[AgentAction] = Field(default_factory=list)
@@ -475,6 +538,9 @@ class ApplyNoteAdjustmentRequest(BaseModel):
 
 class ManagerNoteLineChange(BaseModel):
     line_id: int
+    outlet_name: str
+    sku_name: str
+    daypart: str
     before_prep: int
     after_prep: int
 
@@ -780,8 +846,17 @@ def apply_note_adjustment(body: ApplyNoteAdjustmentRequest, db: Session = Depend
         db.flush()
         updated_line_ids.append(line.id)
         audit_event_ids.append(event.id)
+        outlet_name = outlet_map[line.outlet_id].name if outlet_map.get(line.outlet_id) else f"Outlet {line.outlet_id}"
+        sku_name = sku_map[line.sku_id].name if sku_map.get(line.sku_id) else f"SKU {line.sku_id}"
         line_changes.append(
-            ManagerNoteLineChange(line_id=line.id, before_prep=base_qty, after_prep=final_prep)
+            ManagerNoteLineChange(
+                line_id=line.id,
+                outlet_name=outlet_name,
+                sku_name=sku_name,
+                daypart=line.daypart,
+                before_prep=base_qty,
+                after_prep=final_prep,
+            )
         )
 
     db.commit()
@@ -1208,6 +1283,9 @@ def daily_actions(body: DailyActionsRequest, db: Session = Depends(get_db)):
     return DailyActionsResponse(
         date=payload["date"],
         brief=payload["brief"],
+        llm_status=payload["llm_status"],
+        used_fallback=payload["used_fallback"],
+        graph_trace=payload["graph_trace"],
         top_actions=payload["top_actions"],
         prep_actions=payload["prep_actions"],
         reorder_actions=payload["reorder_actions"],

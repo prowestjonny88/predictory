@@ -230,6 +230,14 @@ Response:
 {
   "date": "2026-05-06",
   "brief": "Three-paragraph action summary.",
+  "llm_status": "success",
+  "used_fallback": false,
+  "graph_trace": [
+    { "node": "load_context", "status": "ok" },
+    { "node": "derive_candidate_actions", "status": "ok", "candidate_count": 8 },
+    { "node": "rank_and_phrase_actions", "status": "ok", "llm_status": "success" },
+    { "node": "validate_and_finalize", "status": "ok", "final_count": 5 }
+  ],
   "top_actions": [],
   "prep_actions": [],
   "reorder_actions": [],
@@ -242,6 +250,26 @@ Response:
 
 - `rules_based`
 - `llm_rephrased`
+
+`llm_status` values:
+
+- `not_needed` when no candidate actions exist and the graph skips Gemini
+- `success` when Gemini ranking/brief output validates
+- `failed` when the graph returns rules-based fallback output
+
+### `POST /api/v1/copilot/council/review`
+
+Runs a read-only Agent Council for one selected daily-planning recommendation. The request accepts `recommendation_id` and optional `language`. The response includes server-generated `candidate_quantities`, specialist `agent_arguments`, `agent_trace`, `judge_recommendation`, and `graph_trace`.
+
+The Judge Agent must select one server-generated candidate quantity. If provider output is unavailable or invalid, the backend returns a visible fallback Judge trace using the optimizer/current candidate where possible.
+
+### `POST /api/v1/copilot/council/review-with-note`
+
+Runs a read-only council preview using an existing `parse-manager-note` result. The request accepts `recommendation_id`, `parsed_adjustment`, optional `original_note`, and optional `language`. It does not parse raw notes again and does not mutate prep lines.
+
+### `POST /api/v1/copilot/council/confirm`
+
+Applies a confirmed council recommendation as `prep_edit_only`. The server reloads the recommendation, rebuilds candidates, validates `selected_prep` against server-generated candidates, edits the prep line, refreshes replenishment, and writes a compact audit summary. Client-provided candidate lists are not accepted as authoritative.
 
 ## Manual Smoke Checklist
 

@@ -8,9 +8,10 @@ import type { ApplyAdjustmentResponse, ManagerNoteResponse } from "@/lib/api/pla
 interface Props {
   onParse: (note: string) => Promise<ManagerNoteResponse | null>;
   onApply: (adjustment: ManagerNoteResponse["parsed_adjustment"]) => Promise<ApplyAdjustmentResponse | null>;
+  onCouncilPreview?: (adjustment: ManagerNoteResponse["parsed_adjustment"], note: string) => Promise<void>;
 }
 
-export default function ManagerNotePanel({ onParse, onApply }: Props) {
+export default function ManagerNotePanel({ onParse, onApply, onCouncilPreview }: Props) {
   const { t, language } = useLanguage();
   const [note, setNote] = useState("");
   const [parsing, setParsing] = useState(false);
@@ -20,6 +21,12 @@ export default function ManagerNotePanel({ onParse, onApply }: Props) {
   const [adjustmentPct, setAdjustmentPct] = useState("");
   const [adjustmentReason, setAdjustmentReason] = useState("");
   const [applyResult, setApplyResult] = useState<ApplyAdjustmentResponse | null>(null);
+
+  function sourceLabel(value: string): string {
+    if (value === "llm_validated") return t("planning.managerNote.sourceLlmValidated", "Gemini validated");
+    if (value === "llm_rephrased") return t("planning.managerNote.sourceLlmRephrased", "Gemini explanation");
+    return value;
+  }
 
   async function handleParse() {
     setParsing(true);
@@ -65,6 +72,17 @@ export default function ManagerNotePanel({ onParse, onApply }: Props) {
     <Card>
       <CardHeader>
         <CardTitle>{t("planning.managerNote.title", "Manager note parser")}</CardTitle>
+        <div className="mt-2 flex flex-wrap gap-2 text-xs text-neutral-500">
+          <span className="rounded-full bg-neutral-100 px-2 py-1 font-semibold">
+            {t("planning.managerNote.flowParse", "1. Parse note")}
+          </span>
+          <span className="rounded-full bg-neutral-100 px-2 py-1 font-semibold">
+            {t("planning.managerNote.flowReview", "2. Review assumptions")}
+          </span>
+          <span className="rounded-full bg-neutral-100 px-2 py-1 font-semibold">
+            {t("planning.managerNote.flowConfirm", "3. Confirm impact")}
+          </span>
+        </div>
       </CardHeader>
       <CardContent className="space-y-3">
         <textarea
@@ -102,10 +120,12 @@ export default function ManagerNotePanel({ onParse, onApply }: Props) {
               </p>
               <div className="mt-2 flex flex-wrap gap-2 text-xs">
                 <span className="rounded-full bg-sky-50 px-2 py-1 font-semibold text-sky-700">
-                  {t("planning.managerNote.parseSource", "Parse source")}: Gemini validated
+                  {t("planning.managerNote.parseSource", "Parse source")}:{" "}
+                  {sourceLabel(result.parsed_adjustment.parse_source)}
                 </span>
                 <span className="rounded-full bg-sky-50 px-2 py-1 font-semibold text-sky-700">
-                  {t("planning.managerNote.sourceType", "Explanation source")}: Gemini
+                  {t("planning.managerNote.sourceType", "Explanation source")}:{" "}
+                  {sourceLabel(result.source_type)}
                 </span>
               </div>
               {result.parsed_adjustment.uncertainty_reason && (
@@ -120,6 +140,9 @@ export default function ManagerNotePanel({ onParse, onApply }: Props) {
               <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
                 {t("planning.managerNote.stepImpact", "Step 2: What will happen")}
               </p>
+              <div className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900">
+                {t("planning.managerNote.applicationMode", "Application mode")}: prep_edit_only
+              </div>
               <ul className="mt-2 space-y-1 text-xs text-neutral-600">
                 <li>{t("planning.managerNote.modeCopy", "Mode: prep edit only")}</li>
                 <li>{t("planning.managerNote.noForecastRerun", "Forecast will not be rerun.")}</li>
@@ -164,6 +187,19 @@ export default function ManagerNotePanel({ onParse, onApply }: Props) {
                   ? t("planning.managerNote.applying", "Applying...")
                   : t("planning.managerNote.apply", "Confirm and apply")}
               </Button>
+              {onCouncilPreview && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => {
+                    onCouncilPreview(result.parsed_adjustment, note).catch((err) => {
+                      setError(err instanceof Error ? err.message : t("planning.managerNote.councilFailed", "Council preview failed"));
+                    });
+                  }}
+                >
+                  {t("planning.managerNote.runCouncil", "Run council preview")}
+                </Button>
+              )}
               <Button variant="outline" size="sm" onClick={() => setResult(null)}>
                 {t("planning.managerNote.ignore", "Ignore")}
               </Button>
@@ -191,11 +227,16 @@ export default function ManagerNotePanel({ onParse, onApply }: Props) {
               <div className="mt-3 space-y-1">
                 {applyResult.line_changes.slice(0, 5).map((change) => (
                   <p key={change.line_id} className="rounded-md bg-white/70 px-2 py-1 text-xs">
-                    {t("planning.managerNote.lineChange", "Line {{line}}: {{before}} -> {{after}} units", {
-                      line: change.line_id,
+                    {t("planning.managerNote.lineChangeDetailed", "{{outlet}} / {{sku}} / {{daypart}}: {{before}} -> {{after}} units", {
+                      outlet: change.outlet_name,
+                      sku: change.sku_name,
+                      daypart: translateDaypart(language, change.daypart.toLowerCase()),
                       before: change.before_prep,
                       after: change.after_prep,
                     })}
+                    <span className="ml-2 text-[10px] text-emerald-700">
+                      {t("planning.managerNote.lineId", "line")} {change.line_id}
+                    </span>
                   </p>
                 ))}
               </div>

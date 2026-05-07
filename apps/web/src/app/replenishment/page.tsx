@@ -14,6 +14,7 @@ import { cn, todayISO } from "@/lib/utils";
 import type { DailyPlan, DailyPlanReplenishmentLine, UrgencyLevel } from "@/types";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const URGENCY_STYLES: Record<UrgencyLevel, string> = {
   critical: "bg-red-100 text-red-700",
@@ -161,7 +162,7 @@ export default function ReplenishmentPage() {
                   <TableRow key={rowIndex}>
                     {Array.from({ length: 8 }).map((__, cellIndex) => (
                       <TableCell key={cellIndex}>
-                        <div className="h-4 animate-pulse rounded bg-neutral-100" />
+                        <Skeleton className="h-4 bg-neutral-100" />
                       </TableCell>
                     ))}
                   </TableRow>
