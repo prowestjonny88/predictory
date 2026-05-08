@@ -17,36 +17,35 @@ interface Props {
 }
 
 export default function ModelBadge({
-  engineName,
-  activeEngineName,
   dataSource,
-  modelStatus,
-  modelArtifactStatus,
   modelArtifactAvailable,
-  forecastSourceLabel,
-  validationWindow,
-  wape,
-  coverage,
   onOpenEvidence,
 }: Props) {
   const { t } = useLanguage();
   return (
     <div className="flex flex-wrap items-center gap-3 rounded-xl border border-neutral-200 bg-white px-4 py-3 shadow-sm">
       <div className="flex flex-col">
-        <span className="text-xs uppercase tracking-wide text-neutral-500">{t("planning.modelBadgeLabel", "Model badge")}</span>
-        <span className="text-sm font-semibold text-neutral-900">{activeEngineName}</span>
-        <span className="text-xs text-neutral-500">{forecastSourceLabel}</span>
-        <span className="text-xs text-neutral-500">{t("planning.engine", "Engine")}: {engineName}</span>
-        <span className="text-xs text-neutral-500">{t("planning.offlineModel", "Offline model")}: {modelStatus}</span>
-        <span className="text-xs text-neutral-500">{t("planning.validation", "Validation")}: {validationWindow}</span>
+        <span className="text-xs uppercase tracking-wide text-neutral-500">
+          {t("planning.forecastEvidence", "Forecast evidence")}
+        </span>
+        <span className="text-sm font-semibold text-neutral-900">
+          {t("planning.forecastBackedPlan", "Forecast-backed plan")}
+        </span>
+        <span className="text-xs text-neutral-500">
+          {t(
+            "planning.forecastBackedPlanCopy",
+            "Validated on recent sales with uncertainty range included."
+          )}
+        </span>
       </div>
       <div className="flex items-center gap-2">
         <Badge variant="success">{t("planning.source", "Source")}: {dataSource}</Badge>
         <Badge variant={modelArtifactAvailable ? "success" : "high"}>
-          {t("planning.artifact", "Artifact")}: {modelArtifactStatus}
+          {t("planning.evidence", "Evidence")}:{" "}
+          {modelArtifactAvailable
+            ? t("planning.available", "available")
+            : t("planning.missing", "missing")}
         </Badge>
-        <Badge variant="info">{t("planning.wape", "WAPE")} {(wape * 100).toFixed(1)}%</Badge>
-        <Badge variant="low">{t("planning.coverage", "Coverage")} {(coverage * 100).toFixed(0)}%</Badge>
       </div>
       <Button variant="outline" size="sm" onClick={onOpenEvidence}>
         {t("planning.viewEvidence", "View evidence")}

@@ -226,7 +226,7 @@ export default function PrepPlanPage() {
 
   return (
     <div className="min-h-screen">
-      <Header title={t("prep.title", "Approved Prep Sheet")} date={date}>
+      <Header title={t("prep.title", "Kitchen Prep Sheet")} date={date}>
         <input
           type="date"
           value={date}
@@ -241,6 +241,12 @@ export default function PrepPlanPage() {
           {runMutation.isPending
             ? t("common.running", "Running...")
             : t("prep.generatePlan", "Generate Plan")}
+        </button>
+        <button
+          onClick={() => window.print()}
+          className="rounded-md border border-neutral-300 bg-white px-4 py-1.5 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-50"
+        >
+          {t("prep.printSheet", "Print Sheet")}
         </button>
         {prepPlanId != null && prepStatus !== "approved" && (
           <button

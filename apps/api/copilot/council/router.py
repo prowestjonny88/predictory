@@ -95,6 +95,12 @@ def confirm_council_recommendation(body: CouncilConfirmRequest, db: Session = De
         language=body.language,
     )
     selected_candidate = validate_selected_prep(body.selected_prep, review.candidate_quantities)
+    warnings: list[str] = []
+    selected_differs_from_recomputed_judge = body.selected_prep != review.judge_recommendation.recommended_prep
+    if selected_differs_from_recomputed_judge:
+        warnings.append(
+            "Selected prep differs from recomputed Judge recommendation; applied user-selected server-valid candidate."
+        )
 
     # Re-load via the review's recommendation ID so the server, not the client, owns mutation state.
     line_id = int(review.recommendation_id)
@@ -132,6 +138,8 @@ def confirm_council_recommendation(body: CouncilConfirmRequest, db: Session = De
         "source": "agent_council",
         "selected_prep": body.selected_prep,
         "selected_candidate_source": selected_candidate.source,
+        "recomputed_judge_recommended_prep": review.judge_recommendation.recommended_prep,
+        "selected_differs_from_recomputed_judge": selected_differs_from_recomputed_judge,
         "agent_consensus": review.judge_recommendation.agent_consensus,
         "primary_conflict": review.judge_recommendation.primary_conflict,
     }
@@ -157,7 +165,6 @@ def confirm_council_recommendation(body: CouncilConfirmRequest, db: Session = De
     audit_event_id = event.id
     db.commit()
 
-    warnings: list[str] = []
     replenishment_plan = None
     try:
         replenishment_plan = _refresh_replenishment_for_date(prep_line.plan.plan_date, db)

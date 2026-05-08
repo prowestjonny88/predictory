@@ -23,6 +23,15 @@ const URGENCY_STYLES: Record<UrgencyLevel, string> = {
   low: "bg-green-100 text-green-700",
 };
 
+function formatDrivingSkus(skus: string[], emptyLabel: string): string {
+  if (skus.length === 0) {
+    return emptyLabel;
+  }
+  const visible = skus.slice(0, 3).join(", ");
+  const remaining = skus.length - 3;
+  return remaining > 0 ? `${visible} +${remaining} more` : visible;
+}
+
 export default function ReplenishmentPage() {
   const [date, setDate] = useState(todayISO);
   const [orderedIds, setOrderedIds] = useState(new Set<number>());
@@ -227,8 +236,11 @@ export default function ReplenishmentPage() {
                             {translateRiskLevel(language, line.urgency)}
                           </span>
                         </TableCell>
-                        <TableCell className="text-xs text-neutral-500">
-                          {line.driving_skus.length > 0 ? line.driving_skus.join(", ") : t("common.none", "None")}
+                        <TableCell
+                          className="text-xs text-neutral-500"
+                          title={line.driving_skus.length > 0 ? line.driving_skus.join(", ") : undefined}
+                        >
+                          {formatDrivingSkus(line.driving_skus, t("common.none", "None"))}
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">

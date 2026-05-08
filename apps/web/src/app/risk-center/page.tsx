@@ -29,6 +29,8 @@ import { todayISO } from "@/lib/utils";
 import type { StockoutAlert, WasteAlert } from "@/types";
 
 const RISK_ORDER: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
+type RiskFilter = "priority" | "all" | "waste" | "stockout";
+const PRIORITY_RISK_LEVELS = new Set(["critical", "high"]);
 
 function riskBadgeClass(risk: string): string {
   switch (risk) {
@@ -246,6 +248,7 @@ function SummaryPill({
 export default function RiskCenterPage() {
   const [date, setDate] = useState(todayISO);
   const [mounted, setMounted] = useState(false);
+  const [riskFilter, setRiskFilter] = useState<RiskFilter>("priority");
   const { language, t } = useLanguage();
 
   useEffect(() => {
@@ -281,6 +284,26 @@ export default function RiskCenterPage() {
       ),
     [stockoutAlerts]
   );
+
+  const filteredWaste = useMemo(() => {
+    if (riskFilter === "stockout") {
+      return [];
+    }
+    if (riskFilter === "priority") {
+      return sortedWaste.filter((alert) => PRIORITY_RISK_LEVELS.has(alert.risk_level));
+    }
+    return sortedWaste;
+  }, [riskFilter, sortedWaste]);
+
+  const filteredStockout = useMemo(() => {
+    if (riskFilter === "waste") {
+      return [];
+    }
+    if (riskFilter === "priority") {
+      return sortedStockout.filter((alert) => PRIORITY_RISK_LEVELS.has(alert.risk_level));
+    }
+    return sortedStockout;
+  }, [riskFilter, sortedStockout]);
 
   const wasteCounts = useMemo(
     () => ({
@@ -436,6 +459,28 @@ export default function RiskCenterPage() {
           />
         </div>
 
+        <div className="flex flex-wrap gap-2 rounded-xl border border-neutral-200 bg-white p-2">
+          {([
+            ["priority", t("risk.filterPriority", "High/Critical")],
+            ["all", t("risk.filterAll", "All")],
+            ["waste", t("risk.filterWaste", "Waste")],
+            ["stockout", t("risk.filterStockout", "Stockout")],
+          ] as [RiskFilter, string][]).map(([key, label]) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setRiskFilter(key)}
+              className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                riskFilter === key
+                  ? "bg-amber-100 text-amber-800"
+                  : "text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <section>
             <div className="mb-3 flex items-center gap-2">
@@ -443,10 +488,10 @@ export default function RiskCenterPage() {
               <h2 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
                 {t("risk.wasteHotspots", "Waste Hotspots")}
               </h2>
-              {wasteCounts.total > 0 && (
+              {filteredWaste.length > 0 && (
                 <span className="ml-auto text-xs text-neutral-400">
-                  {wasteCounts.total}{" "}
-                  {wasteCounts.total === 1 ? t("common.item", "item") : t("common.items", "items")}
+                  {filteredWaste.length}{" "}
+                  {filteredWaste.length === 1 ? t("common.item", "item") : t("common.items", "items")}
                 </span>
               )}
             </div>
@@ -455,12 +500,12 @@ export default function RiskCenterPage() {
                 Array.from({ length: 3 }).map((_, index) => (
                   <div key={index} className="h-24 animate-pulse rounded-lg bg-neutral-100" />
                 ))
-              ) : sortedWaste.length === 0 ? (
+              ) : filteredWaste.length === 0 ? (
                 <p className="py-8 text-center text-sm text-neutral-400">
                   {t("risk.noWasteToday", "No waste alerts today.")}
                 </p>
               ) : (
-                sortedWaste.map((alert) => (
+                filteredWaste.map((alert) => (
                   <WasteCard key={`${alert.outlet_id}-${alert.sku_id}-${alert.daypart}`} alert={alert} />
                 ))
               )}
@@ -473,10 +518,10 @@ export default function RiskCenterPage() {
               <h2 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
                 {t("risk.stockoutAlerts", "Stockout Alerts")}
               </h2>
-              {stockoutCounts.total > 0 && (
+              {filteredStockout.length > 0 && (
                 <span className="ml-auto text-xs text-neutral-400">
-                  {stockoutCounts.total}{" "}
-                  {stockoutCounts.total === 1 ? t("common.item", "item") : t("common.items", "items")}
+                  {filteredStockout.length}{" "}
+                  {filteredStockout.length === 1 ? t("common.item", "item") : t("common.items", "items")}
                 </span>
               )}
             </div>
@@ -485,12 +530,12 @@ export default function RiskCenterPage() {
                 Array.from({ length: 3 }).map((_, index) => (
                   <div key={index} className="h-24 animate-pulse rounded-lg bg-neutral-100" />
                 ))
-              ) : sortedStockout.length === 0 ? (
+              ) : filteredStockout.length === 0 ? (
                 <p className="py-8 text-center text-sm text-neutral-400">
                   {t("risk.noStockoutToday", "No stockout alerts today.")}
                 </p>
               ) : (
-                sortedStockout.map((alert) => (
+                filteredStockout.map((alert) => (
                   <StockoutCard
                     key={`${alert.outlet_id}-${alert.sku_id}-${alert.affected_daypart}`}
                     alert={alert}

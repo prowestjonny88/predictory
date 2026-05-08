@@ -44,9 +44,13 @@ const en = {
   "nav.catalog": "SKU Catalog",
   "nav.dailyPlanning": "Daily Planning",
   "nav.forecast": "Forecast",
-  "nav.prepPlan": "Approved Prep Sheet",
-  "nav.approvedPrepSheet": "Approved Prep Sheet",
-  "nav.core": "Core",
+  "nav.prepPlan": "Kitchen Prep Sheet",
+  "nav.approvedPrepSheet": "Kitchen Prep Sheet",
+  "nav.kitchenPrepSheet": "Kitchen Prep Sheet",
+  "nav.core": "Core Workflow",
+  "nav.coreWorkflow": "Core Workflow",
+  "nav.decisionTools": "Decision Tools",
+  "nav.dataAdmin": "Data / Admin",
   "nav.moreTools": "More Tools",
   "nav.replenishment": "Replenishment",
   "nav.riskCenter": "Risk Centre",
@@ -60,7 +64,8 @@ const en = {
   "language.chinese": "中文简体",
   "landing.brandline": "Bakery Intelligence Platform",
   "landing.whatDoes": "What Predictory Does",
-  "dashboard.title": "Executive Overview",
+  "dashboard.title": "Tomorrow Operations Brief",
+  "dashboard.description": "Review tomorrow's bake plan, waste risk, stockout risk, and pending manager decisions.",
   "dashboard.glance": "Tomorrow at a Glance",
   "dashboard.predictedSales": "Predicted Sales",
   "dashboard.unitsForecast": "units forecast",
@@ -135,7 +140,8 @@ const en = {
   "override.enabled": "Override enabled",
   "override.save": "Save override",
   "override.update": "Update override",
-  "prep.title": "Approved Prep Sheet",
+  "prep.title": "Kitchen Prep Sheet",
+  "prep.printSheet": "Print Sheet",
   "prep.generatePlan": "Generate Plan",
   "prep.approveAll": "Approve All",
   "prep.failed": "Failed to load prep plan",
@@ -276,6 +282,7 @@ const en = {
   "planning.summary.noActions": "No actions",
   "planning.summary.noShortages": "No shortages detected",
   "planning.summary.noRisks": "No risks detected",
+  "planning.summary.noMajorFinancialRisk": "No major financial risk detected",
   "planning.summary.mismatchValue": "{{percent}}% validation-window delta",
   "planning.recommendations": "Recommendations",
   "planning.showingActions": "Showing {{count}} actions",
@@ -358,7 +365,10 @@ const en = {
   ,"planning.actionSummary.badge": "Action summary"
   ,"planning.audit.noEvents": "No audit events recorded yet."
   ,"planning.audit.final": "Final"
-  ,"planning.modelBadgeLabel": "Model badge"
+  ,"planning.modelBadgeLabel": "Forecast evidence"
+  ,"planning.forecastEvidence": "Forecast evidence"
+  ,"planning.forecastBackedPlan": "Forecast-backed plan"
+  ,"planning.forecastBackedPlanCopy": "Validated on recent sales with uncertainty range included."
   ,"planning.validation": "Validation"
   ,"planning.wape": "WAPE"
   ,"planning.coverage": "Coverage"
