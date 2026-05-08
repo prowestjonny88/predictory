@@ -14,10 +14,10 @@ import { KpiCard } from "@/components/ui/kpi-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLanguage } from "@/components/i18n/LanguageProvider";
 import { planningApi, type DailyPlanLatestResponse, type DailyPlanTopAction } from "@/lib/api/planning";
-import { todayISO } from "@/lib/utils";
+import { tomorrowISO } from "@/lib/utils";
 
 export default function DashboardPage() {
-  const [date, setDate] = useState(todayISO);
+  const [date, setDate] = useState(tomorrowISO);
   const { t } = useLanguage();
 
   const planQuery = useQuery<DailyPlanLatestResponse>({
@@ -34,10 +34,21 @@ export default function DashboardPage() {
   const wasteExposure = summary?.total_waste_exposure_rm ?? 0;
   const shortageCount = summary?.ingredient_shortage_count ?? 0;
   const pendingActions = summary?.pending_action_count ?? 0;
+  const priorityActionCount = topActions.length;
+  const reviewedPriorityCount = topActions.filter((action) => action.status !== "pending").length;
+  const reviewProgressPct =
+    priorityActionCount > 0 ? Math.round((reviewedPriorityCount / priorityActionCount) * 100) : 100;
 
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
-      <PageHeader title={t("dashboard.title", "Business Overview")} description={t("dashboard.description", "Monitor tomorrow's operations, risks, and required actions.")} date={date}>
+      <PageHeader
+        title={t("dashboard.title", "Tomorrow Operations Brief")}
+        description={t(
+          "dashboard.description",
+          "Review tomorrow's bake plan, waste risk, stockout risk, and pending manager decisions."
+        )}
+        date={date}
+      >
         <label className="flex items-center gap-2 text-sm text-muted-foreground">
           {t("common.planDate", "Plan date")}
           <input
@@ -82,36 +93,61 @@ export default function DashboardPage() {
         {plan && (
           <div className="space-y-6">
             <section className="grid gap-4 lg:grid-cols-2">
-              <DashboardBriefCard topActions={topActions} />
+              <DashboardBriefCard
+                topActions={topActions}
+                stockoutExposure={stockoutExposure}
+                wasteExposure={wasteExposure}
+                pendingActions={pendingActions}
+              />
               <Card>
                 <CardHeader>
                   <CardTitle>{t("dashboard.readiness", "Tomorrow readiness")}</CardTitle>
                 </CardHeader>
-                <CardContent className="grid gap-3 sm:grid-cols-2">
-                  <ReadinessItem
-                    icon={<Database className="h-4 w-4" />}
-                    label={t("dashboard.forecastRun", "Forecast run")}
-                    value={plan?.forecast_run_id || (planQuery.isLoading ? "Loading" : "Missing")}
-                    tone={plan?.forecast_run_id ? "ok" : "warn"}
-                  />
-                  <ReadinessItem
-                    icon={<ListChecks className="h-4 w-4" />}
-                    label={t("dashboard.prepPlan", "Prep plan")}
-                    value={pendingActions > 0 ? `${pendingActions} pending` : "Ready"}
-                    tone={pendingActions > 0 ? "warn" : "ok"}
-                  />
-                  <ReadinessItem
-                    icon={<AlertTriangle className="h-4 w-4" />}
-                    label={t("dashboard.replenishment", "Replenishment")}
-                    value={shortageCount > 0 ? `${shortageCount} shortages` : "No shortage"}
-                    tone={shortageCount > 0 ? "warn" : "ok"}
-                  />
-                  <ReadinessItem
-                    icon={<Clock className="h-4 w-4" />}
-                    label={t("dashboard.approval", "Approval")}
-                    value={pendingActions > 0 ? "Pending review" : "Approved"}
-                    tone={pendingActions > 0 ? "warn" : "ok"}
-                  />
+                <CardContent className="space-y-4">
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <ReadinessItem
+                      icon={<Database className="h-4 w-4" />}
+                      label={t("dashboard.forecastRun", "Forecast run")}
+                      value={plan?.forecast_run_id || (planQuery.isLoading ? "Loading" : "Missing")}
+                      tone={plan?.forecast_run_id ? "ok" : "warn"}
+                    />
+                    <ReadinessItem
+                      icon={<ListChecks className="h-4 w-4" />}
+                      label={t("dashboard.priorityPlan", "Priority plan")}
+                      value={
+                        pendingActions > 0
+                          ? `${priorityActionCount} priority / ${pendingActions} total`
+                          : "Ready"
+                      }
+                      tone={pendingActions > 0 ? "warn" : "ok"}
+                    />
+                    <ReadinessItem
+                      icon={<AlertTriangle className="h-4 w-4" />}
+                      label={t("dashboard.replenishment", "Replenishment")}
+                      value={shortageCount > 0 ? `${shortageCount} shortages` : "No shortage"}
+                      tone={shortageCount > 0 ? "warn" : "ok"}
+                    />
+                    <ReadinessItem
+                      icon={<Clock className="h-4 w-4" />}
+                      label={t("dashboard.approval", "Approval")}
+                      value={pendingActions > 0 ? "Pending review" : "Approved"}
+                      tone={pendingActions > 0 ? "warn" : "ok"}
+                    />
+                  </div>
+                  <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-3">
+                    <div className="mb-2 flex items-center justify-between text-xs font-medium text-neutral-500">
+                      <span>
+                        {t("dashboard.reviewProgress", "{{reviewed}} of {{total}} priority decisions reviewed", {
+                          reviewed: reviewedPriorityCount,
+                          total: priorityActionCount,
+                        })}
+                      </span>
+                      <span>{reviewProgressPct}%</span>
+                    </div>
+                    <div className="h-2 overflow-hidden rounded-full bg-neutral-200">
+                      <div className="h-full rounded-full bg-amber-500" style={{ width: `${reviewProgressPct}%` }} />
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
             </section>
@@ -167,18 +203,25 @@ export default function DashboardPage() {
                 }
               />
               <KpiCard
-                label={t("dashboard.pendingActions", "Pending Approvals")}
-                value={String(pendingActions)}
+                label={t("dashboard.priorityDecisions", "Priority Decisions")}
+                value={String(priorityActionCount)}
                 trendDirection={pendingActions > 0 ? "down" : "up"}
-                trend={pendingActions > 0 ? "Requires Attention" : "All Cleared"}
-                subtitle={t("dashboard.pendingSubtitle", "Number of backend planning actions still awaiting manager review.")}
+                trend={
+                  pendingActions > 0
+                    ? t("dashboard.totalPlanLines", "{{count}} total plan lines", { count: pendingActions })
+                    : t("dashboard.allCleared", "All Cleared")
+                }
+                subtitle={t(
+                  "dashboard.prioritySubtitle",
+                  "Managers review priority decisions first and bulk-approve low-risk lines."
+                )}
               />
             </section>
 
             <section>
               <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
                 <h2 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
-                  {t("dashboard.topExceptions", "Top 3 exceptions")}
+                  {t("dashboard.topDecisions", "Top decisions to review")}
                 </h2>
                 <div className="flex items-center gap-3">
                   <Link
@@ -236,7 +279,7 @@ export default function DashboardPage() {
                           href="/daily-planning"
                           className="text-sm font-semibold text-amber-700 hover:text-amber-800"
                         >
-                          {t("dashboard.review", "Review")}
+                          {t("dashboard.reviewDecision", "Review decision")}
                         </Link>
                       </CardContent>
                     </Card>
@@ -280,29 +323,37 @@ function ReadinessItem({
   );
 }
 
-function DashboardBriefCard({ topActions }: { topActions: DailyPlanTopAction[] }) {
+function DashboardBriefCard({
+  topActions,
+  stockoutExposure,
+  wasteExposure,
+  pendingActions,
+}: {
+  topActions: DailyPlanTopAction[];
+  stockoutExposure: number;
+  wasteExposure: number;
+  pendingActions: number;
+}) {
   const { t } = useLanguage();
   
   if (topActions.length === 0) return null;
   
   const topAction = topActions[0];
-  const shortage = topActions.flatMap(a => a.replenishment).find(l => l.shortage_qty > 0);
-  
-  let brief = t(
-    "dashboard.brief.risk",
-    "Tomorrow's main risk involves {{sku}} demand at {{outlet}}.",
-    { sku: topAction.sku_name, outlet: topAction.outlet_name }
+  const totalExposure = stockoutExposure + wasteExposure;
+  const dominantRisk =
+    stockoutExposure >= wasteExposure
+      ? t("dashboard.brief.stockoutDominant", "Stockout risk is the dominant exposure.")
+      : t("dashboard.brief.wasteDominant", "Waste risk is the dominant exposure.");
+  const topDecision = t(
+    "dashboard.brief.topDecision",
+    "Top decision: prepare {{units}} units of {{sku}} for {{outlet}} {{daypart}}.",
+    {
+      units: topAction.recommended_prep,
+      sku: topAction.sku_name,
+      outlet: topAction.outlet_name,
+      daypart: topAction.daypart,
+    }
   );
-  
-  if (shortage) {
-    brief += " " + t(
-      "dashboard.brief.shortage",
-      "{{ingredient}} shortage affects prep.",
-      { ingredient: shortage.ingredient_name }
-    );
-  }
-  
-  brief += " " + t("dashboard.brief.cta", "Review and approve the plan.");
 
   return (
     <Card className="border-l-4 border-l-amber-500 bg-amber-50/50">
@@ -314,8 +365,24 @@ function DashboardBriefCard({ topActions }: { topActions: DailyPlanTopAction[] }
           </span>
         </div>
       </CardHeader>
-      <CardContent>
-        <p className="text-sm text-amber-800">{brief}</p>
+      <CardContent className="space-y-2 text-sm text-amber-900">
+        <p>{dominantRisk}</p>
+        <p>
+          {t("dashboard.brief.exposure", "Full-plan exposure: RM {{amount}}.", {
+            amount: Math.round(totalExposure),
+          })}
+        </p>
+        <p>{topDecision}</p>
+        <p>
+          {t("dashboard.brief.nextStep", "Next step: review the {{count}} priority decisions before bulk approval.", {
+            count: topActions.length,
+          })}
+          {pendingActions > topActions.length
+            ? ` ${t("dashboard.brief.totalLines", "{{count}} total plan lines remain in the backend plan.", {
+                count: pendingActions,
+              })}`
+            : ""}
+        </p>
       </CardContent>
     </Card>
   );

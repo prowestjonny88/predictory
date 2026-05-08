@@ -32,25 +32,35 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 
-const CORE_NAV = [
+type NavItem = {
+  href: string;
+  labelKey: string;
+  defaultText: string;
+  icon: typeof BarChart3;
+};
+
+const CORE_NAV: NavItem[] = [
   { href: "/dashboard", labelKey: "nav.dashboard", defaultText: "Dashboard", icon: BarChart3 },
   { href: "/daily-planning", labelKey: "nav.dailyPlanning", defaultText: "Daily Planning", icon: ClipboardList },
-  { href: "/forecast", labelKey: "nav.forecastEvidence", defaultText: "Forecast Evidence", icon: TrendingUp },
+  { href: "/risk-center", labelKey: "nav.riskCenter", defaultText: "Risk Centre", icon: AlertTriangle },
   {
     href: "/replenishment",
     labelKey: "nav.replenishment",
     defaultText: "Replenishment",
     icon: ShoppingCart,
   },
-  { href: "/catalog", labelKey: "nav.catalog", defaultText: "SKU Catalog", icon: Package },
 ];
 
-const MORE_NAV = [
-  { href: "/risk-center", labelKey: "nav.riskCenter", defaultText: "Risk Center", icon: AlertTriangle },
-  { href: "/prep-plan", labelKey: "nav.approvedPrepSheet", defaultText: "Approved Prep Sheet", icon: PackageCheck },
-  { href: "/stock", labelKey: "nav.stock", defaultText: "Stock", icon: Boxes },
-  { href: "/copilot", labelKey: "nav.copilot", defaultText: "Copilot", icon: Bot },
+const DECISION_NAV: NavItem[] = [
   { href: "/scenario-planner", labelKey: "nav.scenarioPlanner", defaultText: "Scenario Planner", icon: GitBranch },
+];
+
+const ADMIN_NAV: NavItem[] = [
+  { href: "/forecast", labelKey: "nav.forecastEvidence", defaultText: "Forecast Evidence", icon: TrendingUp },
+  { href: "/catalog", labelKey: "nav.catalog", defaultText: "SKU Catalog", icon: Package },
+  { href: "/stock", labelKey: "nav.stock", defaultText: "Current Stock", icon: Boxes },
+  { href: "/prep-plan", labelKey: "nav.kitchenPrepSheet", defaultText: "Kitchen Prep Sheet", icon: PackageCheck },
+  { href: "/copilot", labelKey: "nav.aiCopilot", defaultText: "AI Copilot", icon: Bot },
 ];
 
 export default function Sidebar() {
@@ -73,14 +83,21 @@ export default function Sidebar() {
         <NavGroup
           items={CORE_NAV}
           pathname={pathname}
-          title={t("nav.core", "Core")}
+          title={t("nav.coreWorkflow", "Core Workflow")}
           t={t}
           onNavigate={() => setOpenMobile(false)}
         />
         <NavGroup
-          items={MORE_NAV}
+          items={DECISION_NAV}
           pathname={pathname}
-          title={t("nav.moreTools", "More Tools")}
+          title={t("nav.decisionTools", "Decision Tools")}
+          t={t}
+          onNavigate={() => setOpenMobile(false)}
+        />
+        <NavGroup
+          items={ADMIN_NAV}
+          pathname={pathname}
+          title={t("nav.dataAdmin", "Data / Admin")}
           t={t}
           onNavigate={() => setOpenMobile(false)}
         />
@@ -101,7 +118,7 @@ function NavGroup({
   t,
   onNavigate,
 }: {
-  items: typeof CORE_NAV;
+  items: NavItem[];
   pathname: string;
   title: string;
   t: (key: string, fallback: string) => string;

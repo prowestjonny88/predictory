@@ -1276,7 +1276,13 @@ def test_council_review_prefers_stored_optimizer_evidence():
                 )
             assert response.status_code == 200
             payload = response.json()
-            assert not any(item["status"] == "warning" for item in payload["graph_trace"])
+            warning_messages = [
+                item.get("warning", "")
+                for item in payload["graph_trace"]
+                if item.get("status") == "warning"
+            ]
+            assert any("PrepPlan has no direct forecast_run_id link" in message for message in warning_messages)
+            assert not any("optimizer evidence recalculated" in message for message in warning_messages)
             expected = next(candidate for candidate in payload["candidate_quantities"] if candidate["source"] == "expected_demand")
             assert expected["evidence"]["batch_size"] == 7
             stockout = next(argument for argument in payload["agent_arguments"] if argument["agent"] == "Stockout Guardian")
@@ -1462,6 +1468,58 @@ def test_council_confirm_applies_prep_edit_and_writes_audit_summary():
             audit = db.query(DecisionAuditEvent).filter(DecisionAuditEvent.id == payload["audit_event_ids"][0]).first()
             assert audit is not None
             assert "agent_council" in audit.gemini_note_summary
+            summary = json.loads(audit.gemini_note_summary)
+            assert summary["recomputed_judge_recommended_prep"] == selected
+            assert summary["selected_differs_from_recomputed_judge"] is False
+        finally:
+            copilot_llm.call_llm = original
+    finally:
+        app.dependency_overrides.clear()
+        restore_band()
+        db.close()
+
+
+def test_council_confirm_warns_when_selected_prep_differs_from_recomputed_judge():
+    SessionLocal = _build_session_factory()
+    db = SessionLocal()
+    target = date.today()
+    try:
+        _load_test_data(db)
+        line = _prepare_council_context(db, target)
+        restore_band = _patch_council_band()
+        _override_app_db(SessionLocal)
+        original = copilot_llm.call_llm
+        copilot_llm.call_llm = _council_judge_llm
+        try:
+            with TestClient(app) as client:
+                review = client.post(
+                    "/api/v1/copilot/council/review",
+                    json={"recommendation_id": str(line.id), "language": "en"},
+                ).json()
+                judge_pick = review["judge_recommendation"]["recommended_prep"]
+                selected = next(
+                    candidate["quantity"]
+                    for candidate in review["candidate_quantities"]
+                    if candidate["quantity"] != judge_pick
+                )
+                response = client.post(
+                    "/api/v1/copilot/council/confirm",
+                    json={
+                        "recommendation_id": str(line.id),
+                        "selected_prep": selected,
+                        "operator_reason": "Apply alternate valid council candidate.",
+                        "language": "en",
+                    },
+                )
+            assert response.status_code == 200
+            payload = response.json()
+            assert any("differs from recomputed Judge recommendation" in warning for warning in payload["warnings"])
+            audit = db.query(DecisionAuditEvent).filter(DecisionAuditEvent.id == payload["audit_event_ids"][0]).first()
+            assert audit is not None
+            summary = json.loads(audit.gemini_note_summary)
+            assert summary["selected_prep"] == selected
+            assert summary["recomputed_judge_recommended_prep"] == judge_pick
+            assert summary["selected_differs_from_recomputed_judge"] is True
         finally:
             copilot_llm.call_llm = original
     finally:

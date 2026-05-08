@@ -103,6 +103,16 @@ export default function ScenarioPlannerPage() {
           </div>
         </section>
 
+        <div className="rounded-lg border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">
+          <p className="font-semibold">{t("scenario.simulationOnlyTitle", "Simulation only")}</p>
+          <p className="mt-1 text-sky-800">
+            {t(
+              "scenario.simulationOnlyCopy",
+              "This does not change the approved plan. It simulates downstream impact before a manager confirms any real prep change."
+            )}
+          </p>
+        </div>
+
         <section>
           <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-neutral-500">
             {t("scenario.describe", "Describe a Scenario")}

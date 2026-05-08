@@ -9,6 +9,12 @@ export function todayISO(): string {
   return new Date().toISOString().split("T")[0];
 }
 
+export function tomorrowISO(): string {
+  const date = new Date();
+  date.setDate(date.getDate() + 1);
+  return date.toISOString().split("T")[0];
+}
+
 export function scoreToRisk(score?: number | null): "low" | "medium" | "high" {
   if (score == null) return "low";
   if (score < 30) return "low";

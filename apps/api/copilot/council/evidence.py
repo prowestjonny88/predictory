@@ -133,7 +133,9 @@ def load_recommendation_context(
     current_prep = line.edited_units if line.edited_units is not None else line.recommended_units
     optimizer = _optimizer_payload(line)
     missing_fields = _missing_optimizer_fields(optimizer)
-    evidence_warnings: list[str] = []
+    evidence_warnings: list[str] = [
+        "Using latest forecast run by date because PrepPlan has no direct forecast_run_id link."
+    ]
     if missing_fields:
         unit_cost = sku_unit_cost(sku, db)
         fallback_batch_size = int(optimizer.get("batch_size") or 5)

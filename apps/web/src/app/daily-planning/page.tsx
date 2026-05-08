@@ -19,12 +19,7 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "
 import { useLanguage } from "@/components/i18n/LanguageProvider";
 import { planningApi, type ApplyAdjustmentResponse, type DailyPlanLatestResponse, type DailyPlanTopAction, type ManagerNoteResponse } from "@/lib/api/planning";
 import { agenticApi, type CouncilConfirmResponse, type CouncilReviewResponse } from "@/lib/api/agentic";
-
-function tomorrowISO() {
-  const date = new Date();
-  date.setDate(date.getDate() + 1);
-  return date.toISOString().split("T")[0];
-}
+import { tomorrowISO } from "@/lib/utils";
 
 export default function DailyPlanningPage() {
   const { t, language } = useLanguage();
@@ -115,7 +110,7 @@ export default function DailyPlanningPage() {
           (a.financial_exposure.stockout_exposure_rm + a.financial_exposure.waste_exposure_rm)
       )[0];
 
-    return [
+    const items = [
       {
         label: t("planning.summary.topPrep", "Top prep action"),
         value: topPrep
@@ -131,21 +126,25 @@ export default function DailyPlanningPage() {
       {
         label: t("planning.summary.topRisk", "Top risk"),
         value: topRisk
-          ? `${topRisk.outlet_name} ${topRisk.sku_name} (RM ${topRisk.financial_exposure.stockout_exposure_rm})`
-          : t("planning.summary.noRisks", "No risks detected"),
-      },
-      {
-        label: t("planning.summary.mismatchCost", "Mismatch cost"),
-        value:
-          plan.metrics.estimated_mismatch_cost_delta_pct == null
-            ? t("common.unavailable", "Unavailable")
-            : t(
-                "planning.summary.mismatchValue",
-                "{{percent}}% validation-window delta",
-                { percent: Math.abs(plan.metrics.estimated_mismatch_cost_delta_pct * 100).toFixed(0) }
-              ),
+          ? `${topRisk.outlet_name} ${topRisk.sku_name} (RM ${Math.round(
+              topRisk.financial_exposure.stockout_exposure_rm + topRisk.financial_exposure.waste_exposure_rm
+            )})`
+          : t("planning.summary.noMajorFinancialRisk", "No major financial risk detected"),
       },
     ];
+
+    if (plan.metrics.estimated_mismatch_cost_delta_pct != null) {
+      items.push({
+        label: t("planning.summary.mismatchCost", "Mismatch cost"),
+        value: t(
+          "planning.summary.mismatchValue",
+          "{{percent}}% validation-window delta",
+          { percent: Math.abs(plan.metrics.estimated_mismatch_cost_delta_pct * 100).toFixed(0) }
+        ),
+      });
+    }
+
+    return items;
   }, [plan, t, visibleActions]);
 
   const groupedByOutlet = useMemo(() => {
@@ -293,6 +292,11 @@ export default function DailyPlanningPage() {
     const actionForNote = matchingActions[0];
     if (!actionForNote) {
       throw new Error("No daily-planning recommendation matches the parsed manager note target.");
+    }
+    if (matchingActions.length > 1) {
+      setStatusMessage(
+        `Multiple matching recommendations found; using the first match: ${actionForNote.sku_name} at ${actionForNote.outlet_name} (${actionForNote.daypart}).`
+      );
     }
     setSelectedAction(actionForNote);
     setCouncilOpen(true);
