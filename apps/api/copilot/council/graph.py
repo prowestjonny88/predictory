@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
 from typing import Any, Callable, Optional
 
@@ -23,6 +24,7 @@ from .trace import agent_trace_item, graph_step
 from .validators import candidate_by_source, validate_judge
 
 LLMFn = Callable[..., str]
+logger = logging.getLogger(__name__)
 
 
 def _model_dump(value: Any) -> dict[str, Any]:
@@ -207,10 +209,20 @@ def _run_judge(
         evidence_json=json.dumps(evidence, indent=2),
     )
     try:
-        raw = llm_fn(prompt, "", max_tokens=700, response_format={"type": "json_object"})
+        raw = llm_fn(prompt, "", max_tokens=3072, response_format={"type": "json_object"})
         judge = validate_judge(_extract_json_object(raw), candidates)
         status = "ok"
     except Exception as exc:
+        logger.warning(
+            "[council] judge fallback recommendation_id=%s outlet=%s sku=%s daypart=%s error_type=%s error=%s",
+            context.get("recommendation_id"),
+            context.get("outlet_name"),
+            context.get("sku_name"),
+            context.get("daypart"),
+            exc.__class__.__name__,
+            exc,
+            exc_info=True,
+        )
         judge = _fallback_judge(candidates, str(exc))
         status = "fallback"
 

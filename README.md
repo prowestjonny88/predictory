@@ -60,6 +60,9 @@ Use local development values:
 DATABASE_URL=sqlite:///./predictory.db
 GEMINI_API_KEY=your_google_ai_studio_key
 GEMINI_MODEL=gemini/gemini-3-flash-preview
+LLM_MAX_TOKENS=4096
+WEATHER_FETCH_ENABLED=true
+WEATHER_TIMEOUT_SECONDS=2
 SECRET_KEY=change-me-in-production-use-openssl-rand-hex-32
 ENVIRONMENT=development
 ADMIN_API_TOKEN=change-me-local-admin-token

@@ -158,6 +158,12 @@ export interface DecisionResponse {
   replenishment_plan_id?: number | null;
 }
 
+interface RecommendationDecisionResponse {
+  audit_event_id: number;
+  status: string;
+  final_prep: number;
+}
+
 export interface ExplainRecommendationResponse {
   explanation: string;
   evidence: Record<string, unknown>;
@@ -279,38 +285,21 @@ export const planningApi = {
     action: DailyPlanTopAction,
     payload: DecisionRequest
   ): Promise<DecisionResponse> => {
-    if (!action.plan_id) {
-      throw new Error("Backend prep plan ID is required before recording a decision.");
-    }
-
-    if (payload.operator_action === "edited") {
-      return apiFetch(`${V1}/prep-plans/${action.plan_id}/edit`, {
-        method: "POST",
-        body: JSON.stringify({
-          line_id: Number(action.id),
-          final_prep: payload.final_prep ?? action.recommended_prep,
-          operator_reason: payload.operator_reason ?? "Edited in Daily Planning Workspace",
-          user_id: payload.role ?? "planner",
-        }),
-      });
-    }
-
-    if (payload.operator_action === "rejected") {
-      return apiFetch(`${V1}/prep-plans/${action.plan_id}/reject`, {
-        method: "POST",
-        body: JSON.stringify({
-          operator_reason: payload.operator_reason ?? "Rejected in Daily Planning Workspace",
-          rejected_by: payload.role ?? "planner",
-        }),
-      });
-    }
-
-    return apiFetch(`${V1}/prep-plans/${action.plan_id}/approve`, {
+    const response = await apiFetch<RecommendationDecisionResponse>(`${V1}/api/daily-plan/recommendations/${action.id}/decision`, {
       method: "POST",
       body: JSON.stringify({
-        approved_by: payload.role ?? "planner",
-        operator_reason: payload.operator_reason ?? "Approved in Daily Planning Workspace",
+        operator_action: payload.operator_action,
+        final_prep: payload.final_prep ?? action.recommended_prep,
+        operator_reason: payload.operator_reason ?? "Recorded in Daily Planning Workspace",
+        role: payload.role ?? "planner",
       }),
     });
+
+    return {
+      audit_event_ids: [response.audit_event_id],
+      status: response.status,
+      final_prep: response.final_prep,
+      replenishment_plan_id: null,
+    };
   },
 };

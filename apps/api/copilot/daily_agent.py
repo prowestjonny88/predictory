@@ -816,7 +816,7 @@ def generate_daily_actions(
                 raw = llm_fn(
                     prompt,
                     "",
-                    max_tokens=900,
+                    max_tokens=3072,
                     response_format={"type": "json_object"},
                 )
                 parsed = _extract_json_array(raw)
@@ -875,7 +875,7 @@ def generate_daily_actions(
                 ),
             )
             try:
-                brief = llm_fn(brief_prompt, "", max_tokens=900).strip()
+                brief = llm_fn(brief_prompt, "", max_tokens=4096).strip()
             except Exception:
                 brief = ""
             if _usable_brief(brief):

@@ -6,8 +6,10 @@ POST /copilot/run-scenario
 POST /copilot/daily-actions
 """
 import json
+import logging
 from datetime import date as date_type
 from typing import Literal, Optional
+from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -28,6 +30,7 @@ from planning.replenishment import recommend_replenishment
 from services.uncertainty import band_for_prep_line
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 SupportedLanguage = Literal["en", "ms", "zh-CN"]
 WEEKDAY_LABELS = {
@@ -48,7 +51,7 @@ def _extract_text(response) -> str:
 def _call_llm(
     prompt: str,
     _provider_text: str = "",
-    max_tokens: int = 800,
+    max_tokens: int = copilot_llm.DEFAULT_LLM_MAX_TOKENS,
     response_format: Optional[dict] = None,
 ) -> str:
     """Call LiteLLM. All numbers come from upstream services."""
@@ -58,7 +61,7 @@ def _call_llm(
 def _invoke_llm(
     prompt: str,
     _provider_text: str = "",
-    max_tokens: int = 800,
+    max_tokens: int = copilot_llm.DEFAULT_LLM_MAX_TOKENS,
     response_format: Optional[dict] = None,
 ) -> str:
     """Call the active LLM hook while keeping older tests/mocks compatible."""
@@ -90,6 +93,7 @@ def _validate_daily_brief_text(brief: str) -> str:
 
 
 def _validate_llm_explanation_text(explanation: str) -> str:
+    diagnostic_id = uuid4().hex[:10]
     cleaned = (explanation or "").strip()
     lower = cleaned.lower()
     leaked_field_names = (
@@ -116,10 +120,46 @@ def _validate_llm_explanation_text(explanation: str) -> str:
     has_terminal_punctuation = cleaned.endswith((".", "!", "?", "。", "！", "？"))
     ends_mid_clause = any(lower.endswith(f" {ending}") or lower == ending for ending in incomplete_endings)
     leaks_raw_fields = any(field in lower for field in leaked_field_names)
+
+    # --- Diagnostic logging ---
+    logger.debug("[explain:%s] raw LLM response (repr): %r", diagnostic_id, cleaned)
+    logger.debug(
+        "[explain:%s] validation flags | len=%d words=%d terminal_punct=%s ends_mid_clause=%s leaks_raw_fields=%s",
+        diagnostic_id,
+        len(cleaned),
+        len(cleaned.split()),
+        has_terminal_punctuation,
+        ends_mid_clause,
+        leaks_raw_fields,
+    )
+    if leaks_raw_fields:
+        leaked = [f for f in leaked_field_names if f in lower]
+        logger.warning("[explain] REJECTED — leaks raw field names: %s", leaked)
+    if ends_mid_clause:
+        matched = [e for e in incomplete_endings if lower.endswith(f" {e}") or lower == e]
+        logger.warning("[explain] REJECTED — ends mid-clause with: %s", matched)
+    if not has_terminal_punctuation:
+        logger.warning("[explain] REJECTED — no terminal punctuation. Last 30 chars: %r", cleaned[-30:])
+    if len(cleaned) < 80 or len(cleaned.split()) < 12:
+        logger.warning("[explain] REJECTED — response too short (len=%d, words=%d)", len(cleaned), len(cleaned.split()))
+    # --------------------------
+
     if len(cleaned) < 80 or len(cleaned.split()) < 12 or not has_terminal_punctuation or ends_mid_clause or leaks_raw_fields:
+        logger.warning(
+            "[explain:%s] rejected response len=%d words=%d terminal_punct=%s ends_mid_clause=%s leaks_raw_fields=%s",
+            diagnostic_id,
+            len(cleaned),
+            len(cleaned.split()),
+            has_terminal_punctuation,
+            ends_mid_clause,
+            leaks_raw_fields,
+        )
         raise HTTPException(
             status_code=503,
-            detail="LLM provider returned an incomplete or overly technical explanation. Retry or check provider configuration.",
+            detail=(
+                "LLM provider returned an incomplete or overly technical explanation "
+                f"[diag={diagnostic_id}]. Retry or check provider configuration."
+            ),
         )
     return cleaned
 
@@ -201,21 +241,32 @@ def _grounded_explanation_prompt(language: SupportedLanguage, context_type: str,
 
 def _call_grounded_explanation(language: SupportedLanguage, context_type: str, evidence: dict) -> str:
     prompt = _grounded_explanation_prompt(language, context_type, evidence)
+    logger.info(
+        "[explain] calling LLM context_type=%s language=%s evidence_keys=%s",
+        context_type,
+        language,
+        sorted(evidence.keys()),
+    )
     try:
-        return _validate_llm_explanation_text(_invoke_llm(prompt, max_tokens=900))
+        raw = _invoke_llm(prompt, max_tokens=4096)
+        logger.debug("[explain] attempt 1 raw response: %r", raw)
+        return _validate_llm_explanation_text(raw)
     except HTTPException as exc:
         detail = str(exc.detail)
         if exc.status_code != 503 or (
             "incomplete" not in detail and "overly technical" not in detail
         ):
             raise
+        logger.warning("[explain] attempt 1 failed validation — retrying with stricter prompt")
         retry_prompt = (
             f"{prompt}\n\n"
             "Your previous response was incomplete, too technical, or ended mid-sentence. Return a complete answer now: "
             "use the What it means / Why it matters / Next step format, grounded only in the Evidence JSON, "
             "with no raw JSON field names."
         )
-        return _validate_llm_explanation_text(_invoke_llm(retry_prompt, max_tokens=900))
+        raw_retry = _invoke_llm(retry_prompt, max_tokens=4096)
+        logger.debug("[explain] attempt 2 raw response: %r", raw_retry)
+        return _validate_llm_explanation_text(raw_retry)
 
 
 def _normalize_language(language: str | None) -> SupportedLanguage:
@@ -580,7 +631,7 @@ def _parse_manager_note_with_llm(note: str, forecast_run: ForecastRun, db: Sessi
         "Required JSON keys: outlet_id, daypart, sku_category, suggested_adjustment_pct, reason, "
         "requires_confirmation, uncertainty_reason."
     )
-    raw = _invoke_llm(prompt, max_tokens=600, response_format={"type": "json_object"})
+    raw = _invoke_llm(prompt, max_tokens=3072, response_format={"type": "json_object"})
     parsed = _json_loads_object(raw, "LLM manager-note parse returned invalid JSON")
 
     outlet_names = {item["name"] for item in allowed["outlets"]}
@@ -705,6 +756,16 @@ def explain_recommendation(body: ExplainRecommendationRequest, db: Session = Dep
         "reason_summary": optimizer.get("reason_summary"),
         "status": line.status,
     }
+    logger.info(
+        "[explain-recommendation] recommendation_id=%s forecast_run_id=%s outlet=%s sku=%s daypart=%s final_prep=%s language=%s",
+        body.recommendation_id,
+        evidence["forecast_run_id"],
+        evidence["outlet_name"],
+        evidence["sku_name"],
+        line.daypart,
+        final_units,
+        language,
+    )
     explanation = _call_grounded_explanation(language, "prep recommendation", evidence)
     return ExplainRecommendationResponse(
         explanation=explanation,
@@ -1193,7 +1254,7 @@ def generate_daily_brief(body: DailyBriefRequest, db: Session = Depends(get_db))
         ),
     )
 
-    brief = _validate_daily_brief_text(_invoke_llm(prompt, max_tokens=900))
+    brief = _validate_daily_brief_text(_invoke_llm(prompt, max_tokens=4096))
     return DailyBriefResponse(brief=brief, date=str(brief_date))
 
 
@@ -1218,7 +1279,7 @@ def daily_actions(body: DailyActionsRequest, db: Session = Depends(get_db)):
     def llm(
         prompt,
         _text="",
-        max_tokens=900,
+        max_tokens=4096,
         response_format=None,
     ):
         return _invoke_llm(

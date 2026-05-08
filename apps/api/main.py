@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+import logging
 import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -7,6 +8,14 @@ from sqlalchemy import text
 from dotenv import load_dotenv
 
 load_dotenv()
+
+LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
+logging.basicConfig(
+    level=getattr(logging, LOG_LEVEL, logging.INFO),
+    format="%(levelname)s:%(name)s:%(message)s",
+)
+for logger_name in ("copilot", "copilot.llm", "copilot.council"):
+    logging.getLogger(logger_name).setLevel(getattr(logging, LOG_LEVEL, logging.INFO))
 
 from db.database import engine, Base, SessionLocal
 from catalog.router import router as catalog_router

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -26,6 +27,7 @@ from .schemas import (
 from .validators import validate_selected_prep
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 def _refresh_replenishment_for_date(plan_date, db: Session) -> Optional[ReplenishmentPlan]:
@@ -37,6 +39,11 @@ def _refresh_replenishment_for_date(plan_date, db: Session) -> Optional[Replenis
 
 @router.post("/copilot/council/review", response_model=CouncilReviewResponse)
 def review_council(body: CouncilReviewRequest, db: Session = Depends(get_db)):
+    logger.info(
+        "[council-review] recommendation_id=%s language=%s",
+        body.recommendation_id,
+        body.language,
+    )
     return build_council_review(
         recommendation_id=body.recommendation_id,
         db=db,
@@ -47,6 +54,14 @@ def review_council(body: CouncilReviewRequest, db: Session = Depends(get_db)):
 
 @router.post("/copilot/council/review-with-note", response_model=CouncilReviewWithNoteResponse)
 def review_council_with_note(body: CouncilReviewWithNoteRequest, db: Session = Depends(get_db)):
+    logger.info(
+        "[council-review-with-note] recommendation_id=%s language=%s adjustment_outlet=%s adjustment_daypart=%s adjustment_category=%s",
+        body.recommendation_id,
+        body.language,
+        body.parsed_adjustment.outlet_id,
+        body.parsed_adjustment.daypart,
+        body.parsed_adjustment.sku_category,
+    )
     before = build_council_review(
         recommendation_id=body.recommendation_id,
         db=db,
@@ -65,6 +80,13 @@ def review_council_with_note(body: CouncilReviewWithNoteRequest, db: Session = D
 
 @router.post("/copilot/council/confirm", response_model=CouncilConfirmResponse)
 def confirm_council_recommendation(body: CouncilConfirmRequest, db: Session = Depends(get_db)):
+    logger.info(
+        "[council-confirm] recommendation_id=%s selected_prep=%s language=%s has_manager_adjustment=%s",
+        body.recommendation_id,
+        body.selected_prep,
+        body.language,
+        body.manager_adjustment is not None,
+    )
     review = build_council_review(
         recommendation_id=body.recommendation_id,
         db=db,

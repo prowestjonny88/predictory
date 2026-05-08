@@ -7,10 +7,11 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from db.database import Base, get_db
-from db.models import AuditEvent, ForecastLine, Outlet, SKU
+from db.models import AuditEvent, ForecastLine, Outlet, SKU, WeatherSnapshot
 from factories import load_test_dataset
 from forecasting.engine import forecast_demand, run_forecast_for_date
 from main import app
+from services import runtime_readiness
 from services.lightgbm_inference import ENGINE_NAME, MODEL_METHOD
 from services.runtime_readiness import ReadinessError, check_runtime_readiness
 
@@ -35,6 +36,39 @@ def test_empty_db_readiness_reports_blocking_errors():
     assert any("No active outlets" in item for item in status.blockers)
     assert any("No active SKUs" in item for item in status.blockers)
     assert any("No historical sales" in item for item in status.blockers)
+
+
+def test_readiness_refreshes_missing_weather_before_blocking(monkeypatch):
+    SessionLocal = _build_session_factory()
+    db = SessionLocal()
+    target = date.today()
+    load_test_dataset(db, target_date=target)
+    db.query(WeatherSnapshot).filter(WeatherSnapshot.target_date == target).delete()
+    db.commit()
+
+    def fake_refresh(outlet, target_date, session):
+        snapshot = WeatherSnapshot(
+            outlet_id=outlet.id,
+            target_date=target_date,
+            summary="Stable weather",
+            rain_mm=0.0,
+            temp_max_c=29.5,
+            adjustment_pct=0.0,
+            status="neutral",
+            source="test_refresh",
+            raw_json={"source": "test_refresh"},
+        )
+        session.add(snapshot)
+        session.commit()
+        return snapshot
+
+    monkeypatch.setattr(runtime_readiness, "get_or_refresh_weather_snapshot", fake_refresh)
+
+    status = check_runtime_readiness(target, db)
+    db.close()
+
+    assert status.ready is True
+    assert "weather_coverage" not in status.grouped_blockers
 
 
 def test_forecast_demand_uses_lightgbm_artifacts_and_residual_bands():
