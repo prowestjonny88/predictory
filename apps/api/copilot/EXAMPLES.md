@@ -119,6 +119,14 @@ Response:
 {
   "date": "2026-05-06",
   "brief": "Operations are broadly ready for service.\n\nMain risks are grounded in backend alerts.\n\nAct on the ranked prep and reorder actions first.",
+  "llm_status": "success",
+  "used_fallback": false,
+  "graph_trace": [
+    { "node": "load_context", "status": "ok" },
+    { "node": "derive_candidate_actions", "status": "ok", "candidate_count": 8 },
+    { "node": "rank_and_phrase_actions", "status": "ok", "llm_status": "success" },
+    { "node": "validate_and_finalize", "status": "ok", "final_count": 5 }
+  ],
   "top_actions": [
     {
       "action_type": "prep",
@@ -137,7 +145,8 @@ Response:
         "3-day waste rate 15.3%",
         "Affected dayparts: evening"
       ],
-      "source_type": "llm_rephrased"
+      "source_type": "llm_rephrased",
+      "priority_reason": "High priority because of high waste risk with numeric evidence."
     }
   ],
   "prep_actions": [],
@@ -148,3 +157,5 @@ Response:
 ```
 
 Valid `source_type` values are `rules_based` and `llm_rephrased`.
+
+Valid `llm_status` values are `not_needed`, `success`, and `failed`. If `used_fallback` is true, the graph returned rules-based daily actions because Gemini ranking or brief output did not validate.

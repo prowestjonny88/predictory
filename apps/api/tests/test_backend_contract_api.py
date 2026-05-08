@@ -232,8 +232,12 @@ def test_copilot_manager_note_contract_requires_confirmation_and_preserves_groun
         assert applied.json()["updated_line_ids"]
         assert applied.json()["audit_event_ids"]
         assert applied.json()["application_mode"] == "prep_edit_only"
-        assert applied.json()["line_changes"][0]["before_prep"] >= 0
-        assert applied.json()["line_changes"][0]["after_prep"] >= 0
+        first_change = applied.json()["line_changes"][0]
+        assert first_change["outlet_name"]
+        assert first_change["sku_name"]
+        assert first_change["daypart"]
+        assert first_change["before_prep"] >= 0
+        assert first_change["after_prep"] >= 0
     finally:
         copilot_router._call_llm = original
         app.dependency_overrides.clear()

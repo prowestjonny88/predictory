@@ -11,9 +11,10 @@ import type { DailyPlanTopAction } from "@/lib/api/planning";
 interface Props {
   item: DailyPlanTopAction;
   onOpen: (item: DailyPlanTopAction) => void;
+  onCouncilReview?: (item: DailyPlanTopAction) => void;
 }
 
-export default function RecommendationCard({ item, onOpen }: Props) {
+export default function RecommendationCard({ item, onOpen, onCouncilReview }: Props) {
   const { t, language } = useLanguage();
 
   const totalExposure = item.financial_exposure.stockout_exposure_rm + item.financial_exposure.waste_exposure_rm;
@@ -47,11 +48,9 @@ export default function RecommendationCard({ item, onOpen }: Props) {
               <Badge variant="outline" className="text-[10px]">{translateDaypart(language, item.daypart.toLowerCase())}</Badge>
             </div>
             <h3 className="mt-1 text-2xl font-bold tracking-tight text-neutral-900">
-              {item.sku_name}
-            </h3>
-            <p className="text-sm text-neutral-500">
               {t("planning.recommendation.prepareUnits", "Prepare {{count}} units", { count: item.recommended_prep })}
-            </p>
+            </h3>
+            <p className="text-sm text-neutral-500">{item.sku_name}</p>
           </div>
           <div className="flex flex-col items-end gap-2">
             <Badge variant="outline">{translateStatus(language, item.status)}</Badge>
@@ -73,6 +72,11 @@ export default function RecommendationCard({ item, onOpen }: Props) {
             recommended={item.recommended_prep}
           />
 
+          <div className="flex items-start gap-2 rounded-lg border border-amber-100 bg-amber-50/50 p-3 text-xs text-amber-900">
+            <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-600" />
+            <span>{item.reason_summary}</span>
+          </div>
+
           <div className="grid grid-cols-3 gap-2">
             <div className="rounded-lg border border-neutral-100 bg-neutral-50/50 p-2.5">
               <p className="text-[11px] font-medium text-muted-foreground">{t("planning.recommendation.openingStock", "Opening stock")}</p>
@@ -90,15 +94,10 @@ export default function RecommendationCard({ item, onOpen }: Props) {
         </div>
 
         <div className="flex flex-col gap-2">
-          <div className="flex items-start gap-2 rounded-lg border border-amber-100 bg-amber-50/50 p-3 text-xs text-amber-900">
-            <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-600" />
-            <span>{item.reason_summary}</span>
-          </div>
-
           <div className="flex items-center justify-between gap-2 rounded-lg border border-sky-100 bg-sky-50/50 p-3">
             <div className="flex items-start gap-2 text-xs text-sky-900">
               <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-sky-600" />
-              <span>{t("planning.recommendation.geminiHelp", "Gemini can explain this prep amount using the displayed backend evidence.")}</span>
+              <span>{t("planning.recommendation.geminiHelp", "Need a quick explanation? Gemini summarizes this evidence. For tradeoff review, open Agent Council.")}</span>
             </div>
             <ExplainButton
               label={t("planning.recommendation.whyAmount", "Why this amount?")}
@@ -117,9 +116,16 @@ export default function RecommendationCard({ item, onOpen }: Props) {
             <span>{t("planning.recommendation.wasteCost", "Waste cost")} RM {item.waste_cost.toFixed(2)}</span>
             <span>{t("planning.recommendation.stockoutCost", "Stockout cost")} RM {item.stockout_cost.toFixed(2)}</span>
           </div>
-          <Button variant="secondary" size="sm" onClick={() => onOpen(item)}>
-            {t("planning.recommendation.reviewDecision", "Review decision")}
-          </Button>
+          <div className="flex flex-wrap justify-end gap-2">
+            {onCouncilReview && (
+              <Button variant="outline" size="sm" onClick={() => onCouncilReview(item)}>
+                {t("planning.recommendation.agentCouncil", "Review with Agent Council")}
+              </Button>
+            )}
+            <Button variant="secondary" size="sm" onClick={() => onOpen(item)}>
+              {t("planning.recommendation.reviewDecision", "Review decision")}
+            </Button>
+          </div>
         </div>
       </CardFooter>
     </Card>

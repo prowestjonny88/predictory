@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+import logging
 import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -8,6 +9,14 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
+logging.basicConfig(
+    level=getattr(logging, LOG_LEVEL, logging.INFO),
+    format="%(levelname)s:%(name)s:%(message)s",
+)
+for logger_name in ("copilot", "copilot.llm", "copilot.council"):
+    logging.getLogger(logger_name).setLevel(getattr(logging, LOG_LEVEL, logging.INFO))
+
 from db.database import engine, Base, SessionLocal
 from catalog.router import router as catalog_router
 from ingestion.router import router as ingestion_router
@@ -16,6 +25,7 @@ from forecasting.router import router as forecasting_router
 from planning.router import router as planning_router
 from alerts.router import router as alerts_router
 from copilot.router import router as copilot_router
+from copilot.council.router import router as council_router
 from admin.router import router as admin_router
 
 
@@ -75,4 +85,5 @@ app.include_router(forecasting_router, prefix="/api/v1", tags=["forecasting"])
 app.include_router(planning_router,    prefix="/api/v1", tags=["planning"])
 app.include_router(alerts_router,      prefix="/api/v1", tags=["alerts"])
 app.include_router(copilot_router,     prefix="/api/v1", tags=["copilot"])
+app.include_router(council_router,     prefix="/api/v1", tags=["copilot"])
 app.include_router(admin_router,       prefix="/api/v1", tags=["admin"])

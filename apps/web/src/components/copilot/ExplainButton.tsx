@@ -41,13 +41,25 @@ export default function ExplainButton({
   const { t, language } = useLanguage();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [loadingStep, setLoadingStep] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [response, setResponse] = useState<ExplainRecommendationResponse | null>(null);
+
+  const loadingMessages = [
+    t("explain.loadingEvidence", "Reading backend evidence..."),
+    t("explain.loadingTradeoff", "Checking prep and risk tradeoff..."),
+    t("explain.loadingWriting", "Writing plain-language explanation..."),
+  ];
 
   async function loadExplanation() {
     if (response || loading) return;
     setLoading(true);
+    setLoadingStep(0);
     setError(null);
+    const timers = [
+      window.setTimeout(() => setLoadingStep(1), 900),
+      window.setTimeout(() => setLoadingStep(2), 2200),
+    ];
     try {
       const payload = recommendationId
         ? await planningApi.explainRecommendation(String(recommendationId), language)
@@ -56,6 +68,7 @@ export default function ExplainButton({
     } catch (err) {
       setError(err instanceof Error ? err.message : t("explain.unavailable", "Gemini explanation unavailable."));
     } finally {
+      timers.forEach((timer) => window.clearTimeout(timer));
       setLoading(false);
     }
   }
@@ -91,12 +104,12 @@ export default function ExplainButton({
           <div className="inline-flex rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700">
             {response?.source_type === "llm_rephrased"
               ? t("explain.sourceGemini", "Source: Gemini explanation")
-              : t("explain.sourcePending", "Source: backend evidence")}
+              : response?.source_type ?? t("explain.sourcePending", "Source: backend evidence")}
           </div>
 
           {loading && (
             <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-600">
-              {t("explain.loading", "Reading backend evidence and asking Gemini...")}
+              {loadingMessages[loadingStep] ?? loadingMessages[0]}
             </div>
           )}
 
@@ -107,7 +120,7 @@ export default function ExplainButton({
           )}
 
           {response?.explanation && (
-            <div className="rounded-lg border border-sky-100 bg-sky-50/50 p-4 text-sm leading-relaxed text-neutral-800">
+            <div className="whitespace-pre-wrap rounded-lg border border-sky-100 bg-sky-50/50 p-4 text-sm leading-relaxed text-neutral-800">
               {response.explanation}
             </div>
           )}
@@ -122,7 +135,7 @@ export default function ExplainButton({
                   key={key}
                   className="grid grid-cols-[140px_1fr] gap-3 rounded-md border border-neutral-100 bg-white px-3 py-2 text-xs"
                 >
-                  <span className="font-medium text-neutral-500">{key}</span>
+                  <span className="font-medium text-neutral-500">{formatEvidenceKey(key)}</span>
                   <span className="break-words text-neutral-800">{formatEvidenceValue(value)}</span>
                 </div>
               ))}
@@ -134,8 +147,49 @@ export default function ExplainButton({
   );
 }
 
+function formatEvidenceKey(key: string): string {
+  const labels: Record<string, string> = {
+    metric: "Metric",
+    value_rm: "Amount",
+    scope: "Scope",
+    source: "Source",
+    pending_action_count: "Actions awaiting review",
+    ingredient_shortage_count: "Ingredient shortages",
+    forecast_run_id: "Forecast run",
+    outlet_id: "Outlet ID",
+    outlet_name: "Outlet",
+    sku_id: "SKU ID",
+    sku_name: "SKU",
+    sku_category: "SKU category",
+    daypart: "Daypart",
+    p10: "Low-demand scenario",
+    p50: "Expected-demand scenario",
+    p90: "High-demand scenario",
+    recommended_prep: "Recommended prep",
+    final_prep: "Final prep",
+    current_stock: "Current stock",
+    opening_stock: "Opening stock",
+    batch_size: "Batch size",
+    waste_cost: "Waste cost",
+    stockout_cost: "Stockout cost",
+    stockout_exposure_rm: "Stockout exposure",
+    waste_exposure_rm: "Waste exposure",
+    priority_score: "Priority score",
+    priority_reason: "Priority reason",
+    need_qty: "Need quantity",
+    reorder_qty: "Reorder quantity",
+    urgency: "Urgency",
+    driving_skus: "Driving SKUs",
+  };
+  return labels[key] ?? key.replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
 function formatEvidenceValue(value: unknown): string {
   if (value === null || value === undefined || value === "") return "Unavailable";
+  if (value === "full_plan") return "Full plan";
+  if (value === "backend_daily_plan_summary") return "Backend daily-plan summary";
+  if (value === "full_plan_stockout_exposure_rm") return "Stockout exposure across the full plan";
+  if (value === "full_plan_waste_exposure_rm") return "Waste exposure across the full plan";
   if (typeof value === "number") return Number.isInteger(value) ? String(value) : value.toFixed(2);
   if (typeof value === "string") return value;
   if (typeof value === "boolean") return value ? "Yes" : "No";

@@ -318,11 +318,15 @@ export interface AgentAction {
   target: ActionTarget;
   evidence: string[];
   source_type: "rules_based" | "llm_rephrased";
+  priority_reason?: string | null;
 }
 
 export interface DailyActionsResponse {
   date: string;
   brief: string;
+  llm_status: "not_needed" | "success" | "failed";
+  used_fallback: boolean;
+  graph_trace: Record<string, unknown>[];
   top_actions: AgentAction[];
   prep_actions: AgentAction[];
   reorder_actions: AgentAction[];

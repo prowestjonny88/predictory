@@ -6,9 +6,10 @@ POST /copilot/run-scenario
 POST /copilot/daily-actions
 """
 import json
-import os
+import logging
 from datetime import date as date_type
 from typing import Literal, Optional
+from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -22,14 +23,15 @@ from copilot.prompts import (
     DAILY_BRIEF_PROMPT,
 )
 from copilot.scenario import run_scenario_simulation
+from copilot import llm as copilot_llm
 from db.database import get_db
 from db.models import DecisionAuditEvent, ForecastRun, Outlet, PrepPlan, PrepPlanLine, ReplenishmentPlan, SKU
 from planning.replenishment import recommend_replenishment
 from services.uncertainty import band_for_prep_line
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
-DEFAULT_GEMINI_MODEL = "gemini/gemini-3-flash-preview"
 SupportedLanguage = Literal["en", "ms", "zh-CN"]
 WEEKDAY_LABELS = {
     "en": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
@@ -38,74 +40,28 @@ WEEKDAY_LABELS = {
 }
 
 
-def _get_env(*names: str) -> Optional[str]:
-    for name in names:
-        value = os.getenv(name)
-        if value:
-            return value
-    return None
-
-
 def _resolve_litellm_config() -> tuple[str, dict]:
-    gemini_api_key = _get_env("GEMINI_API_KEY", "GOOGLE_API_KEY")
-    if not gemini_api_key:
-        raise RuntimeError("GEMINI_API_KEY is not configured")
-    extra_kwargs = {"api_key": gemini_api_key}
-    gemini_api_base = os.getenv("GEMINI_API_BASE")
-    if gemini_api_base:
-        extra_kwargs["api_base"] = gemini_api_base
-    return (
-        os.getenv("GEMINI_MODEL", DEFAULT_GEMINI_MODEL),
-        extra_kwargs,
-    )
+    return copilot_llm.resolve_litellm_config()
 
 
 def _extract_text(response) -> str:
-    content = response.choices[0].message.content
-    if isinstance(content, list):
-        parts = []
-        for item in content:
-            if isinstance(item, dict) and item.get("text"):
-                parts.append(item["text"])
-        content = "\n".join(parts)
-    return (content or "").strip()
+    return copilot_llm.extract_text(response)
 
 
 def _call_llm(
     prompt: str,
     _provider_text: str = "",
-    max_tokens: int = 800,
+    max_tokens: int = copilot_llm.DEFAULT_LLM_MAX_TOKENS,
     response_format: Optional[dict] = None,
 ) -> str:
     """Call LiteLLM. All numbers come from upstream services."""
-    try:
-        import litellm
-
-        model, extra_kwargs = _resolve_litellm_config()
-        completion_kwargs = {
-            "model": model,
-            "messages": [{"role": "user", "content": prompt}],
-            "max_tokens": max_tokens,
-            "temperature": 0.2,
-            **extra_kwargs,
-        }
-        if response_format is not None:
-            completion_kwargs["response_format"] = response_format
-        response = litellm.completion(
-            **completion_kwargs,
-        )
-        text = _extract_text(response)
-        if not text:
-            raise RuntimeError("LLM provider returned empty text")
-        return text
-    except Exception as exc:
-        raise HTTPException(status_code=503, detail=f"LLM provider unavailable: {exc}") from exc
+    return copilot_llm.call_llm(prompt, _provider_text, max_tokens=max_tokens, response_format=response_format)
 
 
 def _invoke_llm(
     prompt: str,
     _provider_text: str = "",
-    max_tokens: int = 800,
+    max_tokens: int = copilot_llm.DEFAULT_LLM_MAX_TOKENS,
     response_format: Optional[dict] = None,
 ) -> str:
     """Call the active LLM hook while keeping older tests/mocks compatible."""
@@ -137,8 +93,17 @@ def _validate_daily_brief_text(brief: str) -> str:
 
 
 def _validate_llm_explanation_text(explanation: str) -> str:
+    diagnostic_id = uuid4().hex[:10]
     cleaned = (explanation or "").strip()
     lower = cleaned.lower()
+    leaked_field_names = (
+        "value_rm",
+        "pending_action_count",
+        "full_plan_stockout_exposure_rm",
+        "full_plan_waste_exposure_rm",
+        "backend_daily_plan_summary",
+        "ingredient_shortage_count",
+    )
     incomplete_endings = (
         "based on",
         "because",
@@ -154,10 +119,47 @@ def _validate_llm_explanation_text(explanation: str) -> str:
     )
     has_terminal_punctuation = cleaned.endswith((".", "!", "?", "。", "！", "？"))
     ends_mid_clause = any(lower.endswith(f" {ending}") or lower == ending for ending in incomplete_endings)
-    if len(cleaned) < 80 or len(cleaned.split()) < 12 or not has_terminal_punctuation or ends_mid_clause:
+    leaks_raw_fields = any(field in lower for field in leaked_field_names)
+
+    # --- Diagnostic logging ---
+    logger.debug("[explain:%s] raw LLM response (repr): %r", diagnostic_id, cleaned)
+    logger.debug(
+        "[explain:%s] validation flags | len=%d words=%d terminal_punct=%s ends_mid_clause=%s leaks_raw_fields=%s",
+        diagnostic_id,
+        len(cleaned),
+        len(cleaned.split()),
+        has_terminal_punctuation,
+        ends_mid_clause,
+        leaks_raw_fields,
+    )
+    if leaks_raw_fields:
+        leaked = [f for f in leaked_field_names if f in lower]
+        logger.warning("[explain] REJECTED — leaks raw field names: %s", leaked)
+    if ends_mid_clause:
+        matched = [e for e in incomplete_endings if lower.endswith(f" {e}") or lower == e]
+        logger.warning("[explain] REJECTED — ends mid-clause with: %s", matched)
+    if not has_terminal_punctuation:
+        logger.warning("[explain] REJECTED — no terminal punctuation. Last 30 chars: %r", cleaned[-30:])
+    if len(cleaned) < 80 or len(cleaned.split()) < 12:
+        logger.warning("[explain] REJECTED — response too short (len=%d, words=%d)", len(cleaned), len(cleaned.split()))
+    # --------------------------
+
+    if len(cleaned) < 80 or len(cleaned.split()) < 12 or not has_terminal_punctuation or ends_mid_clause or leaks_raw_fields:
+        logger.warning(
+            "[explain:%s] rejected response len=%d words=%d terminal_punct=%s ends_mid_clause=%s leaks_raw_fields=%s",
+            diagnostic_id,
+            len(cleaned),
+            len(cleaned.split()),
+            has_terminal_punctuation,
+            ends_mid_clause,
+            leaks_raw_fields,
+        )
         raise HTTPException(
             status_code=503,
-            detail="LLM provider returned an incomplete explanation. Retry or check provider configuration.",
+            detail=(
+                "LLM provider returned an incomplete or overly technical explanation "
+                f"[diag={diagnostic_id}]. Retry or check provider configuration."
+            ),
         )
     return cleaned
 
@@ -177,33 +179,94 @@ def _json_loads_object(raw_text: str, detail: str) -> dict:
     return parsed
 
 
+def _human_label_for_evidence_key(key: str) -> str:
+    labels = {
+        "metric": "metric",
+        "value_rm": "amount in RM",
+        "stockout_exposure_rm": "stockout exposure in RM",
+        "waste_exposure_rm": "waste exposure in RM",
+        "full_plan_stockout_exposure_rm": "stockout exposure across the full plan",
+        "full_plan_waste_exposure_rm": "waste exposure across the full plan",
+        "pending_action_count": "actions awaiting manager review",
+        "ingredient_shortage_count": "ingredients with shortages",
+        "scope": "planning scope",
+        "source": "backend source",
+        "backend_daily_plan_summary": "backend daily-plan summary",
+        "recommended_prep": "recommended prep",
+        "final_prep": "final prep",
+        "current_stock": "current stock",
+        "opening_stock": "opening stock",
+        "p10": "low-demand scenario",
+        "p50": "expected-demand scenario",
+        "p90": "high-demand scenario",
+    }
+    return labels.get(key, key.replace("_", " "))
+
+
+def _human_evidence_glossary(evidence: dict) -> str:
+    lines: list[str] = []
+    for key, value in sorted(evidence.items()):
+        if isinstance(value, (dict, list)):
+            continue
+        label = _human_label_for_evidence_key(key)
+        if isinstance(value, str):
+            value_label = _human_label_for_evidence_key(value)
+            lines.append(f"- {key}: call this '{label}'; value meaning: '{value_label}'")
+        else:
+            lines.append(f"- {key}: call this '{label}'")
+    return "\n".join(lines) or "- Use plain bakery operations language for every field."
+
+
 def _grounded_explanation_prompt(language: SupportedLanguage, context_type: str, evidence: dict) -> str:
     evidence_json = json.dumps(evidence, ensure_ascii=False, sort_keys=True, default=str)
+    glossary = _human_evidence_glossary(evidence)
     return (
         f"{_language_prompt_prefix(language)}\n\n"
         "You are Predictory's Gemini explanation layer for bakery operations.\n"
         "Use only the provided JSON evidence. Do not create, change, estimate, or infer new numbers. "
         "Do not introduce quantities, costs, suppliers, outlets, SKUs, dates, or actions that are not present "
         "in the evidence. If the evidence is insufficient, say what evidence is missing.\n"
-        f"Task: Explain the {context_type} evidence in 2-3 complete operational sentences. "
-        "Every sentence must be complete and end with punctuation.\n\n"
+        "Write for a bakery operations manager, not an engineer. Do not repeat raw JSON field names such as "
+        "value_rm, pending_action_count, full_plan_stockout_exposure_rm, or backend_daily_plan_summary. "
+        "Translate them into the business labels below. Do not mention the JSON key names unless no plain label exists.\n\n"
+        f"Business label guide:\n{glossary}\n\n"
+        f"Task: Explain the {context_type} evidence in 3 short, plain-language lines:\n"
+        "What it means: state the main operational meaning.\n"
+        "Why it matters: connect it to prep, stockout, waste, or manager review.\n"
+        "Next step: give a practical action only if the evidence supports one.\n"
+        "Use complete sentences with punctuation. Keep every number exactly as provided.\n\n"
         f"Evidence JSON:\n{evidence_json}"
     )
 
 
 def _call_grounded_explanation(language: SupportedLanguage, context_type: str, evidence: dict) -> str:
     prompt = _grounded_explanation_prompt(language, context_type, evidence)
+    logger.info(
+        "[explain] calling LLM context_type=%s language=%s evidence_keys=%s",
+        context_type,
+        language,
+        sorted(evidence.keys()),
+    )
     try:
-        return _validate_llm_explanation_text(_invoke_llm(prompt, max_tokens=900))
+        raw = _invoke_llm(prompt, max_tokens=4096)
+        logger.debug("[explain] attempt 1 raw response: %r", raw)
+        return _validate_llm_explanation_text(raw)
     except HTTPException as exc:
-        if exc.status_code != 503 or "incomplete explanation" not in str(exc.detail):
+        detail = str(exc.detail)
+        if exc.status_code != 503 or (
+            "incomplete" not in detail and "overly technical" not in detail
+        ):
             raise
+        logger.warning("[explain] attempt 1 failed validation — retrying with stricter prompt")
         retry_prompt = (
             f"{prompt}\n\n"
-            "Your previous response was incomplete or ended mid-sentence. Return a complete answer now: "
-            "2-3 full sentences, grounded only in the Evidence JSON, with punctuation at the end of every sentence."
+            "Your previous response was incomplete, too technical, or ended mid-sentence. Return a complete answer now: "
+            "use the What it means / Why it matters / Next step format, grounded only in the Evidence JSON, "
+            "with no raw JSON field names."
         )
-        return _validate_llm_explanation_text(_invoke_llm(retry_prompt, max_tokens=900))
+        raw_retry = _invoke_llm(retry_prompt, max_tokens=4096)
+        logger.debug("[explain] attempt 2 raw response: %r", raw_retry)
+        return _validate_llm_explanation_text(raw_retry)
 
 
 def _normalize_language(language: str | None) -> SupportedLanguage:
@@ -411,11 +474,15 @@ class AgentAction(BaseModel):
     target: ActionTarget
     evidence: list[str] = Field(default_factory=list)
     source_type: Literal["rules_based", "llm_rephrased"]
+    priority_reason: Optional[str] = None
 
 
 class DailyActionsResponse(BaseModel):
     date: str
     brief: str
+    llm_status: Literal["not_needed", "success", "failed"]
+    used_fallback: bool
+    graph_trace: list[dict] = Field(default_factory=list)
     top_actions: list[AgentAction] = Field(default_factory=list)
     prep_actions: list[AgentAction] = Field(default_factory=list)
     reorder_actions: list[AgentAction] = Field(default_factory=list)
@@ -475,6 +542,9 @@ class ApplyNoteAdjustmentRequest(BaseModel):
 
 class ManagerNoteLineChange(BaseModel):
     line_id: int
+    outlet_name: str
+    sku_name: str
+    daypart: str
     before_prep: int
     after_prep: int
 
@@ -561,7 +631,7 @@ def _parse_manager_note_with_llm(note: str, forecast_run: ForecastRun, db: Sessi
         "Required JSON keys: outlet_id, daypart, sku_category, suggested_adjustment_pct, reason, "
         "requires_confirmation, uncertainty_reason."
     )
-    raw = _invoke_llm(prompt, max_tokens=600, response_format={"type": "json_object"})
+    raw = _invoke_llm(prompt, max_tokens=3072, response_format={"type": "json_object"})
     parsed = _json_loads_object(raw, "LLM manager-note parse returned invalid JSON")
 
     outlet_names = {item["name"] for item in allowed["outlets"]}
@@ -686,6 +756,16 @@ def explain_recommendation(body: ExplainRecommendationRequest, db: Session = Dep
         "reason_summary": optimizer.get("reason_summary"),
         "status": line.status,
     }
+    logger.info(
+        "[explain-recommendation] recommendation_id=%s forecast_run_id=%s outlet=%s sku=%s daypart=%s final_prep=%s language=%s",
+        body.recommendation_id,
+        evidence["forecast_run_id"],
+        evidence["outlet_name"],
+        evidence["sku_name"],
+        line.daypart,
+        final_units,
+        language,
+    )
     explanation = _call_grounded_explanation(language, "prep recommendation", evidence)
     return ExplainRecommendationResponse(
         explanation=explanation,
@@ -780,8 +860,17 @@ def apply_note_adjustment(body: ApplyNoteAdjustmentRequest, db: Session = Depend
         db.flush()
         updated_line_ids.append(line.id)
         audit_event_ids.append(event.id)
+        outlet_name = outlet_map[line.outlet_id].name if outlet_map.get(line.outlet_id) else f"Outlet {line.outlet_id}"
+        sku_name = sku_map[line.sku_id].name if sku_map.get(line.sku_id) else f"SKU {line.sku_id}"
         line_changes.append(
-            ManagerNoteLineChange(line_id=line.id, before_prep=base_qty, after_prep=final_prep)
+            ManagerNoteLineChange(
+                line_id=line.id,
+                outlet_name=outlet_name,
+                sku_name=sku_name,
+                daypart=line.daypart,
+                before_prep=base_qty,
+                after_prep=final_prep,
+            )
         )
 
     db.commit()
@@ -1165,7 +1254,7 @@ def generate_daily_brief(body: DailyBriefRequest, db: Session = Depends(get_db))
         ),
     )
 
-    brief = _validate_daily_brief_text(_invoke_llm(prompt, max_tokens=900))
+    brief = _validate_daily_brief_text(_invoke_llm(prompt, max_tokens=4096))
     return DailyBriefResponse(brief=brief, date=str(brief_date))
 
 
@@ -1190,7 +1279,7 @@ def daily_actions(body: DailyActionsRequest, db: Session = Depends(get_db)):
     def llm(
         prompt,
         _text="",
-        max_tokens=900,
+        max_tokens=4096,
         response_format=None,
     ):
         return _invoke_llm(
@@ -1208,6 +1297,9 @@ def daily_actions(body: DailyActionsRequest, db: Session = Depends(get_db)):
     return DailyActionsResponse(
         date=payload["date"],
         brief=payload["brief"],
+        llm_status=payload["llm_status"],
+        used_fallback=payload["used_fallback"],
+        graph_trace=payload["graph_trace"],
         top_actions=payload["top_actions"],
         prep_actions=payload["prep_actions"],
         reorder_actions=payload["reorder_actions"],

@@ -10,6 +10,7 @@ import ForecastMathPanel from "@/components/forecast/ForecastMathPanel";
 import OverrideEditor from "@/components/forecast/OverrideEditor";
 import Header from "@/components/Header";
 import { Card } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useLanguage } from "@/components/i18n/LanguageProvider";
@@ -406,7 +407,7 @@ export default function ForecastPage() {
                   <Card key={card.key} className={`border p-5 shadow-none ${card.tone}`}>
                     <p className="text-xs font-semibold uppercase tracking-wide">{card.label}</p>
                     {forecastsQuery.isLoading ? (
-                      <div className="mt-3 h-8 w-24 animate-pulse rounded bg-neutral-200/70" />
+                      <Skeleton className="mt-3 h-8 w-24 bg-neutral-200/70" />
                     ) : currentRun ? (
                       <p className="mt-3 text-3xl font-bold">
                         {card.value.toFixed(1)}
@@ -487,7 +488,7 @@ export default function ForecastPage() {
                         <TableRow key={rowIndex}>
                           {Array.from({ length: 8 }).map((__, cellIndex) => (
                             <TableCell key={cellIndex}>
-                              <div className="h-4 animate-pulse rounded bg-neutral-100" />
+                              <Skeleton className="h-4 bg-neutral-100" />
                             </TableCell>
                           ))}
                         </TableRow>

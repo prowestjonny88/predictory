@@ -7,6 +7,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from db.models import InventorySnapshot, Outlet, RecipeBOM, SKU, SalesFact, WeatherSnapshot
+from forecasting.weather import WeatherUnavailableError, get_or_refresh_weather_snapshot
 from services.lightgbm_inference import DAYPARTS
 from services.model_loader import ModelArtifactError, get_model_artifacts
 
@@ -102,7 +103,14 @@ def check_runtime_readiness(target_date: date, db: Session) -> ReadinessStatus:
             is not None
         )
         if not has_weather:
-            add_blocker("weather_coverage", f"No weather snapshot for outlet '{outlet.code}' on {target_date}.")
+            try:
+                get_or_refresh_weather_snapshot(outlet, target_date, db)
+                has_weather = True
+            except WeatherUnavailableError as exc:
+                add_blocker(
+                    "weather_coverage",
+                    f"No weather snapshot for outlet '{outlet.code}' on {target_date}. {exc}",
+                )
         for sku in skus:
             has_bom = db.query(RecipeBOM.id).filter(RecipeBOM.sku_id == sku.id).first() is not None
             if not has_bom:
