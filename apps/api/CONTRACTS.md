@@ -259,9 +259,9 @@ Response:
 
 ### `POST /api/v1/copilot/council/review`
 
-Runs a read-only Agent Council for one selected daily-planning recommendation. The request accepts `recommendation_id` and optional `language`. The response includes server-generated `candidate_quantities`, specialist `agent_arguments`, `agent_trace`, `judge_recommendation`, and `graph_trace`.
+Runs a read-only LangGraph Agent Council for one selected daily-planning recommendation. The request accepts `recommendation_id` and optional `language`. The response includes server-generated `candidate_quantities`, specialist `agent_arguments`, `agent_trace`, `judge_recommendation`, and `graph_trace`.
 
-The Judge Agent must select one server-generated candidate quantity. If provider output is unavailable or invalid, the backend returns a visible fallback Judge trace using the optimizer/current candidate where possible.
+The Judge Agent must select one server-generated candidate quantity and its matching primary source. If provider output is unavailable, invalid, or mismatches quantity/source, the backend returns a visible fallback Judge trace using the optimizer/current candidate where possible.
 
 ### `POST /api/v1/copilot/council/review-with-note`
 
@@ -269,7 +269,7 @@ Runs a read-only council preview using an existing `parse-manager-note` result. 
 
 ### `POST /api/v1/copilot/council/confirm`
 
-Applies a confirmed council recommendation as `prep_edit_only`. The server reloads the recommendation, rebuilds candidates, validates `selected_prep` against server-generated candidates, edits the prep line, refreshes replenishment, and writes a compact audit summary. Client-provided candidate lists are not accepted as authoritative.
+Applies a confirmed council recommendation as `prep_edit_only`. The server reloads the recommendation, rebuilds candidates, validates `selected_prep` against server-generated candidates, edits the prep line, refreshes replenishment, and writes a compact audit summary. Client-provided candidate lists are not accepted as authoritative. If replenishment refresh fails after the edit/audit commit, the response includes `warnings` and `replenishment_plan_id: null`.
 
 ## Manual Smoke Checklist
 

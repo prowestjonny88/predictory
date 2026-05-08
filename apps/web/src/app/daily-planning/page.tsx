@@ -39,6 +39,8 @@ export default function DailyPlanningPage() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [councilOpen, setCouncilOpen] = useState(false);
   const [councilReview, setCouncilReview] = useState<CouncilReviewResponse | null>(null);
+  const [councilBeforeReview, setCouncilBeforeReview] = useState<CouncilReviewResponse | null>(null);
+  const [councilAfterReview, setCouncilAfterReview] = useState<CouncilReviewResponse | null>(null);
   const [councilError, setCouncilError] = useState<string | null>(null);
   const [councilLoading, setCouncilLoading] = useState(false);
   const [councilConfirming, setCouncilConfirming] = useState(false);
@@ -267,6 +269,8 @@ export default function DailyPlanningPage() {
     setCouncilLoading(true);
     setCouncilError(null);
     setCouncilReview(null);
+    setCouncilBeforeReview(null);
+    setCouncilAfterReview(null);
     setCouncilConfirmResult(null);
     setCouncilManagerAdjustment(null);
     try {
@@ -280,17 +284,29 @@ export default function DailyPlanningPage() {
   }
 
   async function handleManagerNoteCouncilPreview(adjustment: ManagerNoteResponse["parsed_adjustment"], note: string) {
-    if (!selectedAction) {
-      throw new Error("Select a recommendation before running council preview.");
+    const matchingActions = (plan?.top_actions ?? []).filter(
+      (item) =>
+        item.outlet_name === adjustment.outlet_id &&
+        item.daypart.toLowerCase() === adjustment.daypart.toLowerCase() &&
+        item.sku_category === adjustment.sku_category
+    );
+    const actionForNote = matchingActions[0];
+    if (!actionForNote) {
+      throw new Error("No daily-planning recommendation matches the parsed manager note target.");
     }
+    setSelectedAction(actionForNote);
     setCouncilOpen(true);
     setCouncilLoading(true);
     setCouncilError(null);
     setCouncilReview(null);
+    setCouncilBeforeReview(null);
+    setCouncilAfterReview(null);
     setCouncilConfirmResult(null);
     setCouncilManagerAdjustment(adjustment);
     try {
-      const response = await agenticApi.reviewCouncilWithNote(selectedAction.id, adjustment, note, language);
+      const response = await agenticApi.reviewCouncilWithNote(actionForNote.id, adjustment, note, language);
+      setCouncilBeforeReview(response.before_review);
+      setCouncilAfterReview(response.after_review);
       setCouncilReview(response.after_review);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Agent Council preview failed";
@@ -301,7 +317,7 @@ export default function DailyPlanningPage() {
     }
   }
 
-  async function handleConfirmCouncil(operatorReason: string) {
+  async function handleConfirmCouncil(operatorReason: string, selectedPrep: number) {
     if (!councilReview) {
       return;
     }
@@ -310,7 +326,7 @@ export default function DailyPlanningPage() {
     try {
       const response = await agenticApi.confirmCouncilRecommendation({
         recommendation_id: councilReview.recommendation_id,
-        selected_prep: councilReview.judge_recommendation.recommended_prep,
+        selected_prep: selectedPrep,
         manager_adjustment: councilManagerAdjustment ?? undefined,
         operator_reason: operatorReason,
         language,
@@ -551,6 +567,8 @@ export default function DailyPlanningPage() {
           <div className="mt-6">
             <AgentCouncilPanel
               review={councilReview}
+              beforeReview={councilBeforeReview}
+              afterReview={councilAfterReview}
               loading={councilLoading}
               error={councilError}
               confirming={councilConfirming}

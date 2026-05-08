@@ -44,19 +44,33 @@ def build_candidate_quantities(
     p50: float,
     p90: float,
     opening_stock: float,
-    current_recommended_prep: int,
+    optimizer_recommended_prep: int,
+    current_plan_prep: int | None = None,
     batch_size: int,
     manager_adjustment: ParsedAdjustment | None = None,
 ) -> list[CandidateQuantity]:
     candidates: list[CandidateQuantity] = []
+    current_prep = int(current_plan_prep if current_plan_prep is not None else optimizer_recommended_prep)
 
     _add_candidate(
         candidates,
-        quantity=max(0, int(current_recommended_prep)),
+        quantity=max(0, int(optimizer_recommended_prep)),
         source="optimizer",
-        reason="Current optimizer-backed prep for this line.",
-        evidence={"current_recommended_prep": current_recommended_prep},
+        reason="Original optimizer-backed prep for this line.",
+        evidence={"optimizer_recommended_prep": optimizer_recommended_prep},
     )
+
+    if current_plan_prep is not None and int(current_plan_prep) != int(optimizer_recommended_prep):
+        _add_candidate(
+            candidates,
+            quantity=max(0, int(current_plan_prep)),
+            source="current_plan",
+            reason="Current plan quantity after a prior human or council edit.",
+            evidence={
+                "current_plan_prep": current_plan_prep,
+                "optimizer_recommended_prep": optimizer_recommended_prep,
+            },
+        )
 
     expected = _round_up_to_batch(p50 - opening_stock, batch_size)
     _add_candidate(
@@ -90,14 +104,14 @@ def build_candidate_quantities(
 
     if manager_adjustment is not None:
         bounded_pct = max(-50.0, min(50.0, float(manager_adjustment.suggested_adjustment_pct)))
-        adjusted = _round_up_to_batch(current_recommended_prep * (1 + bounded_pct / 100.0), batch_size)
+        adjusted = _round_up_to_batch(current_prep * (1 + bounded_pct / 100.0), batch_size)
         _add_candidate(
             candidates,
             quantity=adjusted,
             source="manager_note_adjusted",
             reason="Manager-note adjusted prep, bounded to +/-50%.",
             evidence={
-                "base_prep": current_recommended_prep,
+                "base_prep": current_prep,
                 "adjustment_pct": bounded_pct,
                 "reason": manager_adjustment.reason,
                 "batch_size": batch_size,

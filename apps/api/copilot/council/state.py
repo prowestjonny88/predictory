@@ -3,8 +3,17 @@ from __future__ import annotations
 from datetime import date
 from typing import Any, TypedDict
 
+from sqlalchemy.orm import Session
+
+from .schemas import ParsedAdjustment
+
 
 class CouncilState(TypedDict, total=False):
+    db: Session
+    llm_fn: Any
+    language: str
+    manager_adjustment: ParsedAdjustment | None
+    context: dict[str, Any]
     recommendation_id: str
     plan_id: int
     target_date: date

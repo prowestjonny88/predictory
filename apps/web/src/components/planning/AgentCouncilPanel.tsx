@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,11 +8,13 @@ import type { CouncilConfirmResponse, CouncilReviewResponse } from "@/lib/api/ag
 
 interface Props {
   review: CouncilReviewResponse | null;
+  beforeReview?: CouncilReviewResponse | null;
+  afterReview?: CouncilReviewResponse | null;
   loading?: boolean;
   error?: string | null;
   confirming?: boolean;
   confirmResult?: CouncilConfirmResponse | null;
-  onConfirm?: (operatorReason: string) => Promise<void>;
+  onConfirm?: (operatorReason: string, selectedPrep: number) => Promise<void>;
 }
 
 function sourceLabel(value: string): string {
@@ -34,6 +36,8 @@ function formatEvidence(value: unknown): string {
 
 export default function AgentCouncilPanel({
   review,
+  beforeReview,
+  afterReview,
   loading,
   error,
   confirming,
@@ -43,6 +47,12 @@ export default function AgentCouncilPanel({
   const { t } = useLanguage();
   const [operatorReason, setOperatorReason] = useState("Approved Agent Council recommendation.");
   const [traceOpen, setTraceOpen] = useState(false);
+  const [agentTraceOpen, setAgentTraceOpen] = useState(false);
+  const [selectedPrep, setSelectedPrep] = useState<number | null>(null);
+
+  useEffect(() => {
+    setSelectedPrep(review?.judge_recommendation.recommended_prep ?? null);
+  }, [review?.recommendation_id, review?.judge_recommendation.recommended_prep]);
 
   if (loading) {
     return <p className="text-sm text-neutral-500">{t("planning.council.loading", "Running Agent Council review...")}</p>;
@@ -57,9 +67,45 @@ export default function AgentCouncilPanel({
   }
 
   const judge = review.judge_recommendation;
+  const selectedCandidate = review.candidate_quantities.find((candidate) => candidate.quantity === selectedPrep) ?? null;
+  const beforePrep = beforeReview?.judge_recommendation.recommended_prep;
+  const afterPrep = afterReview?.judge_recommendation.recommended_prep;
+  const hasBeforeAfter = beforePrep != null && afterPrep != null;
+  const delta = hasBeforeAfter ? afterPrep - beforePrep : 0;
 
   return (
     <div className="space-y-4">
+      {hasBeforeAfter && (
+        <Card className="border-sky-200 bg-sky-50">
+          <CardContent className="grid gap-2 p-3 text-sm text-sky-950 sm:grid-cols-3">
+            <p>
+              <span className="font-semibold">{t("planning.council.beforeNote", "Before manager note")}:</span>{" "}
+              {beforePrep} units
+            </p>
+            <p>
+              <span className="font-semibold">{t("planning.council.afterNote", "After manager note")}:</span>{" "}
+              {afterPrep} units
+            </p>
+            <p>
+              <span className="font-semibold">{t("planning.council.delta", "Delta")}:</span>{" "}
+              {delta > 0 ? "+" : ""}
+              {delta} units
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
+      {judge.source === "fallback" && (
+        <Card className="border-amber-300 bg-amber-50">
+          <CardContent className="p-3 text-sm text-amber-950">
+            {t(
+              "planning.council.fallbackWarning",
+              "Judge fallback used. The recommendation was selected deterministically from server-generated candidates."
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       <Card className="border-amber-200 bg-amber-50">
         <CardHeader>
           <div className="flex flex-wrap items-start justify-between gap-3">
@@ -92,12 +138,28 @@ export default function AgentCouncilPanel({
         <h3 className="text-sm font-semibold text-neutral-900">{t("planning.council.candidates", "Candidate prep quantities")}</h3>
         <div className="mt-2 grid gap-2 sm:grid-cols-2">
           {review.candidate_quantities.map((candidate) => (
-            <div key={`${candidate.source}-${candidate.quantity}`} className="rounded-lg border border-neutral-200 bg-white p-3">
+            <label
+              key={`${candidate.source}-${candidate.quantity}`}
+              className="rounded-lg border border-neutral-200 bg-white p-3"
+            >
               <div className="flex items-center justify-between gap-2">
-                <p className="text-lg font-semibold text-neutral-900">{candidate.quantity} units</p>
-                <Badge variant={candidate.source === judge.selected_candidate_source ? "high" : "outline"}>
-                  {candidate.source}
-                </Badge>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="radio"
+                    name={`candidate-${review.recommendation_id}`}
+                    checked={selectedPrep === candidate.quantity}
+                    onChange={() => setSelectedPrep(candidate.quantity)}
+                  />
+                  <p className="text-lg font-semibold text-neutral-900">{candidate.quantity} units</p>
+                </div>
+                <div className="flex flex-wrap justify-end gap-1">
+                  <Badge variant={candidate.source === judge.selected_candidate_source ? "high" : "outline"}>
+                    {candidate.source}
+                  </Badge>
+                  {candidate.quantity === judge.recommended_prep && (
+                    <Badge variant="outline">{t("planning.council.judgePick", "Judge pick")}</Badge>
+                  )}
+                </div>
               </div>
               <p className="mt-1 text-xs text-neutral-600">{candidate.reason}</p>
               {candidate.alternate_sources && candidate.alternate_sources.length > 0 && (
@@ -105,7 +167,7 @@ export default function AgentCouncilPanel({
                   {t("planning.council.alsoMatches", "Also matches")}: {candidate.alternate_sources.join(", ")}
                 </p>
               )}
-            </div>
+            </label>
           ))}
         </div>
       </div>
@@ -152,11 +214,21 @@ export default function AgentCouncilPanel({
               value={operatorReason}
               onChange={(event) => setOperatorReason(event.target.value)}
             />
-            <Button onClick={() => onConfirm(operatorReason)} disabled={confirming}>
+            <Button
+              onClick={() => selectedPrep != null && onConfirm(operatorReason, selectedPrep)}
+              disabled={confirming || selectedPrep == null}
+            >
               {confirming
                 ? t("planning.council.confirming", "Applying...")
-                : t("planning.council.confirmButton", "Apply prep edit")}
+                : selectedPrep === judge.recommended_prep
+                  ? t("planning.council.confirmJudgeButton", "Apply Judge recommendation")
+                  : t("planning.council.confirmSelectedButton", "Apply selected candidate")}
             </Button>
+            {selectedCandidate && (
+              <p className="text-xs text-neutral-500">
+                {t("planning.council.selectedCandidate", "Selected candidate")}: {selectedCandidate.quantity} units / {selectedCandidate.source}
+              </p>
+            )}
           </CardContent>
         </Card>
       )}
@@ -166,6 +238,11 @@ export default function AgentCouncilPanel({
           <CardContent className="space-y-2 p-3 text-sm text-emerald-950">
             <p className="font-semibold">{confirmResult.message}</p>
             <p>{t("planning.council.applicationMode", "Application mode")}: {confirmResult.application_mode}</p>
+            {confirmResult.warnings?.map((warning) => (
+              <p key={warning} className="rounded border border-amber-200 bg-amber-50 px-2 py-1 text-xs text-amber-900">
+                {warning}
+              </p>
+            ))}
             {confirmResult.line_changes.map((change) => (
               <p key={change.line_id} className="rounded bg-white/70 px-2 py-1 text-xs">
                 {change.outlet_name} / {change.sku_name} / {change.daypart}: {change.before_prep} -&gt; {change.after_prep} units
@@ -174,6 +251,37 @@ export default function AgentCouncilPanel({
           </CardContent>
         </Card>
       )}
+
+      <div>
+        <Button variant="ghost" size="sm" onClick={() => setAgentTraceOpen((value) => !value)}>
+          {agentTraceOpen ? t("planning.council.hideAgentTrace", "Hide agent trace") : t("planning.council.showAgentTrace", "Show agent trace")}
+        </Button>
+        {agentTraceOpen && (
+          <div className="mt-2 space-y-2">
+            {review.agent_trace.map((item, index) => (
+              <Card key={`${item.agent}-${item.role}-${index}`}>
+                <CardContent className="p-3 text-xs">
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div>
+                      <p className="font-semibold text-neutral-900">{item.agent} / {item.role}</p>
+                      <p className="mt-1 text-neutral-700">{item.claim}</p>
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      <Badge variant="outline">{sourceLabel(item.source)}</Badge>
+                      <Badge variant="outline">{item.severity}</Badge>
+                    </div>
+                  </div>
+                  {Object.keys(item.evidence).length > 0 && (
+                    <pre className="mt-2 max-h-40 overflow-auto rounded bg-neutral-50 p-2 text-[11px] text-neutral-700">
+                      {JSON.stringify(item.evidence, null, 2)}
+                    </pre>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
 
       <div>
         <Button variant="ghost" size="sm" onClick={() => setTraceOpen((value) => !value)}>

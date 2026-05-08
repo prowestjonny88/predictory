@@ -6,7 +6,6 @@ POST /copilot/run-scenario
 POST /copilot/daily-actions
 """
 import json
-import os
 from datetime import date as date_type
 from typing import Literal, Optional
 
@@ -22,6 +21,7 @@ from copilot.prompts import (
     DAILY_BRIEF_PROMPT,
 )
 from copilot.scenario import run_scenario_simulation
+from copilot import llm as copilot_llm
 from db.database import get_db
 from db.models import DecisionAuditEvent, ForecastRun, Outlet, PrepPlan, PrepPlanLine, ReplenishmentPlan, SKU
 from planning.replenishment import recommend_replenishment
@@ -29,7 +29,6 @@ from services.uncertainty import band_for_prep_line
 
 router = APIRouter()
 
-DEFAULT_GEMINI_MODEL = "gemini/gemini-3-flash-preview"
 SupportedLanguage = Literal["en", "ms", "zh-CN"]
 WEEKDAY_LABELS = {
     "en": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
@@ -38,37 +37,12 @@ WEEKDAY_LABELS = {
 }
 
 
-def _get_env(*names: str) -> Optional[str]:
-    for name in names:
-        value = os.getenv(name)
-        if value:
-            return value
-    return None
-
-
 def _resolve_litellm_config() -> tuple[str, dict]:
-    gemini_api_key = _get_env("GEMINI_API_KEY", "GOOGLE_API_KEY")
-    if not gemini_api_key:
-        raise RuntimeError("GEMINI_API_KEY is not configured")
-    extra_kwargs = {"api_key": gemini_api_key}
-    gemini_api_base = os.getenv("GEMINI_API_BASE")
-    if gemini_api_base:
-        extra_kwargs["api_base"] = gemini_api_base
-    return (
-        os.getenv("GEMINI_MODEL", DEFAULT_GEMINI_MODEL),
-        extra_kwargs,
-    )
+    return copilot_llm.resolve_litellm_config()
 
 
 def _extract_text(response) -> str:
-    content = response.choices[0].message.content
-    if isinstance(content, list):
-        parts = []
-        for item in content:
-            if isinstance(item, dict) and item.get("text"):
-                parts.append(item["text"])
-        content = "\n".join(parts)
-    return (content or "").strip()
+    return copilot_llm.extract_text(response)
 
 
 def _call_llm(
@@ -78,28 +52,7 @@ def _call_llm(
     response_format: Optional[dict] = None,
 ) -> str:
     """Call LiteLLM. All numbers come from upstream services."""
-    try:
-        import litellm
-
-        model, extra_kwargs = _resolve_litellm_config()
-        completion_kwargs = {
-            "model": model,
-            "messages": [{"role": "user", "content": prompt}],
-            "max_tokens": max_tokens,
-            "temperature": 0.2,
-            **extra_kwargs,
-        }
-        if response_format is not None:
-            completion_kwargs["response_format"] = response_format
-        response = litellm.completion(
-            **completion_kwargs,
-        )
-        text = _extract_text(response)
-        if not text:
-            raise RuntimeError("LLM provider returned empty text")
-        return text
-    except Exception as exc:
-        raise HTTPException(status_code=503, detail=f"LLM provider unavailable: {exc}") from exc
+    return copilot_llm.call_llm(prompt, _provider_text, max_tokens=max_tokens, response_format=response_format)
 
 
 def _invoke_llm(

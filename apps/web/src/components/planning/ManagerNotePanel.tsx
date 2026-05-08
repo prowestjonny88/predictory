@@ -182,14 +182,9 @@ export default function ManagerNotePanel({ onParse, onApply, onCouncilPreview }:
             )}
 
             <div className="mt-3 flex flex-wrap gap-2">
-              <Button variant="primary" size="sm" onClick={handleApply} disabled={applying}>
-                {applying
-                  ? t("planning.managerNote.applying", "Applying...")
-                  : t("planning.managerNote.apply", "Confirm and apply")}
-              </Button>
               {onCouncilPreview && (
                 <Button
-                  variant="secondary"
+                  variant="primary"
                   size="sm"
                   onClick={() => {
                     onCouncilPreview(result.parsed_adjustment, note).catch((err) => {
@@ -197,13 +192,24 @@ export default function ManagerNotePanel({ onParse, onApply, onCouncilPreview }:
                     });
                   }}
                 >
-                  {t("planning.managerNote.runCouncil", "Run council preview")}
+                  {t("planning.managerNote.runCouncil", "Run Agent Council Preview")}
                 </Button>
               )}
+              <Button variant="outline" size="sm" onClick={handleApply} disabled={applying}>
+                {applying
+                  ? t("planning.managerNote.applying", "Applying...")
+                  : t("planning.managerNote.applyDirect", "Apply directly without council")}
+              </Button>
               <Button variant="outline" size="sm" onClick={() => setResult(null)}>
                 {t("planning.managerNote.ignore", "Ignore")}
               </Button>
             </div>
+            <p className="text-xs text-neutral-500">
+              {t(
+                "planning.managerNote.directApplyWarning",
+                "Direct apply skips Agent Council review and immediately applies prep_edit_only."
+              )}
+            </p>
           </div>
         )}
 

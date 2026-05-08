@@ -9,6 +9,17 @@ def candidate_by_source(candidates: list[CandidateQuantity], source: str) -> Can
     return next((candidate for candidate in candidates if candidate.source == source), None)
 
 
+def candidate_for_judge_output(
+    recommended_prep: int,
+    selected_source: str,
+    candidates: list[CandidateQuantity],
+) -> CandidateQuantity:
+    for candidate in candidates:
+        if candidate.quantity == recommended_prep and candidate.source == selected_source:
+            return candidate
+    raise ValueError("Judge selected a mismatched quantity/source pair")
+
+
 def validate_selected_prep(selected_prep: int, candidates: list[CandidateQuantity]) -> CandidateQuantity:
     for candidate in candidates:
         if candidate.quantity == selected_prep:
@@ -21,21 +32,19 @@ def validate_selected_prep(selected_prep: int, candidates: list[CandidateQuantit
 
 
 def validate_judge(raw: dict, candidates: list[CandidateQuantity]) -> JudgeRecommendation:
-    allowed_quantities = {candidate.quantity for candidate in candidates}
-    allowed_sources = {candidate.source for candidate in candidates}
     recommended_prep = int(raw["recommended_prep"])
     selected_source = str(raw["selected_candidate_source"])
-    if recommended_prep not in allowed_quantities:
-        raise ValueError("Judge selected a non-candidate prep quantity")
-    if selected_source not in allowed_sources:
-        raise ValueError("Judge selected an unknown candidate source")
+    candidate_for_judge_output(recommended_prep, selected_source, candidates)
+    consensus = str(raw.get("agent_consensus") or "split")
+    if consensus not in {"aligned", "split", "contested"}:
+        raise ValueError("Judge selected an invalid agent_consensus")
     return JudgeRecommendation(
         recommended_prep=recommended_prep,
         selected_candidate_source=selected_source,
         requires_confirmation=bool(raw.get("requires_confirmation", True)),
         reasoning_summary=str(raw.get("reasoning_summary") or "Council selected a validated candidate."),
         primary_conflict=raw.get("primary_conflict"),
-        agent_consensus=str(raw.get("agent_consensus") or "split"),  # type: ignore[arg-type]
+        agent_consensus=consensus,  # type: ignore[arg-type]
         source="judge_synthesized",
     )
 

@@ -32,6 +32,7 @@ export interface CandidateQuantity {
   source:
     | "expected_demand"
     | "optimizer"
+    | "current_plan"
     | "stockout_guardrail"
     | "waste_guardrail"
     | "manager_note_adjusted";
@@ -106,6 +107,7 @@ export interface CouncilConfirmResponse {
   selected_candidate_source: string;
   audit_event_ids: number[];
   replenishment_plan_id: number | null;
+  warnings?: string[];
   line_changes: {
     line_id: number;
     outlet_name: string;

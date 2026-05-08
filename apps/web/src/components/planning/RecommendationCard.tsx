@@ -97,7 +97,7 @@ export default function RecommendationCard({ item, onOpen, onCouncilReview }: Pr
           <div className="flex items-center justify-between gap-2 rounded-lg border border-sky-100 bg-sky-50/50 p-3">
             <div className="flex items-start gap-2 text-xs text-sky-900">
               <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-sky-600" />
-              <span>{t("planning.recommendation.geminiHelp", "Gemini can explain this prep amount using the displayed backend evidence.")}</span>
+              <span>{t("planning.recommendation.geminiHelp", "Need a quick explanation? Gemini summarizes this evidence. For tradeoff review, open Agent Council.")}</span>
             </div>
             <ExplainButton
               label={t("planning.recommendation.whyAmount", "Why this amount?")}
@@ -119,7 +119,7 @@ export default function RecommendationCard({ item, onOpen, onCouncilReview }: Pr
           <div className="flex flex-wrap justify-end gap-2">
             {onCouncilReview && (
               <Button variant="outline" size="sm" onClick={() => onCouncilReview(item)}>
-                {t("planning.recommendation.agentCouncil", "Agent Council")}
+                {t("planning.recommendation.agentCouncil", "Review with Agent Council")}
               </Button>
             )}
             <Button variant="secondary" size="sm" onClick={() => onOpen(item)}>

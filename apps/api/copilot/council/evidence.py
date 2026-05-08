@@ -54,6 +54,29 @@ def ingredient_impact_for_action(sku: SKU, recommended_prep: int, db: Session) -
     return sorted(items, key=lambda item: item.shortage_qty, reverse=True)[:3]
 
 
+def _optimizer_payload(line: PrepPlanLine) -> dict:
+    rationale = line.rationale_json or {}
+    payload = rationale.get("optimizer") or rationale.get("decision") or {}
+    return payload if isinstance(payload, dict) else {}
+
+
+def _financial_payload(payload: dict) -> dict:
+    financial = payload.get("financial_exposure") or {}
+    return financial if isinstance(financial, dict) else {}
+
+
+def _missing_optimizer_fields(payload: dict) -> list[str]:
+    financial = _financial_payload(payload)
+    missing = []
+    for key in ("batch_size", "waste_cost", "stockout_cost", "reason_summary"):
+        if key not in payload:
+            missing.append(key)
+    for key in ("stockout_exposure_rm", "waste_exposure_rm"):
+        if key not in financial:
+            missing.append(f"financial_exposure.{key}")
+    return missing
+
+
 def load_recommendation_context(
     recommendation_id: str,
     db: Session,
@@ -108,20 +131,33 @@ def load_recommendation_context(
 
     band = band_for_prep_line(prep_line=line, forecast_line=forecast_line, sku=sku, outlet_code=outlet.code)
     current_prep = line.edited_units if line.edited_units is not None else line.recommended_units
-    unit_cost = sku_unit_cost(sku, db)
-    decision = calculate_optimal_prep(
-        p10=band.p10,
-        p50=band.p50,
-        p90=band.p90,
-        opening_stock=line.current_stock,
-        unit_price=float(sku.price or 0),
-        unit_cost=unit_cost,
-        batch_size=5,
-        capacity=None,
-        freshness_hours=sku.freshness_hours,
-    )
+    optimizer = _optimizer_payload(line)
+    missing_fields = _missing_optimizer_fields(optimizer)
+    evidence_warnings: list[str] = []
+    if missing_fields:
+        unit_cost = sku_unit_cost(sku, db)
+        fallback_batch_size = int(optimizer.get("batch_size") or 5)
+        if "batch_size" in missing_fields:
+            evidence_warnings.append("optimizer batch_size missing; fallback batch_size=5 was used")
+        decision = calculate_optimal_prep(
+            p10=band.p10,
+            p50=band.p50,
+            p90=band.p90,
+            opening_stock=line.current_stock,
+            unit_price=float(sku.price or 0),
+            unit_cost=unit_cost,
+            batch_size=fallback_batch_size,
+            capacity=None,
+            freshness_hours=sku.freshness_hours,
+        )
+        evidence_warnings.append(
+            "optimizer evidence recalculated because stored rationale_json was incomplete: "
+            + ", ".join(missing_fields)
+        )
+    else:
+        decision = optimizer
     replenishment = ingredient_impact_for_action(sku, current_prep, db)
-    financial = decision["financial_exposure"]
+    financial = _financial_payload(decision)
 
     return {
         "line": line,
@@ -147,6 +183,7 @@ def load_recommendation_context(
         "opening_stock": float(line.current_stock),
         "current_recommended_prep": int(current_prep),
         "original_recommended_prep": int(line.recommended_units),
+        "has_prior_edit": line.edited_units is not None,
         "batch_size": int(decision["batch_size"]),
         "waste_cost": float(decision["waste_cost"]),
         "stockout_cost": float(decision["stockout_cost"]),
@@ -154,5 +191,7 @@ def load_recommendation_context(
         "waste_exposure_rm": float(financial["waste_exposure_rm"]),
         "reason_summary": str(decision["reason_summary"]),
         "replenishment": replenishment,
+        "inventory_scope": "global_ingredient_stock",
+        "evidence_warnings": evidence_warnings,
     }
 

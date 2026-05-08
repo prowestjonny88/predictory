@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import desc
 from sqlalchemy.orm import Session
 
-import copilot.router as copilot_router
+from copilot import llm as copilot_llm
 from db.database import get_db
 from db.models import DecisionAuditEvent, ForecastRun, Outlet, PrepPlanLine, ReplenishmentPlan, SKU
 from planning.replenishment import recommend_replenishment
@@ -40,7 +40,7 @@ def review_council(body: CouncilReviewRequest, db: Session = Depends(get_db)):
     return build_council_review(
         recommendation_id=body.recommendation_id,
         db=db,
-        llm_fn=copilot_router._invoke_llm,
+        llm_fn=copilot_llm.invoke_llm,
         language=body.language,
     )
 
@@ -50,13 +50,13 @@ def review_council_with_note(body: CouncilReviewWithNoteRequest, db: Session = D
     before = build_council_review(
         recommendation_id=body.recommendation_id,
         db=db,
-        llm_fn=copilot_router._invoke_llm,
+        llm_fn=copilot_llm.invoke_llm,
         language=body.language,
     )
     after = build_council_review(
         recommendation_id=body.recommendation_id,
         db=db,
-        llm_fn=copilot_router._invoke_llm,
+        llm_fn=copilot_llm.invoke_llm,
         manager_adjustment=body.parsed_adjustment,
         language=body.language,
     )
@@ -68,7 +68,7 @@ def confirm_council_recommendation(body: CouncilConfirmRequest, db: Session = De
     review = build_council_review(
         recommendation_id=body.recommendation_id,
         db=db,
-        llm_fn=copilot_router._invoke_llm,
+        llm_fn=copilot_llm.invoke_llm,
         manager_adjustment=body.manager_adjustment,
         language=body.language,
     )
@@ -135,7 +135,12 @@ def confirm_council_recommendation(body: CouncilConfirmRequest, db: Session = De
     audit_event_id = event.id
     db.commit()
 
-    replenishment_plan = _refresh_replenishment_for_date(prep_line.plan.plan_date, db)
+    warnings: list[str] = []
+    replenishment_plan = None
+    try:
+        replenishment_plan = _refresh_replenishment_for_date(prep_line.plan.plan_date, db)
+    except Exception as exc:
+        warnings.append(f"Replenishment refresh failed after prep edit; regenerate replenishment. Detail: {exc}")
     line_change = CouncilLineChange(
         line_id=prep_line.id,
         outlet_name=outlet.name,
@@ -152,6 +157,7 @@ def confirm_council_recommendation(body: CouncilConfirmRequest, db: Session = De
         selected_candidate_source=selected_candidate.source,
         audit_event_ids=[audit_event_id],
         replenishment_plan_id=replenishment_plan.id if replenishment_plan else None,
+        warnings=warnings,
         line_changes=[line_change],
         council_review=review,
     )

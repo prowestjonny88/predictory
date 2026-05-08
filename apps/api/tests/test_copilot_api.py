@@ -9,6 +9,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 import copilot.router as copilot_router
+import copilot.llm as copilot_llm
 import copilot.daily_agent as daily_agent
 import copilot.council.evidence as council_evidence
 import copilot.council.router as council_router
@@ -1079,7 +1080,7 @@ def test_council_candidate_generation_clamps_rounds_and_deduplicates():
         p50=31,
         p90=64,
         opening_stock=4,
-        current_recommended_prep=35,
+        optimizer_recommended_prep=35,
         batch_size=5,
     )
     quantities = [candidate.quantity for candidate in candidates]
@@ -1100,8 +1101,8 @@ def test_council_review_returns_tool_backed_agent_arguments():
         line = _prepare_council_context(db, target)
         restore_band = _patch_council_band()
         _override_app_db(SessionLocal)
-        original = copilot_router._call_llm
-        copilot_router._call_llm = _council_judge_llm
+        original = copilot_llm.call_llm
+        copilot_llm.call_llm = _council_judge_llm
         try:
             with TestClient(app) as client:
                 response = client.post(
@@ -1116,8 +1117,10 @@ def test_council_review_returns_tool_backed_agent_arguments():
                 candidate["quantity"] for candidate in payload["candidate_quantities"]
             ]
             assert payload["source_type"] == "agent_council"
+            assert any(item["node"] == "load_context" for item in payload["graph_trace"])
+            assert any(item["node"] == "selected_replenishment_check" for item in payload["graph_trace"])
         finally:
-            copilot_router._call_llm = original
+            copilot_llm.call_llm = original
     finally:
         app.dependency_overrides.clear()
         restore_band()
@@ -1133,8 +1136,8 @@ def test_council_judge_invalid_output_falls_back_with_trace():
         line = _prepare_council_context(db, target)
         restore_band = _patch_council_band()
         _override_app_db(SessionLocal)
-        original = copilot_router._call_llm
-        copilot_router._call_llm = lambda _prompt, _text="": json.dumps(
+        original = copilot_llm.call_llm
+        copilot_llm.call_llm = lambda _prompt, _text="": json.dumps(
             {
                 "recommended_prep": 999999,
                 "selected_candidate_source": "hallucinated",
@@ -1155,7 +1158,158 @@ def test_council_judge_invalid_output_falls_back_with_trace():
             assert payload["judge_recommendation"]["source"] == "fallback"
             assert any(item["agent"] == "Judge Agent" and item["source"] == "fallback" for item in payload["agent_trace"])
         finally:
-            copilot_router._call_llm = original
+            copilot_llm.call_llm = original
+    finally:
+        app.dependency_overrides.clear()
+        restore_band()
+        db.close()
+
+
+def test_council_judge_mismatched_quantity_source_falls_back():
+    SessionLocal = _build_session_factory()
+    db = SessionLocal()
+    target = date.today()
+    try:
+        _load_test_data(db)
+        line = _prepare_council_context(db, target)
+        restore_band = _patch_council_band()
+        _override_app_db(SessionLocal)
+        original = copilot_llm.call_llm
+
+        def mismatched_llm(prompt, _text=""):
+            match = re.search(r"Candidate quantities JSON:\s*(\[.*?\])\s*Agent arguments JSON:", prompt, re.S)
+            candidates = json.loads(match.group(1))
+            non_optimizer = next(item for item in candidates if item["source"] != "optimizer")
+            return json.dumps(
+                {
+                    "recommended_prep": non_optimizer["quantity"],
+                    "selected_candidate_source": "optimizer",
+                    "requires_confirmation": True,
+                    "reasoning_summary": "bad pair",
+                    "primary_conflict": None,
+                    "agent_consensus": "split",
+                }
+            )
+
+        copilot_llm.call_llm = mismatched_llm
+        try:
+            with TestClient(app) as client:
+                response = client.post(
+                    "/api/v1/copilot/council/review",
+                    json={"recommendation_id": str(line.id), "language": "en"},
+                )
+            assert response.status_code == 200
+            payload = response.json()
+            assert payload["judge_recommendation"]["source"] == "fallback"
+            assert "mismatched quantity/source" in payload["judge_recommendation"]["reasoning_summary"]
+        finally:
+            copilot_llm.call_llm = original
+    finally:
+        app.dependency_overrides.clear()
+        restore_band()
+        db.close()
+
+
+def test_council_review_exposes_current_plan_candidate_for_prior_edit():
+    SessionLocal = _build_session_factory()
+    db = SessionLocal()
+    target = date.today()
+    try:
+        _load_test_data(db)
+        line = _prepare_council_context(db, target)
+        line.edited_units = line.recommended_units + 10
+        line.status = "edited"
+        db.add(line)
+        db.commit()
+        restore_band = _patch_council_band()
+        _override_app_db(SessionLocal)
+        original = copilot_llm.call_llm
+        copilot_llm.call_llm = _council_judge_llm
+        try:
+            with TestClient(app) as client:
+                response = client.post(
+                    "/api/v1/copilot/council/review",
+                    json={"recommendation_id": str(line.id), "language": "en"},
+                )
+            assert response.status_code == 200
+            sources = {candidate["source"] for candidate in response.json()["candidate_quantities"]}
+            assert "optimizer" in sources
+            assert "current_plan" in sources
+        finally:
+            copilot_llm.call_llm = original
+    finally:
+        app.dependency_overrides.clear()
+        restore_band()
+        db.close()
+
+
+def test_council_review_prefers_stored_optimizer_evidence():
+    SessionLocal = _build_session_factory()
+    db = SessionLocal()
+    target = date.today()
+    try:
+        _load_test_data(db)
+        line = _prepare_council_context(db, target)
+        line.rationale_json = {
+            "optimizer": {
+                "batch_size": 7,
+                "waste_cost": 1.23,
+                "stockout_cost": 4.56,
+                "financial_exposure": {
+                    "stockout_exposure_rm": 12.3,
+                    "waste_exposure_rm": 4.5,
+                },
+                "reason_summary": "Stored optimizer evidence.",
+            }
+        }
+        db.add(line)
+        db.commit()
+        restore_band = _patch_council_band()
+        _override_app_db(SessionLocal)
+        original = copilot_llm.call_llm
+        copilot_llm.call_llm = _council_judge_llm
+        try:
+            with TestClient(app) as client:
+                response = client.post(
+                    "/api/v1/copilot/council/review",
+                    json={"recommendation_id": str(line.id), "language": "en"},
+                )
+            assert response.status_code == 200
+            payload = response.json()
+            assert not any(item["status"] == "warning" for item in payload["graph_trace"])
+            expected = next(candidate for candidate in payload["candidate_quantities"] if candidate["source"] == "expected_demand")
+            assert expected["evidence"]["batch_size"] == 7
+            stockout = next(argument for argument in payload["agent_arguments"] if argument["agent"] == "Stockout Guardian")
+            assert stockout["evidence"]["stockout_exposure_rm"] == 12.3
+        finally:
+            copilot_llm.call_llm = original
+    finally:
+        app.dependency_overrides.clear()
+        restore_band()
+        db.close()
+
+
+def test_council_review_warns_when_optimizer_evidence_is_recalculated():
+    SessionLocal = _build_session_factory()
+    db = SessionLocal()
+    target = date.today()
+    try:
+        _load_test_data(db)
+        line = _prepare_council_context(db, target)
+        restore_band = _patch_council_band()
+        _override_app_db(SessionLocal)
+        original = copilot_llm.call_llm
+        copilot_llm.call_llm = _council_judge_llm
+        try:
+            with TestClient(app) as client:
+                response = client.post(
+                    "/api/v1/copilot/council/review",
+                    json={"recommendation_id": str(line.id), "language": "en"},
+                )
+            assert response.status_code == 200
+            assert any(item["status"] == "warning" for item in response.json()["graph_trace"])
+        finally:
+            copilot_llm.call_llm = original
     finally:
         app.dependency_overrides.clear()
         restore_band()
@@ -1173,8 +1327,8 @@ def test_council_review_with_note_adds_manager_context_candidate():
         outlet = db.query(Outlet).filter(Outlet.id == line.outlet_id).first()
         sku = db.query(SKU).filter(SKU.id == line.sku_id).first()
         _override_app_db(SessionLocal)
-        original = copilot_router._call_llm
-        copilot_router._call_llm = _council_judge_llm
+        original = copilot_llm.call_llm
+        copilot_llm.call_llm = _council_judge_llm
         try:
             with TestClient(app) as client:
                 response = client.post(
@@ -1195,10 +1349,47 @@ def test_council_review_with_note_adds_manager_context_candidate():
                 )
             assert response.status_code == 200
             after = response.json()["after_review"]
+            before = response.json()["before_review"]
+            assert before["recommendation_id"] == after["recommendation_id"]
             assert any(item["agent"] == "Manager Context Agent" for item in after["agent_arguments"])
             assert any(candidate["source"] == "manager_note_adjusted" for candidate in after["candidate_quantities"])
         finally:
-            copilot_router._call_llm = original
+            copilot_llm.call_llm = original
+    finally:
+        app.dependency_overrides.clear()
+        restore_band()
+        db.close()
+
+
+def test_council_judge_prompt_includes_language_instruction():
+    SessionLocal = _build_session_factory()
+    db = SessionLocal()
+    target = date.today()
+    captured = {}
+    try:
+        _load_test_data(db)
+        line = _prepare_council_context(db, target)
+        restore_band = _patch_council_band()
+        _override_app_db(SessionLocal)
+        original = copilot_llm.call_llm
+
+        def llm(prompt, _text=""):
+            captured["prompt"] = prompt
+            return _council_judge_llm(prompt, _text)
+
+        copilot_llm.call_llm = llm
+        try:
+            with TestClient(app) as client:
+                response = client.post(
+                    "/api/v1/copilot/council/review",
+                    json={"recommendation_id": str(line.id), "language": "ms"},
+                )
+            assert response.status_code == 200
+            assert "Bahasa Melayu" in captured["prompt"]
+            assert "Do not use alternate_sources" in captured["prompt"]
+            assert '"agent_consensus": "split"' in captured["prompt"]
+        finally:
+            copilot_llm.call_llm = original
     finally:
         app.dependency_overrides.clear()
         restore_band()
@@ -1214,8 +1405,8 @@ def test_council_confirm_rejects_non_server_candidate():
         line = _prepare_council_context(db, target)
         restore_band = _patch_council_band()
         _override_app_db(SessionLocal)
-        original = copilot_router._call_llm
-        copilot_router._call_llm = _council_judge_llm
+        original = copilot_llm.call_llm
+        copilot_llm.call_llm = _council_judge_llm
         try:
             with TestClient(app) as client:
                 response = client.post(
@@ -1229,7 +1420,7 @@ def test_council_confirm_rejects_non_server_candidate():
                 )
             assert response.status_code == 422
         finally:
-            copilot_router._call_llm = original
+            copilot_llm.call_llm = original
     finally:
         app.dependency_overrides.clear()
         restore_band()
@@ -1245,8 +1436,8 @@ def test_council_confirm_applies_prep_edit_and_writes_audit_summary():
         line = _prepare_council_context(db, target)
         restore_band = _patch_council_band()
         _override_app_db(SessionLocal)
-        original = copilot_router._call_llm
-        copilot_router._call_llm = _council_judge_llm
+        original = copilot_llm.call_llm
+        copilot_llm.call_llm = _council_judge_llm
         try:
             with TestClient(app) as client:
                 review = client.post(
@@ -1266,12 +1457,13 @@ def test_council_confirm_applies_prep_edit_and_writes_audit_summary():
             assert response.status_code == 200
             payload = response.json()
             assert payload["application_mode"] == "prep_edit_only"
+            assert payload["warnings"] == []
             assert payload["line_changes"][0]["after_prep"] == selected
             audit = db.query(DecisionAuditEvent).filter(DecisionAuditEvent.id == payload["audit_event_ids"][0]).first()
             assert audit is not None
             assert "agent_council" in audit.gemini_note_summary
         finally:
-            copilot_router._call_llm = original
+            copilot_llm.call_llm = original
     finally:
         app.dependency_overrides.clear()
         restore_band()

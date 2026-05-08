@@ -17,6 +17,8 @@ CouncilSource = Literal[
 
 
 class ParsedAdjustment(BaseModel):
+    # Compatibility note: v1 manager-note parsing stores the outlet display name
+    # in this field. TODO v2: rename to outlet_name and add numeric outlet_id.
     outlet_id: str
     daypart: str
     sku_category: str
@@ -52,6 +54,7 @@ class CandidateQuantity(BaseModel):
     source: Literal[
         "expected_demand",
         "optimizer",
+        "current_plan",
         "stockout_guardrail",
         "waste_guardrail",
         "manager_note_adjusted",
@@ -148,6 +151,7 @@ class CouncilConfirmResponse(BaseModel):
     selected_candidate_source: str
     audit_event_ids: list[int]
     replenishment_plan_id: Optional[int]
+    warnings: list[str] = Field(default_factory=list)
     line_changes: list[CouncilLineChange]
     council_review: CouncilReviewResponse
 
