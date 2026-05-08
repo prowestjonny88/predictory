@@ -14,6 +14,7 @@ import {
   PackageCheck,
   Boxes,
   GitBranch,
+  UploadCloud,
 } from "lucide-react";
 
 import { useLanguage } from "@/components/i18n/LanguageProvider";
@@ -57,6 +58,7 @@ const DECISION_NAV: NavItem[] = [
 
 const ADMIN_NAV: NavItem[] = [
   { href: "/forecast", labelKey: "nav.forecastEvidence", defaultText: "Forecast Evidence", icon: TrendingUp },
+  { href: "/data-upload", labelKey: "nav.dataUpload", defaultText: "POS / ERP Upload", icon: UploadCloud },
   { href: "/catalog", labelKey: "nav.catalog", defaultText: "SKU Catalog", icon: Package },
   { href: "/stock", labelKey: "nav.stock", defaultText: "Current Stock", icon: Boxes },
   { href: "/prep-plan", labelKey: "nav.kitchenPrepSheet", defaultText: "Kitchen Prep Sheet", icon: PackageCheck },

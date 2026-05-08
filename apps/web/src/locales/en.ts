@@ -51,6 +51,7 @@ const en = {
   "nav.coreWorkflow": "Core Workflow",
   "nav.decisionTools": "Decision Tools",
   "nav.dataAdmin": "Data / Admin",
+  "nav.dataUpload": "POS / ERP Upload",
   "nav.moreTools": "More Tools",
   "nav.replenishment": "Replenishment",
   "nav.riskCenter": "Risk Centre",

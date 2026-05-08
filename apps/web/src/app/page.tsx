@@ -62,7 +62,7 @@ export default function RootPage() {
 
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
               <Link
-                href="/dashboard"
+                href="/data-upload"
                 className="inline-flex items-center justify-center gap-2 rounded-md bg-brand-amber px-6 py-3 text-base font-bold text-white shadow-lg shadow-brand-amber/25 transition hover:bg-brand-amber-dark active:scale-[0.99]"
               >
                 {t("landing.cta", "Go to Dashboard")}
@@ -206,7 +206,7 @@ export default function RootPage() {
             )}
           </p>
           <Link
-            href="/dashboard"
+            href="/data-upload"
             className="inline-flex items-center justify-center gap-2 rounded-md bg-brand-amber px-8 py-4 text-lg font-bold text-white shadow-2xl shadow-brand-amber/30 transition hover:bg-brand-amber-dark active:scale-[0.99]"
           >
             {t("landing.ctaSecondary", "Start Planning Today")}

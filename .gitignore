@@ -35,6 +35,9 @@ coverage.xml
 *.db
 *.sqlite3
 
+# Local demo upload files
+Bakery sales.csv
+
 # Alembic
 alembic/__pycache__/
 
