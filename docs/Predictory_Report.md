@@ -43,7 +43,9 @@ The primary Sustainable Development Goal addressed by Predictory is **SDG 12: Re
 
 Predictory also supports **SDG 13: Climate Action** as a secondary alignment. Food waste contributes avoidable climate impact through wasted ingredients, production energy, transport, and disposal. By helping bakery teams reduce overproduction before it happens, Predictory links operational planning directly to lower waste-related emissions.
 
-The project further supports **SDG 12 Target 12.3**, which focuses on reducing food waste at retail and consumer levels and reducing food losses across production and supply chains. Predictory's day-ahead forecasting, prep recommendations, replenishment planning, and proactive waste alerts are designed around that specific target.
+Predictory also supports **SDG 2: Zero Hunger** by improving food availability in small food-service operations. Better prep and replenishment planning can reduce stockouts during peak demand while avoiding unnecessary surplus, helping bakery operators keep affordable food available more consistently.
+
+The project also connects to **SDG 3: Good Health and Well-being** through freshness-aware planning, inventory visibility, and proactive waste-risk detection. These capabilities support safer food operations by helping teams avoid stale overproduction and make clearer decisions about what should be prepared, replenished, or held back.
 
 ### Problem Statement
 
@@ -721,7 +723,7 @@ This project utilized a multi-layered AI stack for research, development, and as
 
 Predictory is a focused, operationally grounded prototype that addresses a real problem in bakery operations, from single-shop bakeries to bakery-cafe chains: how to plan tomorrow's prep and replenishment decisions more accurately than manual judgment or historical averages alone. Instead of attempting to replace POS or ERP systems, it acts as a decision-support layer that converts operational data into shop/daypart or outlet/daypart forecasts, prep plans, replenishment needs, and proactive risk signals.
 
-The project aligns most strongly with **SDG 12** by targeting waste reduction and more responsible production planning for perishable goods. It also supports **SDG 13** by reducing avoidable food-waste-related climate impact, and it maps directly to **SDG 12 Target 12.3** on food loss and waste reduction. The prototype demonstrates meaningful progress through an end-to-end workflow, imported operational evidence, explainable AI assistance, and multilingual accessibility.
+The project aligns most strongly with **SDG 12** by targeting waste reduction and more responsible production planning for perishable goods. It also supports **SDG 13** by reducing avoidable food-waste-related climate impact, **SDG 2** by improving food availability through stockout prevention, and **SDG 3** by supporting freshness-aware and safer food operations. The prototype demonstrates meaningful progress through an end-to-end workflow, imported operational evidence, explainable AI assistance, and multilingual accessibility.
 
 The next stage of development should focus on:
 

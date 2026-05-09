@@ -13,7 +13,8 @@ Within the Food & Beverage sector - specifically bakery-cafes - this manifests a
 ## SDG Alignment
 * **SDG 12: Responsible Consumption and Production** (Primary) - Directly targets bakery food waste reduction and optimized resource/ingredient usage.
 * **SDG 13: Climate Action** - Reduces avoidable food waste, which can lower emissions linked to wasted ingredients, production energy, and disposal.
-* **SDG 12 Target 12.3: Food loss and waste reduction** - Supports the target of reducing food waste at retail and food-service levels through demand-aware production planning.
+* **SDG 2: Zero Hunger** - Helps food-service MSMEs reduce stockouts and improve food availability through more accurate prep and replenishment planning.
+* **SDG 3: Good Health and Well-being** - Supports safer food operations by improving freshness-aware planning, inventory visibility, and waste-risk detection.
 
 ## Solution Overview
 **Predictory** is an AI-assisted prep and replenishment copilot designed specifically for multi-outlet bakery-cafe chains. By providing an AI-driven ecosystem, Predictory democratizes access to enterprise-grade tools like predictive analytics and automated supply chain management. 
