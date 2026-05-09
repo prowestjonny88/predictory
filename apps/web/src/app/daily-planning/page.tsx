@@ -18,6 +18,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { useLanguage } from "@/components/i18n/LanguageProvider";
+import { translateDaypart } from "@/lib/i18n";
 import { planningApi, type ApplyAdjustmentResponse, type DailyPlanLatestResponse, type DailyPlanTopAction, type ManagerNoteResponse } from "@/lib/api/planning";
 import { agenticApi, type CouncilConfirmResponse, type CouncilReviewResponse } from "@/lib/api/agentic";
 import { tomorrowISO } from "@/lib/utils";
@@ -32,7 +33,7 @@ export default function DailyPlanningPage() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [readinessBlockers, setReadinessBlockers] = useState<string[]>([]);
-  const [filter, setFilter] = useState<FilterKey>("top");
+  const [filter, setFilter] = useState<FilterKey>("outlet");
   const [selectedAction, setSelectedAction] = useState<DailyPlanTopAction | null>(null);
   const [evidenceOpen, setEvidenceOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -374,15 +375,26 @@ export default function DailyPlanningPage() {
     if (items.length === 0) {
       return <p className="text-sm text-neutral-500">{t("planning.noActionsFilter", "No actions for this filter.")}</p>;
     }
+    const grouped = new Map<string, DailyPlanTopAction[]>();
+    items.forEach((item) => {
+      const list = grouped.get(item.outlet_name) ?? [];
+      list.push(item);
+      grouped.set(item.outlet_name, list);
+    });
+
     return (
-      <div className="grid gap-4 lg:grid-cols-2">
-        {items.map((item) => (
-          <RecommendationCard
-            key={item.id}
-            item={item}
-            onOpen={handleOpenRecommendation}
-            onCouncilReview={handleOpenCouncilReview}
-          />
+      <div className="flex flex-col gap-6">
+        {Array.from(grouped.entries()).map(([outlet, outletItems]) => (
+          <div key={outlet} className="space-y-2">
+            {grouped.size > 1 && filter !== "outlet" && (
+              <h3 className="text-sm font-semibold text-neutral-900">{outlet}</h3>
+            )}
+            <OutletDaypartGroup
+              items={outletItems}
+              onOpen={handleOpenRecommendation}
+              onCouncil={handleOpenCouncilReview}
+            />
+          </div>
         ))}
       </div>
     );
@@ -509,7 +521,6 @@ export default function DailyPlanningPage() {
         </div>
 
           <div className="space-y-4">
-            {filter === "top" && renderActionList(visibleActions)}
             {filter === "outlet" &&
               groupedByOutlet.map(([outlet, items]) => (
                 <div key={outlet} className="space-y-3">
@@ -637,5 +648,62 @@ function formatManagerNoteResult(
       changeText,
       replenishment,
     }
+  );
+}
+
+function OutletDaypartGroup({
+  items,
+  onOpen,
+  onCouncil,
+}: {
+  items: DailyPlanTopAction[];
+  onOpen: (item: DailyPlanTopAction) => void;
+  onCouncil: (item: DailyPlanTopAction) => void;
+}) {
+  const { language } = useLanguage();
+  const dayparts = useMemo(() => {
+    const set = new Set(items.map((i) => i.daypart.toLowerCase()));
+    const order = ["morning", "midday", "evening"];
+    return order.filter((d) => set.has(d));
+  }, [items]);
+
+  const [selectedDaypart, setSelectedDaypart] = useState<string>("");
+
+  useEffect(() => {
+    if (dayparts.length > 0 && !dayparts.includes(selectedDaypart)) {
+      setSelectedDaypart(dayparts[0]);
+    }
+  }, [dayparts, selectedDaypart]);
+
+  const visibleItems = items.filter((i) => i.daypart.toLowerCase() === selectedDaypart);
+
+  return (
+    <div className="space-y-3">
+      {dayparts.length > 1 && (
+        <div className="flex flex-wrap gap-2">
+          {dayparts.map((dp) => (
+            <Button
+              key={dp}
+              variant={selectedDaypart === dp ? "default" : "outline"}
+              size="sm"
+              onClick={() => setSelectedDaypart(dp)}
+              className="h-7 rounded-full px-3 text-xs"
+            >
+              {translateDaypart(language, dp)}
+            </Button>
+          ))}
+        </div>
+      )}
+      <div className="grid gap-4 lg:grid-cols-2">
+        {visibleItems.map((item) => (
+          <RecommendationCard
+            key={item.id}
+            item={item}
+            onOpen={onOpen}
+            onCouncilReview={onCouncil}
+          />
+        ))}
+      </div>
+    </div>
   );
 }

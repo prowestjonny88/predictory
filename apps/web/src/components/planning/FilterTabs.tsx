@@ -1,7 +1,7 @@
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/components/i18n/LanguageProvider";
 
-export type FilterKey = "top" | "outlet" | "sku" | "risk";
+export type FilterKey = "outlet" | "sku" | "risk";
 
 interface Props {
   value: FilterKey;
@@ -9,7 +9,6 @@ interface Props {
 }
 
 const tabs: { key: FilterKey; label: string }[] = [
-  { key: "top", label: "Top Actions" },
   { key: "outlet", label: "By Outlet" },
   { key: "sku", label: "By SKU" },
   { key: "risk", label: "By Risk" },

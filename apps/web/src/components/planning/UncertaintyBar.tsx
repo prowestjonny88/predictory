@@ -33,9 +33,10 @@ export default function UncertaintyBar({ p10, p50, p90, recommended, className }
         <p className="text-xs font-semibold uppercase tracking-wide text-neutral-600">
           {t("planning.uncertainty.range", "Demand range")}
         </p>
-        <p className="rounded-full bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-800">
-          {t("planning.uncertainty.recommendedPrep", "Recommended prep")}: {recommended}
-        </p>
+        <div className="flex items-center gap-1.5 rounded-full bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-800">
+          <div className="h-3 w-3 rounded-full border-[2.5px] border-amber-500 bg-white" />
+          <span>{t("planning.uncertainty.recommendedPrep", "Recommended prep")}: {recommended}</span>
+        </div>
       </div>
       <div className="relative h-4 rounded-full bg-neutral-200" role="img" aria-label={ariaLabel}>
         <div
@@ -54,18 +55,21 @@ export default function UncertaintyBar({ p10, p50, p90, recommended, className }
         />
       </div>
       <div className="grid grid-cols-3 gap-2 text-[11px] text-neutral-500">
-        <span>
-          <span className="block font-semibold text-neutral-700">{t("planning.uncertainty.lowDemand", "Low demand / Quiet day")}</span>
-          {p10}
-        </span>
-        <span className="text-center">
-          <span className="block font-semibold text-neutral-700">{t("planning.uncertainty.expectedDemand", "Expected demand")}</span>
-          {p50}
-        </span>
-        <span className="text-right">
-          <span className="block font-semibold text-neutral-700">{t("planning.uncertainty.highDemand", "High demand / Busy day")}</span>
-          {p90}
-        </span>
+        <div className="flex flex-col items-start">
+          <span className="font-semibold text-neutral-700">{t("planning.uncertainty.lowDemand", "Low demand / Quiet day")}</span>
+          <span>{p10}</span>
+        </div>
+        <div className="flex flex-col items-center">
+          <div className="flex items-center gap-1.5 font-semibold text-neutral-700">
+            <div className="h-3 w-1 rounded-full bg-neutral-900" />
+            <span>{t("planning.uncertainty.expectedDemand", "Expected demand")}</span>
+          </div>
+          <span>{p50}</span>
+        </div>
+        <div className="flex flex-col items-end text-right">
+          <span className="font-semibold text-neutral-700">{t("planning.uncertainty.highDemand", "High demand / Busy day")}</span>
+          <span>{p90}</span>
+        </div>
       </div>
     </div>
   );
