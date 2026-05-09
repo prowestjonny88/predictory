@@ -1,7 +1,6 @@
 "use client";
 
 import { useLanguage } from "@/components/i18n/LanguageProvider";
-import LanguageSwitcher from "@/components/i18n/LanguageSwitcher";
 import { formatDateLabel } from "@/lib/i18n";
 
 interface Props {
@@ -28,9 +27,6 @@ export default function Header({ title, date, children }: Props) {
         {children && (
           <div className="flex flex-wrap items-center gap-2 md:justify-end md:gap-3">{children}</div>
         )}
-        <div className="md:hidden">
-          <LanguageSwitcher compact />
-        </div>
       </div>
     </header>
   );

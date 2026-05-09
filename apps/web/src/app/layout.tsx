@@ -16,8 +16,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <body className="flex min-h-screen bg-neutral-50">
+    <html lang="en" suppressHydrationWarning>
+      <body className="flex min-h-screen bg-neutral-50" suppressHydrationWarning>
         <Providers>
           <AppShell>{children}</AppShell>
         </Providers>

@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 
 import { useLanguage } from "@/components/i18n/LanguageProvider";
-import LanguageSwitcher from "@/components/i18n/LanguageSwitcher";
+import GoogleTranslate from "@/components/GoogleTranslate";
 import {
   Sidebar as ShadcnSidebar,
   SidebarContent,
@@ -110,7 +110,8 @@ export default function Sidebar() {
       </SidebarContent>
 
       <SidebarFooter className="border-t border-sidebar-border p-4 space-y-3">
-        <LanguageSwitcher compact={false} />
+        <div className="text-sm font-medium text-neutral-500">{t("language.label", "Language")}</div>
+        <GoogleTranslate />
         <div className="text-xs text-neutral-400">{t("nav.footer", "Predictory v2")}</div>
       </SidebarFooter>
     </ShadcnSidebar>

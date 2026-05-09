@@ -56,7 +56,6 @@ export default function ReplenishmentBreakdown({ item }: Props) {
               <StockNeedBar
                 stock={line.current_stock}
                 need={line.required_qty}
-                shortage={line.shortage_qty}
                 unit={line.unit}
               />
             </div>

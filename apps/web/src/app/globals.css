@@ -157,3 +157,32 @@
     to   { opacity: 1; transform: scale(1); }
   }
 }
+
+/* Google Translate Overrides */
+.goog-te-banner-frame.skiptranslate,
+.goog-te-banner-frame,
+.VIpgJd-ZVi9od-ORHb-OEVmcd,
+.skiptranslate > iframe.skiptranslate {
+  display: none !important;
+  visibility: hidden !important;
+}
+body {
+  top: 0px !important;
+  position: static !important;
+}
+.goog-te-gadget {
+  color: transparent !important;
+}
+.goog-te-gadget span {
+  display: none;
+}
+.goog-te-gadget .goog-te-combo {
+  color: var(--text-primary);
+  background-color: var(--surface-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.25rem 0.5rem;
+  outline: none;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}

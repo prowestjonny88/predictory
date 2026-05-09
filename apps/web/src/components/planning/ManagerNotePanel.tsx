@@ -265,5 +265,3 @@ export default function ManagerNotePanel({ onParse, onApply, onCouncilPreview }:
     </Card>
   );
 }
-   
- 
