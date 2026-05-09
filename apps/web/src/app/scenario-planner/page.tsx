@@ -19,8 +19,8 @@ export default function ScenarioPlannerPage() {
   const [customText, setCustomText] = useState("");
   const { language, t } = useLanguage();
 
-  const { data: outlets = [] } = useQuery({ queryKey: ["outlets"], queryFn: api.outlets });
-  const { data: skus = [] } = useQuery({ queryKey: ["skus"], queryFn: api.skus });
+  const { data: outlets = [] } = useQuery({ queryKey: ["outlets"], queryFn: api.outlets, staleTime: Infinity });
+  const { data: skus = [] } = useQuery({ queryKey: ["skus"], queryFn: api.skus, staleTime: Infinity });
 
   const outlet1 = outlets[0]?.name ?? "Bangsar";
   const outlet2 = outlets[1]?.name ?? "KLCC";

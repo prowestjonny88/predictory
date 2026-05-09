@@ -41,6 +41,8 @@ export default function ReplenishmentPage() {
   const dailyPlanQuery = useQuery<DailyPlan>({
     queryKey: ["dailyPlan", date],
     queryFn: () => api.dailyPlan(date),
+    staleTime: 120_000,
+    placeholderData: (previous) => previous,
   });
 
   const runMutation = useMutation({

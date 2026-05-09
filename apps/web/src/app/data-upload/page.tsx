@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CheckCircle2, DatabaseZap, FileSpreadsheet, UploadCloud } from "lucide-react";
 
@@ -16,6 +16,10 @@ export default function DataUploadPage() {
   const [processing, setProcessing] = useState(false);
   const [redirecting, setRedirecting] = useState(false);
   const [result, setResult] = useState<{ fileName: string; fileSizeMb: string } | null>(null);
+
+  useEffect(() => {
+    router.prefetch("/dashboard");
+  }, [router]);
 
   const selectedFileLabel = useMemo(() => {
     if (!file) {
@@ -38,6 +42,7 @@ export default function DataUploadPage() {
       });
       setProcessing(false);
       setRedirecting(true);
+      router.prefetch("/dashboard");
 
       window.setTimeout(() => {
         router.push("/dashboard");

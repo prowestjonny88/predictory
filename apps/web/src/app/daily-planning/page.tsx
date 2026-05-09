@@ -21,6 +21,8 @@ import { planningApi, type ApplyAdjustmentResponse, type DailyPlanLatestResponse
 import { agenticApi, type CouncilConfirmResponse, type CouncilReviewResponse } from "@/lib/api/agentic";
 import { tomorrowISO } from "@/lib/utils";
 
+const latestPlanCache = new Map<string, DailyPlanLatestResponse>();
+
 export default function DailyPlanningPage() {
   const { t, language } = useLanguage();
   const [planDate] = useState(tomorrowISO);
@@ -48,8 +50,26 @@ export default function DailyPlanningPage() {
   const [outletFilter, setOutletFilter] = useState("");
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
+  const applyPlan = useCallback((response: DailyPlanLatestResponse) => {
+    setPlan(response);
+    setSelectedAction((current) => {
+      if (current) {
+        return response.top_actions.find((item) => item.id === current.id) ?? response.top_actions[0] ?? null;
+      }
+      return response.top_actions[0] ?? null;
+    });
+    setOutletFilter((current) => {
+      const outlets = new Set(response.top_actions.map((item) => item.outlet_name));
+      return current && outlets.has(current) ? current : response.top_actions[0]?.outlet_name ?? "";
+    });
+  }, []);
+
   const loadLatestPlan = useCallback(async () => {
-    setLoading(true);
+    const cached = latestPlanCache.get(planDate) ?? null;
+    if (cached) {
+      applyPlan(cached);
+    }
+    setLoading(!cached);
     setLoadError(null);
     setReadinessBlockers([]);
     try {
@@ -61,25 +81,18 @@ export default function DailyPlanningPage() {
         return;
       }
       const response = await planningApi.latestPlan(planDate);
-      setPlan(response);
-      setSelectedAction((current) => {
-        if (current) {
-          return response.top_actions.find((item) => item.id === current.id) ?? response.top_actions[0] ?? null;
-        }
-        return response.top_actions[0] ?? null;
-      });
-      setOutletFilter((current) => {
-        const outlets = new Set(response.top_actions.map((item) => item.outlet_name));
-        return current && outlets.has(current) ? current : response.top_actions[0]?.outlet_name ?? "";
-      });
+      latestPlanCache.set(planDate, response);
+      applyPlan(response);
     } catch (error) {
-      setPlan(null);
-      setSelectedAction(null);
+      if (!cached) {
+        setPlan(null);
+        setSelectedAction(null);
+      }
       setLoadError(error instanceof Error ? error.message : "Failed to load daily plan");
     } finally {
       setLoading(false);
     }
-  }, [planDate]);
+  }, [applyPlan, planDate]);
 
   useEffect(() => {
     loadLatestPlan();
