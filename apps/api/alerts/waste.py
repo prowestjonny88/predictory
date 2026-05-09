@@ -160,10 +160,14 @@ def detect_waste_risk(target_date: date, db: Session) -> list[WasteAlert]:
                     triggers.append(f"3-day waste rate {waste_rate:.1%} > 10%")
 
                 # Trigger 3: evening daypart declined 3+ consecutive days
+                decline_trigger = None
                 if dp == "evening" and len(sales_series) >= CONSECUTIVE_DECLINE_DAYS:
                     recent = sales_series[-CONSECUTIVE_DECLINE_DAYS:]
                     if all(recent[i] > recent[i + 1] for i in range(len(recent) - 1)):
-                        triggers.append(f"Evening sales declining for {CONSECUTIVE_DECLINE_DAYS}+ consecutive days")
+                        decline_trigger = f"Evening sales declining for {CONSECUTIVE_DECLINE_DAYS}+ consecutive days"
+
+                if decline_trigger and triggers:
+                    triggers.append(decline_trigger)
 
                 if not triggers:
                     continue
