@@ -10,6 +10,7 @@ import StockNeedBar from "@/components/StockNeedBar";
 import { useLanguage } from "@/components/i18n/LanguageProvider";
 import { translateRiskLevel } from "@/lib/i18n";
 import { api } from "@/lib/api";
+
 import { cn, todayISO } from "@/lib/utils";
 import type { DailyPlan, DailyPlanReplenishmentLine, UrgencyLevel } from "@/types";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -18,7 +19,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 const URGENCY_STYLES: Record<UrgencyLevel, string> = {
   critical: "bg-red-100 text-red-700",
-  high: "bg-orange-100 text-orange-700",
+  high: "bg-red-500 text-white",
   medium: "bg-yellow-100 text-yellow-700",
   low: "bg-green-100 text-green-700",
 };
@@ -306,3 +307,5 @@ export default function ReplenishmentPage() {
     </div>
   );
 }
+   
+ 

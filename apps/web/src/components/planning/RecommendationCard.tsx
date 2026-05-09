@@ -80,7 +80,13 @@ export default function RecommendationCard({ item, onOpen, onCouncilReview }: Pr
 
           <div className="flex items-start gap-2 rounded-lg border border-amber-100 bg-amber-50/50 p-3 text-xs text-amber-900">
             <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-600" />
-            <span>{item.reason_summary}</span>
+            <span>
+              {item.reason_summary === "Stockout cost is higher than waste cost, so prep is slightly above expected demand."
+                ? t("planning.reason.stockoutHigh", "Stockout cost is higher than waste cost, so prep is slightly above expected demand.")
+                : item.reason_summary === "Waste cost is higher than stockout cost, so prep is conservative."
+                ? t("planning.reason.wasteHigh", "Waste cost is higher than stockout cost, so prep is conservative.")
+                : t(item.reason_summary, item.reason_summary)}
+            </span>
           </div>
 
           <div className="grid grid-cols-3 gap-2">
