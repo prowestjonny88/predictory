@@ -50,7 +50,7 @@ export default function RootPage() {
             </div>
 
             <h1 className="mb-6 max-w-4xl text-4xl font-black leading-[1.05] tracking-normal text-stone-950 sm:text-5xl lg:text-6xl">
-              {t("landing.heroTitle", "From Yesterday's Sales to Tomorrow's Bake Plan.")}
+              {t("landing.heroTitle", "Plan Smarter. Waste Less. Earn More.")}
             </h1>
 
             <p className="mb-8 max-w-2xl text-lg leading-8 text-stone-700">
