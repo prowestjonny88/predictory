@@ -78,6 +78,7 @@ def build_replenishment_line_payloads(replenishment_lines: Iterable[Any]) -> lis
             "need_qty": round(line.need_qty, 2),
             "stock_on_hand": round(line.stock_on_hand, 2),
             "reorder_qty": round(line.reorder_qty, 2),
+            "unit": line.ingredient.unit if line.ingredient else "units",
             "urgency": line.urgency,
             "driving_skus": line.driving_skus or [],
         }

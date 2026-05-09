@@ -92,6 +92,7 @@ class ReplenLineOut(BaseModel):
     need_qty: float
     stock_on_hand: float
     reorder_qty: float
+    unit: str
     urgency: str
     driving_skus: list[str]
 

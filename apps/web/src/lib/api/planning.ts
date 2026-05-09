@@ -21,6 +21,18 @@ export interface ReplenishmentLine {
   urgency?: string;
 }
 
+export interface DailyPlanReplenishmentLine {
+  ingredient_id: string;
+  ingredient_name: string;
+  required_qty: number;
+  current_stock: number;
+  shortage_qty: number;
+  reorder_qty: number;
+  unit: string;
+  urgency?: string;
+  driving_skus: string[];
+}
+
 export interface DailyPlanSummary {
   scope: "full_plan" | "top_actions";
   total_predicted_sales: number;
@@ -75,6 +87,7 @@ export interface DailyPlanLatestResponse {
   data_source: "backend";
   metrics: DailyPlanMetrics;
   summary: DailyPlanSummary;
+  replenishment_plan: DailyPlanReplenishmentLine[];
   top_actions: DailyPlanTopAction[];
 }
 
@@ -196,6 +209,16 @@ interface BackendDailyPlan {
   data_source?: "backend";
   metrics: BackendMetrics;
   summary?: DailyPlanSummary;
+  replenishment_plan?: {
+    ingredient_id: number | string;
+    ingredient_name: string;
+    need_qty: number;
+    stock_on_hand: number;
+    reorder_qty: number;
+    unit?: string;
+    urgency?: string;
+    driving_skus?: string[];
+  }[];
   top_actions?: DailyPlanTopAction[];
 }
 
@@ -228,6 +251,23 @@ function normalizeMetrics(metrics: BackendMetrics): DailyPlanMetrics {
 
 function toBackendDailyPlan(payload: BackendDailyPlan): DailyPlanLatestResponse {
   const topActions = payload.top_actions ?? [];
+  const replenishmentPlan = (payload.replenishment_plan ?? []).map((line) => {
+    const requiredQty = Number(line.need_qty ?? 0);
+    const currentStock = Number(line.stock_on_hand ?? 0);
+    const reorderQty = Number(line.reorder_qty ?? 0);
+
+    return {
+      ingredient_id: String(line.ingredient_id),
+      ingredient_name: line.ingredient_name,
+      required_qty: requiredQty,
+      current_stock: currentStock,
+      shortage_qty: Math.max(requiredQty - currentStock, reorderQty, 0),
+      reorder_qty: reorderQty,
+      unit: line.unit ?? "units",
+      urgency: line.urgency,
+      driving_skus: line.driving_skus ?? [],
+    };
+  });
   if (!payload.summary) {
     throw new Error("Backend daily plan summary is required.");
   }
@@ -245,6 +285,7 @@ function toBackendDailyPlan(payload: BackendDailyPlan): DailyPlanLatestResponse 
     data_source: payload.data_source ?? "backend",
     metrics: normalizeMetrics(payload.metrics),
     summary: payload.summary,
+    replenishment_plan: replenishmentPlan,
     top_actions: topActions,
   };
 }

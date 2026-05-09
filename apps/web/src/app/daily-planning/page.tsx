@@ -114,10 +114,14 @@ export default function DailyPlanningPage() {
       return [];
     }
     const topPrep = visibleActions[0];
-    const topShortage = visibleActions
-      .flatMap((item) => item.replenishment.map((line) => ({ item, line })))
-      .filter((a) => a.line.shortage_qty > 0)
-      .sort((a, b) => b.line.shortage_qty - a.line.shortage_qty)[0];
+    const topShortage =
+      [...plan.replenishment_plan]
+        .filter((line) => line.reorder_qty > 0 || line.shortage_qty > 0)
+        .sort((a, b) => b.reorder_qty - a.reorder_qty || b.shortage_qty - a.shortage_qty)[0] ??
+      visibleActions
+        .flatMap((item) => item.replenishment.map((line) => ({ item, line })))
+        .filter((a) => a.line.shortage_qty > 0)
+        .sort((a, b) => b.line.shortage_qty - a.line.shortage_qty)[0]?.line;
     const topRisk = [...visibleActions]
       .filter((a) => a.financial_exposure.stockout_exposure_rm + a.financial_exposure.waste_exposure_rm > 0)
       .sort(
@@ -140,7 +144,7 @@ export default function DailyPlanningPage() {
       {
         label: t("planning.summary.topReorder", "Top reorder action"),
         value: topShortage
-          ? `${topShortage.line.ingredient_name} +${topShortage.line.shortage_qty} ${topShortage.line.unit}`
+          ? `${topShortage.ingredient_name} +${topShortage.reorder_qty || topShortage.shortage_qty} ${topShortage.unit}`
           : t("planning.summary.noShortages", "No shortages detected"),
       },
       {
