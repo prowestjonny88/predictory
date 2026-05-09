@@ -6,6 +6,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from alerts.stockout import detect_stockout_risk
+from alerts.production_constraints import detect_production_constraints
 from alerts.waste import detect_waste_risk
 from db.database import Base, get_db
 from db.models import (
@@ -40,7 +41,7 @@ def _load_test_data(session):
     load_test_dataset(session)
 
 
-def test_alerts_flag_bangsar_waste_and_klcc_stockout():
+def test_alerts_flag_bangsar_waste_without_ingredient_stockout_noise():
     SessionLocal = _build_session_factory()
     db = SessionLocal()
     _load_test_data(db)
@@ -58,12 +59,7 @@ def test_alerts_flag_bangsar_waste_and_klcc_stockout():
         and (a.risk_level == "high")
         for a in waste_alerts
     )
-    assert any(
-        ("KLCC" in a.outlet_name)
-        and (a.sku_name == "Butter Croissant")
-        and (a.affected_daypart == "morning")
-        for a in stockout_alerts
-    )
+    assert not any(a.reason.startswith("Ingredient stock covers only") for a in stockout_alerts)
 
     db.close()
 
@@ -217,7 +213,127 @@ def test_daily_plan_reuses_existing_runs_and_plans_after_first_generation():
         app.dependency_overrides.clear()
 
 
-def test_stockout_keeps_checking_other_skus_after_ingredient_alert():
+def test_waste_alert_allows_optimizer_batch_rounding_to_p90(monkeypatch):
+    SessionLocal = _build_session_factory()
+    db = SessionLocal()
+
+    outlet = Outlet(name="Batch Outlet", code="BATCH-OUT")
+    sku = SKU(
+        name="Batch Croissant",
+        code="BATCH-CRO",
+        category="Pastry",
+        freshness_hours=8,
+        is_bestseller=True,
+        safety_buffer_pct=0.1,
+        price=5.0,
+    )
+    db.add_all([outlet, sku])
+    db.flush()
+
+    target_date = date(2026, 3, 10)
+    prep = PrepPlan(plan_date=target_date, status="draft")
+    db.add(prep)
+    db.flush()
+    db.add(
+        PrepPlanLine(
+            plan_id=prep.id,
+            outlet_id=outlet.id,
+            sku_id=sku.id,
+            daypart="morning",
+            recommended_units=5,
+            current_stock=0,
+            status="pending",
+            rationale_json={"optimizer": {"batch_size": 5}},
+        )
+    )
+    db.commit()
+
+    class ForecastStub:
+        morning = 4.0
+        midday = 0.0
+        evening = 0.0
+        rationale = {
+            "uncertainty": {
+                "morning": {"p10": 3.0, "p50": 4.0, "p90": 5.0},
+                "midday": {"p10": 0.0, "p50": 0.0, "p90": 0.0},
+                "evening": {"p10": 0.0, "p50": 0.0, "p90": 0.0},
+            }
+        }
+
+    monkeypatch.setattr("alerts.waste.forecast_demand", lambda *_args, **_kwargs: ForecastStub())
+
+    alerts = detect_waste_risk(target_date, db)
+    db.close()
+
+    assert not any(
+        alert.sku_name == "Batch Croissant"
+        and alert.daypart == "morning"
+        and "exceeds p90 batch ceiling" in alert.reason
+        for alert in alerts
+    )
+
+
+def test_waste_alert_flags_prep_above_p90_batch_ceiling(monkeypatch):
+    SessionLocal = _build_session_factory()
+    db = SessionLocal()
+
+    outlet = Outlet(name="Batch Outlet", code="BATCH-OUT")
+    sku = SKU(
+        name="Batch Croissant",
+        code="BATCH-CRO",
+        category="Pastry",
+        freshness_hours=8,
+        is_bestseller=True,
+        safety_buffer_pct=0.1,
+        price=5.0,
+    )
+    db.add_all([outlet, sku])
+    db.flush()
+
+    target_date = date(2026, 3, 10)
+    prep = PrepPlan(plan_date=target_date, status="draft")
+    db.add(prep)
+    db.flush()
+    db.add(
+        PrepPlanLine(
+            plan_id=prep.id,
+            outlet_id=outlet.id,
+            sku_id=sku.id,
+            daypart="morning",
+            recommended_units=10,
+            current_stock=0,
+            status="pending",
+            rationale_json={"optimizer": {"batch_size": 5}},
+        )
+    )
+    db.commit()
+
+    class ForecastStub:
+        morning = 4.0
+        midday = 0.0
+        evening = 0.0
+        rationale = {
+            "uncertainty": {
+                "morning": {"p10": 3.0, "p50": 4.0, "p90": 5.0},
+                "midday": {"p10": 0.0, "p50": 0.0, "p90": 0.0},
+                "evening": {"p10": 0.0, "p50": 0.0, "p90": 0.0},
+            }
+        }
+
+    monkeypatch.setattr("alerts.waste.forecast_demand", lambda *_args, **_kwargs: ForecastStub())
+
+    alerts = detect_waste_risk(target_date, db)
+    db.close()
+
+    assert any(
+        alert.sku_name == "Batch Croissant"
+        and alert.daypart == "morning"
+        and "Prep (10) exceeds p90 batch ceiling (5)" in alert.reason
+        for alert in alerts
+    )
+
+
+def test_stockout_alerts_exclude_ingredient_constraints_but_keep_finished_goods_risk():
     SessionLocal = _build_session_factory()
     db = SessionLocal()
 
@@ -308,10 +424,65 @@ def test_stockout_keeps_checking_other_skus_after_ingredient_alert():
     alerts = detect_stockout_risk(target_date, db)
     db.close()
 
-    assert any(a.reason.startswith("Ingredient stock covers only") for a in alerts)
+    assert not any(a.reason.startswith("Ingredient stock covers only") for a in alerts)
     assert any(
         a.sku_name == "SKU B"
         and a.affected_daypart == "morning"
         and "Morning stock" in a.reason
         for a in alerts
     )
+
+
+def test_production_constraints_report_ingredient_shortage():
+    SessionLocal = _build_session_factory()
+    db = SessionLocal()
+
+    outlet = Outlet(name="Constraint Outlet", code="CON-OUT")
+    sku = SKU(
+        name="Butter Croissant",
+        code="CON-CRO",
+        category="Pastry",
+        freshness_hours=8,
+        is_bestseller=True,
+        safety_buffer_pct=0.1,
+        price=5.0,
+    )
+    ingredient = Ingredient(
+        name="Butter",
+        code="CON-BUT",
+        unit="kg",
+        stock_on_hand=1.0,
+        reorder_point=1.0,
+        supplier_lead_time_hours=48,
+        cost_per_unit=10.0,
+    )
+    db.add_all([outlet, sku, ingredient])
+    db.flush()
+    db.add(RecipeBOM(sku_id=sku.id, ingredient_id=ingredient.id, quantity_per_unit=0.5, unit="kg"))
+
+    target_date = date(2026, 3, 10)
+    prep = PrepPlan(plan_date=target_date, status="draft")
+    db.add(prep)
+    db.flush()
+    db.add(
+        PrepPlanLine(
+            plan_id=prep.id,
+            outlet_id=outlet.id,
+            sku_id=sku.id,
+            daypart="morning",
+            recommended_units=10,
+            current_stock=0,
+            status="pending",
+        )
+    )
+    db.commit()
+
+    alerts = detect_production_constraints(target_date, db)
+    db.close()
+
+    assert len(alerts) == 1
+    assert alerts[0].ingredient_name == "Butter"
+    assert alerts[0].required_qty == 5.0
+    assert alerts[0].stock_on_hand == 1.0
+    assert alerts[0].shortage_qty == 4.0
+    assert alerts[0].driving_skus == ["Butter Croissant"]

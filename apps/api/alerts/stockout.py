@@ -7,16 +7,13 @@ from dataclasses import dataclass
 from sqlalchemy.orm import Session
 
 from db.models import (
-    SalesFact, InventorySnapshot, PrepPlanLine, PrepPlan,
-    Ingredient, RecipeBOM, SKU, Outlet
+    SalesFact, InventorySnapshot, PrepPlan,
+    SKU, Outlet
 )
 from forecasting.engine import forecast_demand
 
 BESTSELLER_COVERAGE_THRESHOLD = 0.90  # 90%
 STANDARD_COVERAGE_THRESHOLD   = 0.80  # 80%
-
-DAYPARTS = ["morning", "midday", "evening"]
-
 
 @dataclass
 class StockoutAlert:
@@ -67,41 +64,6 @@ def _get_recent_daypart_peak(
     return max((row.units_sold for row in rows), default=0)
 
 
-def _get_ingredient_coverage(db: Session, target_date: date) -> float:
-    """Returns fraction of total ingredient need that is covered by current stock."""
-    # Get latest prep plan
-    prep_plan = (
-        db.query(PrepPlan)
-        .filter(PrepPlan.plan_date == target_date)
-        .order_by(PrepPlan.created_at.desc())
-        .first()
-    )
-    if not prep_plan:
-        return 1.0  # assume ok if no plan
-
-    sku_total: dict[int, float] = {}
-    for line in prep_plan.lines:
-        qty = line.edited_units if line.edited_units is not None else line.recommended_units
-        sku_total[line.sku_id] = sku_total.get(line.sku_id, 0) + qty
-
-    total_need: dict[int, float] = {}
-    bom_rows = db.query(RecipeBOM).all()
-    for bom in bom_rows:
-        prep = sku_total.get(bom.sku_id, 0)
-        need = prep * bom.quantity_per_unit
-        total_need[bom.ingredient_id] = total_need.get(bom.ingredient_id, 0) + need
-
-    ingredients = {i.id: i for i in db.query(Ingredient).all()}
-    need_total = sum(total_need.values())
-    met_total = 0.0
-    for ing_id, need in total_need.items():
-        ing = ingredients.get(ing_id)
-        if ing:
-            met_total += min(ing.stock_on_hand, need)
-
-    return met_total / need_total if need_total > 0 else 1.0
-
-
 def detect_stockout_risk(target_date: date, db: Session) -> list[StockoutAlert]:
     outlets = db.query(Outlet).filter(Outlet.is_active == True).all()
     skus = db.query(SKU).filter(SKU.is_active == True).all()
@@ -119,12 +81,9 @@ def detect_stockout_risk(target_date: date, db: Session) -> list[StockoutAlert]:
             qty = line.edited_units if line.edited_units is not None else line.recommended_units
             prep_map[(line.outlet_id, line.sku_id, line.daypart)] = qty
 
-    ingredient_coverage = _get_ingredient_coverage(db, target_date)
-
     alerts: list[StockoutAlert] = []
 
     for outlet in outlets:
-        ingredient_alert_emitted = False
         for sku in skus:
             current_stock = _get_stock(db, outlet.id, sku.id)
             fc = forecast_demand(outlet.id, sku.id, target_date, db)
@@ -185,27 +144,6 @@ def detect_stockout_risk(target_date: date, db: Session) -> list[StockoutAlert]:
                         ),
                         coverage_pct=round(peak_coverage * 100, 1),
                     ))
-
-            # Check ingredient coverage for production
-            if ingredient_coverage < STANDARD_COVERAGE_THRESHOLD and not ingredient_alert_emitted:
-                for dp in DAYPARTS:
-                    dp_demand = getattr(fc, dp)
-                    if dp_demand > 0:
-                        alerts.append(StockoutAlert(
-                            outlet_id=outlet.id,
-                            outlet_name=outlet.name,
-                            sku_id=sku.id,
-                            sku_name=sku.name,
-                            affected_daypart=dp,
-                            risk_level="high",
-                            shortage_qty=round(dp_demand * (1 - ingredient_coverage), 1),
-                            reason=(
-                                f"Ingredient stock covers only {ingredient_coverage:.0%} "
-                                f"of planned production"
-                            ),
-                            coverage_pct=round(ingredient_coverage * 100, 1),
-                        ))
-                ingredient_alert_emitted = True
 
     alerts.sort(key=lambda a: (0 if a.risk_level == "high" else 1))
     return alerts

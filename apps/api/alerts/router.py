@@ -15,6 +15,7 @@ from pydantic import BaseModel
 from db.database import get_db
 from alerts.waste import detect_waste_risk, WasteAlert
 from alerts.stockout import detect_stockout_risk, StockoutAlert
+from alerts.production_constraints import detect_production_constraints, ProductionConstraintAlert
 
 router = APIRouter()
 
@@ -44,6 +45,20 @@ class StockoutAlertOut(BaseModel):
     coverage_pct: float
 
 
+class ProductionConstraintAlertOut(BaseModel):
+    ingredient_id: int
+    ingredient_name: str
+    required_qty: float
+    stock_on_hand: float
+    shortage_qty: float
+    reorder_qty: float
+    unit: str
+    urgency: str
+    coverage_pct: float
+    driving_skus: list[str]
+    reason: str
+
+
 @router.get("/alerts/waste", response_model=list[WasteAlertOut])
 def get_waste_alerts(
     target_date: Optional[date] = Query(None),
@@ -64,3 +79,14 @@ def get_stockout_alerts(
         target_date = date.today()
     alerts = detect_stockout_risk(target_date, db)
     return [StockoutAlertOut(**a.__dict__) for a in alerts]
+
+
+@router.get("/alerts/production-constraints", response_model=list[ProductionConstraintAlertOut])
+def get_production_constraint_alerts(
+    target_date: Optional[date] = Query(None),
+    db: Session = Depends(get_db),
+):
+    if target_date is None:
+        target_date = date.today()
+    alerts = detect_production_constraints(target_date, db)
+    return [ProductionConstraintAlertOut(**a.__dict__) for a in alerts]

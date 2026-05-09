@@ -3,17 +3,18 @@ Waste risk alert logic — Task 8
 detect_waste_risk(target_date, db) -> list[WasteAlert]
 """
 from datetime import date, timedelta
-from dataclasses import dataclass, field
-from typing import Optional
+from dataclasses import dataclass
+import math
 from sqlalchemy.orm import Session
 
 from db.models import SalesFact, WasteLog, PrepPlanLine, PrepPlan, Outlet, SKU
 from forecasting.engine import forecast_demand
+from services.uncertainty import build_forecast_band
 
-PREP_OVER_FORECAST_THRESHOLD = 0.15  # alert if prep > forecast * (1 + 0.15)
 WASTE_RATE_3D_THRESHOLD = 0.10       # alert if 3-day waste rate > 10%
 HIGH_WASTE_RATE_THRESHOLD = 0.15     # high risk if 3-day waste rate >= 15%
 CONSECUTIVE_DECLINE_DAYS = 3
+DEFAULT_BATCH_SIZE = 5
 
 DAYPARTS = ["morning", "midday", "evening"]
 
@@ -66,6 +67,43 @@ def _get_waste_rate_3d(db: Session, outlet_id: int, sku_id: int, before_date: da
     return total_wasted / denominator if denominator > 0 else 0.0
 
 
+def _line_batch_size(line: PrepPlanLine | None) -> int:
+    if not line or not isinstance(line.rationale_json, dict):
+        return DEFAULT_BATCH_SIZE
+    optimizer = line.rationale_json.get("optimizer")
+    if isinstance(optimizer, dict):
+        try:
+            batch_size = int(optimizer.get("batch_size") or DEFAULT_BATCH_SIZE)
+            return max(1, batch_size)
+        except (TypeError, ValueError):
+            return DEFAULT_BATCH_SIZE
+    return DEFAULT_BATCH_SIZE
+
+
+def _p90_for_daypart(forecast, sku: SKU, outlet: Outlet, daypart: str) -> float:
+    uncertainty = (forecast.rationale or {}).get("uncertainty")
+    if isinstance(uncertainty, dict):
+        daypart_band = uncertainty.get(daypart)
+        if isinstance(daypart_band, dict) and daypart_band.get("p90") is not None:
+            return float(daypart_band["p90"])
+
+    p50 = float(getattr(forecast, daypart, 0.0))
+    band = build_forecast_band(
+        p50=p50,
+        sku_code=sku.code,
+        outlet_code=outlet.code,
+        sku_category=sku.category,
+        daypart=daypart,
+    )
+    return band.p90
+
+
+def _batch_ceiling(value: float, batch_size: int) -> int:
+    if value <= 0:
+        return 0
+    return int(math.ceil(value / batch_size) * batch_size)
+
+
 def detect_waste_risk(target_date: date, db: Session) -> list[WasteAlert]:
     outlets = db.query(Outlet).filter(Outlet.is_active == True).all()
     skus = db.query(SKU).filter(SKU.is_active == True).all()
@@ -78,12 +116,11 @@ def detect_waste_risk(target_date: date, db: Session) -> list[WasteAlert]:
         .first()
     )
 
-    # Build prep dict: {(outlet_id, sku_id, daypart): recommended_units}
-    prep_map: dict[tuple, int] = {}
+    # Build prep dict: {(outlet_id, sku_id, daypart): plan line}
+    prep_map: dict[tuple, PrepPlanLine] = {}
     if prep_plan:
         for line in prep_plan.lines:
-            qty = line.edited_units if line.edited_units is not None else line.recommended_units
-            prep_map[(line.outlet_id, line.sku_id, line.daypart)] = qty
+            prep_map[(line.outlet_id, line.sku_id, line.daypart)] = line
 
     alerts: list[WasteAlert] = []
 
@@ -101,14 +138,21 @@ def detect_waste_risk(target_date: date, db: Session) -> list[WasteAlert]:
                 triggers: list[str] = []
                 sales_series = _get_daypart_sales(db, outlet.id, sku.id, dp, 7, target_date)
 
-                # Trigger 1: prep exceeds forecast by >15%
-                prep_qty = prep_map.get((outlet.id, sku.id, dp), 0)
+                # Trigger 1: prep exceeds the reasonable upper demand bound after batch rounding.
+                # The prep optimizer is allowed to round p50 demand upward for service level
+                # and batch-size reasons; only quantities above p90's batch ceiling are waste risk.
+                line = prep_map.get((outlet.id, sku.id, dp))
+                prep_qty = (line.edited_units if line and line.edited_units is not None else line.recommended_units) if line else 0
                 expected = float(forecast_map.get(dp, 0.0))
+                p90 = _p90_for_daypart(forecast, sku, outlet, dp)
+                current_stock = float(line.current_stock or 0) if line else 0.0
+                batch_size = _line_batch_size(line)
+                reasonable_prep_ceiling = _batch_ceiling(max(0.0, p90 - current_stock), batch_size)
                 excess = 0.0
-                if expected > 0 and prep_qty > expected * (1 + PREP_OVER_FORECAST_THRESHOLD):
-                    excess = prep_qty - expected
+                if prep_qty > reasonable_prep_ceiling:
+                    excess = prep_qty - reasonable_prep_ceiling
                     triggers.append(
-                        f"Prep ({prep_qty}) exceeds forecast ({expected:.0f}) by >{PREP_OVER_FORECAST_THRESHOLD:.0%}"
+                        f"Prep ({prep_qty}) exceeds p90 batch ceiling ({reasonable_prep_ceiling})"
                     )
 
                 # Trigger 2: 3-day waste rate > 10%

@@ -252,6 +252,20 @@ export interface StockoutAlert {
   coverage_pct: number;
 }
 
+export interface ProductionConstraintAlert {
+  ingredient_id: number;
+  ingredient_name: string;
+  required_qty: number;
+  stock_on_hand: number;
+  shortage_qty: number;
+  reorder_qty: number;
+  unit: string;
+  urgency: UrgencyLevel;
+  coverage_pct: number;
+  driving_skus: string[];
+  reason: string;
+}
+
 export type ExplainContextType =
   | "forecast"
   | "prep"

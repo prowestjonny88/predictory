@@ -20,6 +20,7 @@ import type {
   LanguageCode,
   Outlet,
   PlanRunResult,
+  ProductionConstraintAlert,
   PrepPlanDetail,
   ScenarioRequest,
   ScenarioResult,
@@ -128,6 +129,8 @@ export const api = {
     apiFetch<WasteAlert[]>(`${V1}/alerts/waste?target_date=${date}`),
   stockoutAlerts: (date: string): Promise<StockoutAlert[]> =>
     apiFetch<StockoutAlert[]>(`${V1}/alerts/stockout?target_date=${date}`),
+  productionConstraints: (date: string): Promise<ProductionConstraintAlert[]> =>
+    apiFetch<ProductionConstraintAlert[]>(`${V1}/alerts/production-constraints?target_date=${date}`),
 
   explainPlan: (body: ExplainPlanRequest): Promise<ExplainPlanResponse> =>
     apiFetch<ExplainPlanResponse>(`${V1}/copilot/explain-plan`, {
