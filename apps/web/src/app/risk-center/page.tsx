@@ -258,11 +258,15 @@ export default function RiskCenterPage() {
   const wasteQuery = useQuery<WasteAlert[]>({
     queryKey: ["wasteAlerts", date],
     queryFn: () => api.wasteAlerts(date),
+    staleTime: 120_000,
+    placeholderData: (previous) => previous,
   });
 
   const stockoutQuery = useQuery<StockoutAlert[]>({
     queryKey: ["stockoutAlerts", date],
     queryFn: () => api.stockoutAlerts(date),
+    staleTime: 120_000,
+    placeholderData: (previous) => previous,
   });
 
   const wasteAlerts = useMemo(() => wasteQuery.data ?? [], [wasteQuery.data]);

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   AlertTriangle,
   BarChart3,
@@ -67,6 +67,7 @@ const ADMIN_NAV: NavItem[] = [
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   const { t } = useLanguage();
   const { setOpenMobile } = useSidebar();
 
@@ -87,6 +88,7 @@ export default function Sidebar() {
           pathname={pathname}
           title={t("nav.coreWorkflow", "Core Workflow")}
           t={t}
+          onPrefetch={(href) => router.prefetch(href)}
           onNavigate={() => setOpenMobile(false)}
         />
         <NavGroup
@@ -94,6 +96,7 @@ export default function Sidebar() {
           pathname={pathname}
           title={t("nav.decisionTools", "Decision Tools")}
           t={t}
+          onPrefetch={(href) => router.prefetch(href)}
           onNavigate={() => setOpenMobile(false)}
         />
         <NavGroup
@@ -101,6 +104,7 @@ export default function Sidebar() {
           pathname={pathname}
           title={t("nav.dataAdmin", "Data / Admin")}
           t={t}
+          onPrefetch={(href) => router.prefetch(href)}
           onNavigate={() => setOpenMobile(false)}
         />
       </SidebarContent>
@@ -118,12 +122,14 @@ function NavGroup({
   pathname,
   title,
   t,
+  onPrefetch,
   onNavigate,
 }: {
   items: NavItem[];
   pathname: string;
   title: string;
   t: (key: string, fallback: string) => string;
+  onPrefetch: (href: string) => void;
   onNavigate: () => void;
 }) {
   return (
@@ -141,7 +147,12 @@ function NavGroup({
                   tooltip={t(labelKey, defaultText)}
                   onClick={onNavigate}
                 >
-                  <Link href={href}>
+                  <Link
+                    href={href}
+                    prefetch
+                    onFocus={() => onPrefetch(href)}
+                    onMouseEnter={() => onPrefetch(href)}
+                  >
                     <Icon className={active ? "text-amber-600" : "text-neutral-500"} />
                     <span className={active ? "font-semibold text-amber-800" : ""}>
                       {t(labelKey, defaultText)}

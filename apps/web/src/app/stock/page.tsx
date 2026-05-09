@@ -24,6 +24,8 @@ export default function StockPage() {
     const inventoryQuery = useQuery<Inventory[]>({
         queryKey: ["inventory", outletId],
         queryFn: () => api.inventory(outletId),
+        staleTime: 120_000,
+        placeholderData: (previous) => previous,
         refetchInterval: 30000,
     });
 

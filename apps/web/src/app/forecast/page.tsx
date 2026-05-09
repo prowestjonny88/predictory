@@ -57,13 +57,15 @@ export default function ForecastPage() {
   const forecastsQuery = useQuery<ForecastRun[]>({
     queryKey: ["forecasts", date, outletId],
     queryFn: () => api.getForecasts(date, outletId === "all" ? undefined : outletId),
-    staleTime: 30_000,
+    staleTime: 120_000,
+    placeholderData: (previous) => previous,
   });
 
   const readinessQuery = useQuery({
     queryKey: ["forecastReadiness", date],
     queryFn: () => api.forecastReadiness(date),
-    staleTime: 30_000,
+    staleTime: 120_000,
+    placeholderData: (previous) => previous,
   });
 
   const contextQuery = useQuery({
@@ -75,6 +77,8 @@ export default function ForecastPage() {
         contextSkuId ? Number(contextSkuId) : undefined
       ),
     enabled: outletId !== "all",
+    staleTime: 120_000,
+    placeholderData: (previous) => previous,
   });
 
   useEffect(() => {

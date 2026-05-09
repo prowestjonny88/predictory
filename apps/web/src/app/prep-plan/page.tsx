@@ -32,7 +32,8 @@ export default function PrepPlanPage() {
   const dailyPlanQuery = useQuery<DailyPlan>({
     queryKey: ["dailyPlan", date],
     queryFn: () => api.dailyPlan(date),
-    staleTime: 30_000,
+    staleTime: 120_000,
+    placeholderData: (previous) => previous,
   });
 
   const outletsQuery = useQuery<Outlet[]>({
@@ -52,7 +53,8 @@ export default function PrepPlanPage() {
     queryKey: ["prepPlanDetail", prepPlanId],
     queryFn: () => api.getPrepPlan(prepPlanId as number),
     enabled: prepPlanId != null,
-    staleTime: 30_000,
+    staleTime: 120_000,
+    placeholderData: (previous) => previous,
   });
 
   const runMutation = useMutation({
