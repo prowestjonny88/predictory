@@ -98,12 +98,95 @@ HEADER_ALIASES = {
     "storecode": "outlet_code",
 }
 
+ASEAN_CURRENCIES = {
+    "BND": {
+        "symbol": "B$",
+        "name": "Brunei Dollar",
+        "country": "Brunei",
+        "direct_tokens": ["BND", "B$", "BRUNEI DOLLAR"],
+        "locale_tokens": ["BRUNEI", "BANDAR SERI BEGAWAN"],
+    },
+    "KHR": {
+        "symbol": "៛",
+        "name": "Cambodian Riel",
+        "country": "Cambodia",
+        "direct_tokens": ["KHR", "៛", "RIEL"],
+        "locale_tokens": ["CAMBODIA", "PHNOM PENH", "SIEM REAP"],
+    },
+    "IDR": {
+        "symbol": "Rp",
+        "name": "Indonesian Rupiah",
+        "country": "Indonesia",
+        "direct_tokens": ["IDR", "RP", "RUPIAH"],
+        "locale_tokens": ["INDONESIA", "JAKARTA", "BALI", "SURABAYA", "BANDUNG"],
+    },
+    "LAK": {
+        "symbol": "₭",
+        "name": "Lao Kip",
+        "country": "Laos",
+        "direct_tokens": ["LAK", "₭", "KIP"],
+        "locale_tokens": ["LAOS", "LAO", "VIENTIANE", "LUANG PRABANG"],
+    },
+    "MYR": {
+        "symbol": "RM",
+        "name": "Malaysian Ringgit",
+        "country": "Malaysia",
+        "direct_tokens": ["MYR", "RM", "RINGGIT"],
+        "locale_tokens": ["MALAYSIA", "KUALA LUMPUR", "SELANGOR", "JOHOR", "PENANG", "KLCC", "BANGSAR"],
+    },
+    "MMK": {
+        "symbol": "K",
+        "name": "Myanmar Kyat",
+        "country": "Myanmar",
+        "direct_tokens": ["MMK", "KYAT"],
+        "locale_tokens": ["MYANMAR", "YANGON", "MANDALAY", "NAYPYIDAW"],
+    },
+    "PHP": {
+        "symbol": "₱",
+        "name": "Philippine Peso",
+        "country": "Philippines",
+        "direct_tokens": ["PHP", "₱", "PHILIPPINE PESO"],
+        "locale_tokens": ["PHILIPPINES", "MANILA", "CEBU", "QUEZON"],
+    },
+    "SGD": {
+        "symbol": "S$",
+        "name": "Singapore Dollar",
+        "country": "Singapore",
+        "direct_tokens": ["SGD", "S$", "SINGAPORE DOLLAR"],
+        "locale_tokens": ["SINGAPORE"],
+    },
+    "THB": {
+        "symbol": "฿",
+        "name": "Thai Baht",
+        "country": "Thailand",
+        "direct_tokens": ["THB", "฿", "BAHT"],
+        "locale_tokens": ["THAILAND", "BANGKOK", "CHIANG MAI", "PHUKET"],
+    },
+    "VND": {
+        "symbol": "₫",
+        "name": "Vietnamese Dong",
+        "country": "Vietnam",
+        "direct_tokens": ["VND", "₫", "DONG"],
+        "locale_tokens": ["VIETNAM", "HANOI", "HO CHI MINH", "SAIGON", "DA NANG"],
+    },
+}
+
+CURRENCY_MARKER_RE = re.compile(
+    r"\b(MYR|RM|RINGGIT|BND|BRUNEI DOLLAR|KHR|RIEL|IDR|RP|RUPIAH|LAK|KIP|MMK|KYAT|PHP|PHILIPPINE PESO|SGD|SINGAPORE DOLLAR|THB|BAHT|VND|DONG)\b|[៛₭₱฿₫]",
+    re.IGNORECASE,
+)
+
 
 class UploadResult(BaseModel):
     rows_parsed: int
     rows_committed: int
     data_type: str
     errors: list[str]
+    currency_code: str | None = None
+    currency_symbol: str | None = None
+    currency_name: str | None = None
+    currency_country: str | None = None
+    currency_detected_from: str | None = None
 
 
 def _require_ingestion_admin_token(authorization: str | None) -> None:
@@ -162,6 +245,50 @@ def _detect_type(headers: set) -> str:
     return "unknown"
 
 
+def _detect_currency(rows: list[dict], headers: set[str]) -> dict | None:
+    sample_parts = list(headers)
+    for row in rows[:200]:
+        sample_parts.extend(str(value) for value in row.values() if value)
+    sample = " ".join(sample_parts).upper()
+
+    best = None
+    for code, info in ASEAN_CURRENCIES.items():
+        direct_score = sum(_count_marker(sample, token) * 4 for token in info["direct_tokens"])
+        locale_score = sum(_count_marker(sample, token) for token in info["locale_tokens"])
+        score = direct_score + locale_score
+        if score <= 0:
+            continue
+        if best is None or score > best["score"]:
+            best = {
+                "score": score,
+                "direct_score": direct_score,
+                "code": code,
+                "info": info,
+            }
+
+    if best is None:
+        return None
+
+    source = "currency_marker" if best["direct_score"] > 0 else "country_marker"
+    info = best["info"]
+    return {
+        "currency_code": best["code"],
+        "currency_symbol": info["symbol"],
+        "currency_name": info["name"],
+        "currency_country": info["country"],
+        "currency_detected_from": source,
+    }
+
+
+def _count_marker(sample: str, token: str) -> int:
+    if not token:
+        return 0
+    escaped = re.escape(token.upper())
+    if re.match(r"^[A-Z0-9 ]+$", token.upper()):
+        return len(re.findall(rf"(^|[^A-Z0-9]){escaped}($|[^A-Z0-9])", sample))
+    return sample.count(token.upper())
+
+
 def _require_columns(data_type: str, headers: set[str]):
     if data_type == "sales":
         must_have = {"sale_date", "daypart", "units_sold"}
@@ -201,13 +328,41 @@ def _to_bool(value: str, default: bool = False) -> bool:
 def _to_float(value: str, default: float | None = None) -> float:
     if value == "" and default is not None:
         return default
-    return float(value)
+    return float(_clean_numeric(value))
+
+
+def _clean_numeric(value: str) -> str:
+    cleaned = str(value).strip()
+    cleaned = cleaned.replace("S$", "").replace("B$", "")
+    cleaned = CURRENCY_MARKER_RE.sub("", cleaned)
+    cleaned = re.sub(r"[^0-9,.\-]", "", cleaned)
+
+    if "," in cleaned and "." in cleaned:
+        if cleaned.rfind(",") > cleaned.rfind("."):
+            cleaned = cleaned.replace(".", "").replace(",", ".")
+        else:
+            cleaned = cleaned.replace(",", "")
+    elif "," in cleaned:
+        parts = cleaned.split(",")
+        if len(parts[-1]) == 2 and all(part.isdigit() for part in parts if part):
+            cleaned = "".join(parts[:-1]) + "." + parts[-1]
+        else:
+            cleaned = cleaned.replace(",", "")
+    elif "." in cleaned:
+        parts = cleaned.split(".")
+        numeric_parts = [part.lstrip("-") for part in parts if part]
+        if len(parts) > 2 or (len(parts[-1]) == 3 and all(part.isdigit() for part in numeric_parts)):
+            cleaned = "".join(parts)
+
+    if cleaned in {"", "-", ".", "-."}:
+        raise ValueError(f"Invalid numeric value: {value}")
+    return cleaned
 
 
 def _to_int(value: str, default: int | None = None) -> int:
     if value == "" and default is not None:
         return default
-    return int(value)
+    return int(float(_clean_numeric(value)))
 
 
 def _parse_date(value: str) -> date:
@@ -385,7 +540,7 @@ def _import_sales(
                 sku_price = sku_prices.get(sku_id, 0.0)
                 revenue = round(units_sold * sku_price, 2)
             else:
-                revenue = float(revenue_raw)
+                revenue = _to_float(revenue_raw)
 
             sale_date = _parse_date(row["sale_date"])
             key = (outlet_id, sku_id, sale_date, daypart)
@@ -806,6 +961,7 @@ async def upload_csv(
         rows = _normalize_sales_rows(rows)
 
     headers = set(rows[0].keys())
+    currency_detection = _detect_currency(rows, headers)
 
     detected = data_type if data_type in SUPPORTED_TYPES else _detect_type(headers)
     if detected == "unknown":
@@ -845,4 +1001,5 @@ async def upload_csv(
         rows_committed=committed,
         data_type=detected,
         errors=errors[:20],
+        **(currency_detection or {}),
     )

@@ -7,6 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { AlertTriangle, ArrowRight, CheckCircle2, Clock, Database, ListChecks } from "lucide-react";
 
 import PageHeader from "@/components/PageHeader";
+import { useCurrency } from "@/components/CurrencyProvider";
 import ExplainButton from "@/components/copilot/ExplainButton";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,11 +15,13 @@ import { KpiCard } from "@/components/ui/kpi-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLanguage } from "@/components/i18n/LanguageProvider";
 import { planningApi, type DailyPlanLatestResponse, type DailyPlanTopAction } from "@/lib/api/planning";
+import { translateDaypart } from "@/lib/i18n";
 import { tomorrowISO } from "@/lib/utils";
 
 export default function DashboardPage() {
   const [date, setDate] = useState(tomorrowISO);
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const { formatCurrency } = useCurrency();
 
   const planQuery = useQuery<DailyPlanLatestResponse>({
     queryKey: ["latestDailyPlan", date],
@@ -64,7 +67,7 @@ export default function DashboardPage() {
         {planQuery.error && (
           <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             {t("dashboard.failedDailyPlan", "Failed to load daily plan")}:{" "}
-            {planQuery.error instanceof Error ? planQuery.error.message : "unknown error"}
+            {planQuery.error instanceof Error ? planQuery.error.message : t("common.unknownError", "Unknown error")}
           </div>
         )}
 
@@ -108,7 +111,7 @@ export default function DashboardPage() {
                     <ReadinessItem
                       icon={<Database className="h-4 w-4" />}
                       label={t("dashboard.forecastRun", "Forecast run")}
-                      value={plan?.forecast_run_id || (planQuery.isLoading ? "Loading" : "Missing")}
+                      value={plan?.forecast_run_id || (planQuery.isLoading ? t("common.loading", "Loading...") : t("planning.missing", "missing"))}
                       tone={plan?.forecast_run_id ? "ok" : "warn"}
                     />
                     <ReadinessItem
@@ -116,21 +119,32 @@ export default function DashboardPage() {
                       label={t("dashboard.priorityPlan", "Priority plan")}
                       value={
                         pendingActions > 0
-                          ? `${priorityActionCount} priority / ${pendingActions} total`
-                          : "Ready"
+                          ? t("dashboard.priorityRatio", "{{priority}} priority / {{total}} total", {
+                              priority: priorityActionCount,
+                              total: pendingActions,
+                            })
+                          : t("common.ready", "Ready")
                       }
                       tone={pendingActions > 0 ? "warn" : "ok"}
                     />
                     <ReadinessItem
                       icon={<AlertTriangle className="h-4 w-4" />}
                       label={t("dashboard.replenishment", "Replenishment")}
-                      value={shortageCount > 0 ? `${shortageCount} shortages` : "No shortage"}
+                      value={
+                        shortageCount > 0
+                          ? t("dashboard.shortages", "{{count}} shortages", { count: shortageCount })
+                          : t("dashboard.noShortage", "No shortage")
+                      }
                       tone={shortageCount > 0 ? "warn" : "ok"}
                     />
                     <ReadinessItem
                       icon={<Clock className="h-4 w-4" />}
                       label={t("dashboard.approval", "Approval")}
-                      value={pendingActions > 0 ? "Pending review" : "Approved"}
+                      value={
+                        pendingActions > 0
+                          ? t("dashboard.pendingReview", "Pending review")
+                          : t("common.status.approved", "Approved")
+                      }
                       tone={pendingActions > 0 ? "warn" : "ok"}
                     />
                   </div>
@@ -155,16 +169,22 @@ export default function DashboardPage() {
             <section className="grid gap-4 md:grid-cols-4">
               <KpiCard
                 label={t("dashboard.fullPlanExposure", "Full-plan exposure")}
-                value={`RM ${Math.round(stockoutExposure + wasteExposure)}`}
+                value={formatCurrency(stockoutExposure + wasteExposure, language, {
+                  maximumFractionDigits: 0,
+                  minimumFractionDigits: 0,
+                })}
                 trendDirection="neutral"
-                trend={summary?.scope ?? "full_plan"}
+                trend={summary?.scope === "full_plan" || !summary?.scope ? t("common.fullPlan", "Full plan") : summary.scope}
                 subtitle={t("dashboard.exposureSubtitle", "Backend full-plan stockout and waste exposure combined.")}
               />
               <KpiCard
                 label={t("dashboard.fullPlanStockoutExposure", "Full-plan stockout exposure")}
-                value={`RM ${Math.round(stockoutExposure)}`}
+                value={formatCurrency(stockoutExposure, language, {
+                  maximumFractionDigits: 0,
+                  minimumFractionDigits: 0,
+                })}
                 trendDirection="neutral"
-                trend="Full plan"
+                trend={t("common.fullPlan", "Full plan")}
                 subtitle={t("dashboard.stockoutSubtitle", "Potential lost margin from under-prep across the backend plan.")}
                 action={
                   <ExplainButton
@@ -183,9 +203,12 @@ export default function DashboardPage() {
               />
               <KpiCard
                 label={t("dashboard.fullPlanWasteExposure", "Full-plan waste exposure")}
-                value={`RM ${Math.round(wasteExposure)}`}
+                value={formatCurrency(wasteExposure, language, {
+                  maximumFractionDigits: 0,
+                  minimumFractionDigits: 0,
+                })}
                 trendDirection="neutral"
-                trend="Full plan"
+                trend={t("common.fullPlan", "Full plan")}
                 subtitle={t("dashboard.wasteSubtitle", "Potential spoilage exposure from over-prep across the backend plan.")}
                 action={
                   <ExplainButton
@@ -263,15 +286,18 @@ export default function DashboardPage() {
                           </span>
                           <div>
                             <p className="font-semibold text-neutral-900">
-                              {action.outlet_name} - {action.sku_name} - {action.daypart}
+                              {action.outlet_name} - {action.sku_name} - {translateDaypart(language, action.daypart)}
                             </p>
                             <p className="text-sm text-neutral-600">
-                              Prepare {action.recommended_prep} units. Risk: RM{" "}
-                              {Math.round(
-                                action.financial_exposure.stockout_exposure_rm +
-                                  action.financial_exposure.waste_exposure_rm
-                              )}{" "}
-                              exposure.
+                              {t("dashboard.actionRiskSummary", "Prepare {{units}} units. Risk: {{amount}} exposure.", {
+                                units: action.recommended_prep,
+                                amount: formatCurrency(
+                                  action.financial_exposure.stockout_exposure_rm +
+                                    action.financial_exposure.waste_exposure_rm,
+                                  language,
+                                  { maximumFractionDigits: 0, minimumFractionDigits: 0 }
+                                ),
+                              })}
                             </p>
                           </div>
                         </div>
@@ -334,7 +360,8 @@ function DashboardBriefCard({
   wasteExposure: number;
   pendingActions: number;
 }) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const { formatCurrency } = useCurrency();
   
   if (topActions.length === 0) return null;
   
@@ -368,8 +395,11 @@ function DashboardBriefCard({
       <CardContent className="space-y-2 text-sm text-amber-900">
         <p>{dominantRisk}</p>
         <p>
-          {t("dashboard.brief.exposure", "Full-plan exposure: RM {{amount}}.", {
-            amount: Math.round(totalExposure),
+          {t("dashboard.brief.exposureCurrency", "Full-plan exposure: {{amount}}.", {
+            amount: formatCurrency(totalExposure, language, {
+              maximumFractionDigits: 0,
+              minimumFractionDigits: 0,
+            }),
           })}
         </p>
         <p>{topDecision}</p>

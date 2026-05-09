@@ -138,7 +138,11 @@ export default function ApprovalDrawer({ open, item, auditEvents, onClose, onSub
                   <div key={line.ingredient_id} className="flex items-center justify-between rounded-md bg-neutral-50 px-2 py-1 text-xs">
                     <span className="font-medium text-neutral-800">{line.ingredient_name}</span>
                     <span className="text-neutral-600">
-                      {line.required_qty} {line.unit} needed / reorder {line.reorder_qty} {line.unit}
+                      {t("planning.decision.neededReorder", "{{required}} {{unit}} needed / reorder {{reorder}} {{unit}}", {
+                        required: line.required_qty,
+                        unit: line.unit,
+                        reorder: line.reorder_qty,
+                      })}
                     </span>
                   </div>
                 ))}

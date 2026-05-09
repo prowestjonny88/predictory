@@ -27,30 +27,35 @@ export default function ScenarioPlannerPage() {
   const outlet3 = outlets[2]?.name ?? "Mid Valley";
   const sku1 = skus.find(s => s.name.toLowerCase().includes("croissant"))?.name ?? skus[0]?.name ?? "Croissant";
 
-  const getPresets = () => {
-    switch (language) {
-      case "ms":
-        return [
-          { id: "cut", text: `Kurangkan prep ${sku1} di ${outlet1} sebanyak 15%`, label: `Kurangkan prep ${sku1} di ${outlet1} sebanyak 15%` },
-          { id: "promo", text: `Promosi di ${outlet2} sebanyak 25%`, label: `Promosi di ${outlet2} sebanyak 25%` },
-          { id: "spike", text: `Tingkatkan prep ${sku1} di ${outlet3} sebanyak 30%`, label: `Tingkatkan prep ${sku1} di ${outlet3} sebanyak 30%` },
-        ];
-      case "zh-CN":
-        return [
-          { id: "cut", text: `将 ${outlet1} 的 ${sku1} 备货减少 15%`, label: `将 ${outlet1} 的 ${sku1} 备货减少 15%` },
-          { id: "promo", text: `在 ${outlet2} 做 25% 促销活动`, label: `在 ${outlet2} 做 25% 促销活动` },
-          { id: "spike", text: `将 ${outlet3} 的 ${sku1} 备货增加 30%`, label: `将 ${outlet3} 的 ${sku1} 备货增加 30%` },
-        ];
-      default:
-        return [
-          { id: "cut", text: `Reduce ${sku1} prep at ${outlet1} by 15%`, label: `Reduce ${sku1} prep at ${outlet1} by 15%` },
-          { id: "promo", text: `Promo at ${outlet2} by 25%`, label: `Promo at ${outlet2} by 25%` },
-          { id: "spike", text: `Increase ${sku1} prep at ${outlet3} by 30%`, label: `Increase ${sku1} prep at ${outlet3} by 30%` },
-        ];
-    }
-  };
-
-  const presets = getPresets();
+  const presets = [
+    {
+      id: "cut",
+      text: t("scenario.preset.cut", "Reduce {{sku}} prep at {{outlet}} by 15%", {
+        sku: sku1,
+        outlet: outlet1,
+      }),
+      label: t("scenario.preset.cut", "Reduce {{sku}} prep at {{outlet}} by 15%", {
+        sku: sku1,
+        outlet: outlet1,
+      }),
+    },
+    {
+      id: "promo",
+      text: t("scenario.preset.promo", "Promo at {{outlet}} by 25%", { outlet: outlet2 }),
+      label: t("scenario.preset.promo", "Promo at {{outlet}} by 25%", { outlet: outlet2 }),
+    },
+    {
+      id: "spike",
+      text: t("scenario.preset.spike", "Increase {{sku}} prep at {{outlet}} by 30%", {
+        sku: sku1,
+        outlet: outlet3,
+      }),
+      label: t("scenario.preset.spike", "Increase {{sku}} prep at {{outlet}} by 30%", {
+        sku: sku1,
+        outlet: outlet3,
+      }),
+    },
+  ];
   const scenarioText = selectedPreset
     ? (presets.find((preset) => preset.id === selectedPreset)?.text ?? "")
     : customText;

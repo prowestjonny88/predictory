@@ -3,6 +3,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ReactNode, useState } from "react";
 
+import { CurrencyProvider } from "@/components/CurrencyProvider";
 import { LanguageProvider } from "@/components/i18n/LanguageProvider";
 
 export default function Providers({ children }: { children: ReactNode }) {
@@ -23,7 +24,9 @@ export default function Providers({ children }: { children: ReactNode }) {
 
   return (
     <LanguageProvider>
-      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+      <CurrencyProvider>
+        <QueryClientProvider client={client}>{children}</QueryClientProvider>
+      </CurrencyProvider>
     </LanguageProvider>
   );
 }

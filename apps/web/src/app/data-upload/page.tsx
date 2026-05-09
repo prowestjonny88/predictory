@@ -4,18 +4,25 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CheckCircle2, DatabaseZap, FileSpreadsheet, UploadCloud } from "lucide-react";
 
+import { useCurrency } from "@/components/CurrencyProvider";
 import Header from "@/components/Header";
 import { useLanguage } from "@/components/i18n/LanguageProvider";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { detectCurrencyFromCsvText, type CurrencyDetection } from "@/lib/currency";
 
 export default function DataUploadPage() {
   const { t } = useLanguage();
+  const { currency, setCurrencyCode } = useCurrency();
   const router = useRouter();
   const [file, setFile] = useState<File | null>(null);
   const [processing, setProcessing] = useState(false);
   const [redirecting, setRedirecting] = useState(false);
-  const [result, setResult] = useState<{ fileName: string; fileSizeMb: string } | null>(null);
+  const [result, setResult] = useState<{
+    fileName: string;
+    fileSizeMb: string;
+    detectedCurrency: CurrencyDetection | null;
+  } | null>(null);
 
   useEffect(() => {
     router.prefetch("/dashboard");
@@ -28,17 +35,28 @@ export default function DataUploadPage() {
     return `${file.name} (${(file.size / 1024 / 1024).toFixed(1)} MB)`;
   }, [file, t]);
 
-  function handleDemoUpload() {
+  async function handleDemoUpload() {
     if (!file || processing || redirecting) {
       return;
     }
     setProcessing(true);
     setResult(null);
 
+    let detectedCurrency: CurrencyDetection | null = null;
+    try {
+      detectedCurrency = detectCurrencyFromCsvText(await file.text());
+      if (detectedCurrency) {
+        setCurrencyCode(detectedCurrency.currency.code);
+      }
+    } catch {
+      detectedCurrency = null;
+    }
+
     window.setTimeout(() => {
       setResult({
         fileName: file.name,
         fileSizeMb: (file.size / 1024 / 1024).toFixed(1),
+        detectedCurrency,
       });
       setProcessing(false);
       setRedirecting(true);
@@ -107,13 +125,16 @@ export default function DataUploadPage() {
 
               <div className="rounded-lg border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-600">
                 <p className="font-semibold text-neutral-900">
-                  {t("dataUpload.demoDefaultsTitle", "Demo connector settings")}
+                  {t("dataUpload.demoDefaultsTitle", "Connector settings")}
                 </p>
                 <p className="mt-1">
                   {t(
                     "dataUpload.demoDefaultsCopy",
-                    "This demo step does not change backend data. It only confirms the CSV handoff before entering the dashboard."
+                    "Predictory reads the CSV for ASEAN country or currency markers and applies the matching symbol across the app."
                   )}
+                </p>
+                <p className="mt-2 text-xs font-medium text-neutral-500">
+                  {t("dataUpload.activeCurrency", "Active currency")}: {currency.symbol} {currency.code}
                 </p>
               </div>
 
@@ -190,11 +211,15 @@ export default function DataUploadPage() {
                     />
                     <ResultMetric
                       label={t("dataUpload.mode", "Mode")}
-                      value={t("dataUpload.demoOnly", "Demo only")}
+                      value={t("dataUpload.demoOnly", "CSV handoff")}
                     />
                     <ResultMetric
-                      label={t("dataUpload.backendChanges", "Backend changes")}
-                      value={t("common.none", "None")}
+                      label={t("dataUpload.currency", "Currency")}
+                      value={
+                        result.detectedCurrency
+                          ? `${result.detectedCurrency.currency.symbol} ${result.detectedCurrency.currency.code}`
+                          : `${currency.symbol} ${currency.code}`
+                      }
                     />
                   </dl>
                   )}

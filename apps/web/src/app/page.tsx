@@ -33,7 +33,7 @@ export default function RootPage() {
         <div className="absolute inset-0">
           <Image
             src="https://images.unsplash.com/photo-1509440159596-0249088772ff?w=1600&q=80"
-            alt="Bakery counter"
+            alt={t("landing.image.bakeryCounter", "Bakery counter")}
             fill
             className="object-cover opacity-25"
             {...imageProps}
@@ -73,15 +73,15 @@ export default function RootPage() {
             <div className="mt-10 grid max-w-xl grid-cols-3 gap-6 border-t border-stone-300 pt-6">
               <div>
                 <p className="text-2xl font-black text-stone-950">30%</p>
-                <p className="text-sm font-medium text-stone-600">less waste</p>
+                <p className="text-sm font-medium text-stone-600">{t("landing.metric.lessWaste", "less waste")}</p>
               </div>
               <div>
                 <p className="text-2xl font-black text-stone-950">3</p>
-                <p className="text-sm font-medium text-stone-600">languages</p>
+                <p className="text-sm font-medium text-stone-600">{t("landing.metric.languages", "languages")}</p>
               </div>
               <div>
                 <p className="text-2xl font-black text-stone-950">1</p>
-                <p className="text-sm font-medium text-stone-600">daily plan</p>
+                <p className="text-sm font-medium text-stone-600">{t("landing.metric.dailyPlan", "daily plan")}</p>
               </div>
             </div>
           </div>
@@ -89,15 +89,15 @@ export default function RootPage() {
           <div className="relative hidden aspect-[4/5] overflow-hidden rounded-lg shadow-2xl shadow-stone-900/15 lg:block">
             <Image
               src="https://images.unsplash.com/photo-1509440159596-0249088772ff?w=900&q=80"
-              alt="Fresh bakery counter"
+              alt={t("landing.image.freshBakeryCounter", "Fresh bakery counter")}
               fill
               className="object-cover"
               {...imageProps}
             />
             <div className="absolute inset-0 bg-gradient-to-t from-stone-950/70 via-transparent to-transparent" />
             <div className="absolute bottom-0 left-0 right-0 p-6 text-white">
-              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-brand-amber-light">Tomorrow</p>
-              <p className="mt-2 text-2xl font-black">Forecast-backed prep decisions</p>
+              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-brand-amber-light">{t("landing.tomorrow", "Tomorrow")}</p>
+              <p className="mt-2 text-2xl font-black">{t("landing.forecastBackedPrep", "Forecast-backed prep decisions")}</p>
             </div>
           </div>
         </div>
@@ -121,7 +121,7 @@ export default function RootPage() {
             <FeatureImageCard
               className="min-h-[320px] md:col-span-4"
               image="/landing/demand-forecast.svg"
-              alt="Fresh baked goods"
+              alt={t("landing.image.freshBakedGoods", "Fresh baked goods")}
               icon={<TrendingUp className="h-8 w-8 text-brand-amber" />}
               title={t("landing.feature.forecast.title", "Smart Demand Forecasting")}
               description={t(
@@ -144,11 +144,11 @@ export default function RootPage() {
               <div className="relative h-28 w-full overflow-hidden rounded-lg border border-stone-100 bg-white shadow-sm transition-colors group-hover:border-brand-amber/30">
                 <div className="absolute left-2 top-2 z-10 flex items-center gap-1 rounded-md bg-red-50 px-2 py-1 text-xs font-semibold text-red-600">
                   <AlertTriangle className="h-3 w-3" />
-                  Overstocked
+                  {t("landing.risk.overstocked", "Overstocked")}
                 </div>
                 <Image
                   src="/landing/waste-risk.svg"
-                  alt="Pastries"
+                  alt={t("landing.image.pastries", "Pastries")}
                   fill
                   className="object-cover"
                   {...imageProps}
@@ -172,7 +172,7 @@ export default function RootPage() {
             <FeatureImageCard
               className="min-h-[260px] md:col-span-4"
               image="https://images.unsplash.com/photo-1549931319-a545dcf3bc73?w=900&q=80"
-              alt="Artisan bread"
+              alt={t("landing.image.artisanBread", "Artisan bread")}
               icon={<Truck className="h-8 w-8 text-brand-amber" />}
               title={t("landing.feature.replenishment.title", "Optimized Replenishment")}
               description={t(
@@ -188,7 +188,7 @@ export default function RootPage() {
         <div className="absolute inset-0 bg-stone-900">
           <Image
             src="https://images.unsplash.com/photo-1556217477-d325251ece38?w=1600&q=80"
-            alt="Cafe background"
+            alt={t("landing.image.cafeBackground", "Cafe background")}
             fill
             className="object-cover opacity-30 mix-blend-overlay"
             {...imageProps}

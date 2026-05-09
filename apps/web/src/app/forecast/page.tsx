@@ -15,7 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useLanguage } from "@/components/i18n/LanguageProvider";
 import { api } from "@/lib/api";
-import { translateDaypart } from "@/lib/i18n";
+import { translateDaypart, translateStatus } from "@/lib/i18n";
 import { todayISO } from "@/lib/utils";
 import type {
   ForecastLine,
@@ -368,11 +368,11 @@ export default function ForecastPage() {
         {currentRun && (
           <div className="flex flex-wrap items-center gap-2 rounded-lg border border-neutral-200 bg-white px-4 py-3 text-xs text-neutral-600 shadow-sm">
             <span className="font-semibold text-neutral-800">
-              {currentRun.forecast_run_id ?? `Run ${currentRun.id}`}
+              {currentRun.forecast_run_id ?? t("forecast.runId", "Run {{id}}", { id: currentRun.id })}
             </span>
-            <span>Engine: {currentRun.engine_name ?? "unknown"}</span>
-            <span>Model: {currentRun.model_version ?? "unknown"}</span>
-            <span>Status: {currentRun.status}</span>
+            <span>{t("forecast.engine", "Engine")}: {currentRun.engine_name ?? t("common.unknown", "Unknown")}</span>
+            <span>{t("forecast.model", "Model")}: {currentRun.model_version ?? t("common.unknown", "Unknown")}</span>
+            <span>{t("planning.status", "Status")}: {translateStatus(language, currentRun.status)}</span>
           </div>
         )}
 

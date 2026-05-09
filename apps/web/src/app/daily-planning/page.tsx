@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import Header from "@/components/Header";
+import { useCurrency } from "@/components/CurrencyProvider";
 import ActionSummaryCard from "@/components/planning/ActionSummaryCard";
 import ApprovalDrawer from "@/components/planning/ApprovalDrawer";
 import FilterTabs, { type FilterKey } from "@/components/planning/FilterTabs";
@@ -25,6 +26,7 @@ const latestPlanCache = new Map<string, DailyPlanLatestResponse>();
 
 export default function DailyPlanningPage() {
   const { t, language } = useLanguage();
+  const { formatCurrency } = useCurrency();
   const [planDate] = useState(tomorrowISO);
   const [plan, setPlan] = useState<DailyPlanLatestResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -88,11 +90,11 @@ export default function DailyPlanningPage() {
         setPlan(null);
         setSelectedAction(null);
       }
-      setLoadError(error instanceof Error ? error.message : "Failed to load daily plan");
+      setLoadError(error instanceof Error ? error.message : t("dashboard.failedDailyPlan", "Failed to load daily plan"));
     } finally {
       setLoading(false);
     }
-  }, [applyPlan, planDate]);
+  }, [applyPlan, planDate, t]);
 
   useEffect(() => {
     loadLatestPlan();
@@ -127,7 +129,11 @@ export default function DailyPlanningPage() {
       {
         label: t("planning.summary.topPrep", "Top prep action"),
         value: topPrep
-          ? `${topPrep.recommended_prep} ${topPrep.sku_name} at ${topPrep.outlet_name}`
+          ? t("planning.summary.topPrepValue", "{{prep}} {{sku}} at {{outlet}}", {
+              prep: topPrep.recommended_prep,
+              sku: topPrep.sku_name,
+              outlet: topPrep.outlet_name,
+            })
           : t("planning.summary.noActions", "No actions"),
       },
       {
@@ -139,8 +145,10 @@ export default function DailyPlanningPage() {
       {
         label: t("planning.summary.topRisk", "Top risk"),
         value: topRisk
-          ? `${topRisk.outlet_name} ${topRisk.sku_name} (RM ${Math.round(
-              topRisk.financial_exposure.stockout_exposure_rm + topRisk.financial_exposure.waste_exposure_rm
+          ? `${topRisk.outlet_name} ${topRisk.sku_name} (${formatCurrency(
+              topRisk.financial_exposure.stockout_exposure_rm + topRisk.financial_exposure.waste_exposure_rm,
+              language,
+              { maximumFractionDigits: 0, minimumFractionDigits: 0 }
             )})`
           : t("planning.summary.noMajorFinancialRisk", "No major financial risk detected"),
       },
@@ -158,7 +166,7 @@ export default function DailyPlanningPage() {
     }
 
     return items;
-  }, [plan, t, visibleActions]);
+  }, [formatCurrency, language, plan, t, visibleActions]);
 
   const groupedByOutlet = useMemo(() => {
     const map = new Map<string, DailyPlanTopAction[]>();
@@ -194,20 +202,20 @@ export default function DailyPlanningPage() {
       setStatusMessage(response.message);
       await loadLatestPlan();
     } catch (error) {
-      setStatusMessage(error instanceof Error ? error.message : "Regenerate failed");
+      setStatusMessage(error instanceof Error ? error.message : t("planning.status.regenerateFailed", "Regenerate failed"));
     }
   }
 
   async function handleParse(note: string) {
     if (!plan) {
-      throw new Error("Load a backend plan before parsing a manager note.");
+      throw new Error(t("planning.error.loadPlanBeforeParse", "Load a backend plan before parsing a manager note."));
     }
     return planningApi.parseManagerNote({ forecast_run_id: plan.forecast_run_id, note, language });
   }
 
   async function handleApply(adjustment: ManagerNoteResponse["parsed_adjustment"]) {
     if (!plan) {
-      throw new Error("Load a backend plan before applying a manager note.");
+      throw new Error(t("planning.error.loadPlanBeforeApply", "Load a backend plan before applying a manager note."));
     }
     try {
       const response = await planningApi.applyManagerNote({
@@ -219,7 +227,7 @@ export default function DailyPlanningPage() {
       setStatusMessage(formatManagerNoteResult(response, t));
       return response;
     } catch (error) {
-      setStatusMessage(error instanceof Error ? error.message : "Manager note apply failed");
+      setStatusMessage(error instanceof Error ? error.message : t("planning.managerNote.applyFailed", "Unable to apply note"));
       throw error;
     }
   }
@@ -232,7 +240,7 @@ export default function DailyPlanningPage() {
       const response = await planningApi.submitDecision(selectedAction, {
         operator_action: payload.action,
         final_prep: payload.finalPrep,
-        operator_reason: payload.reason || "Approved in Daily Planning Workspace",
+        operator_reason: payload.reason || t("planning.decision.defaultReason", "Approved in Daily Planning Workspace"),
         role: role === "outlet_manager" ? "outlet_manager" : "planner",
       });
       await loadLatestPlan();
@@ -250,7 +258,7 @@ export default function DailyPlanningPage() {
       setStatusMessage(t("planning.status.decisionRecorded", "Decision recorded and audit log created."));
       return;
     } catch (error) {
-      setStatusMessage(error instanceof Error ? error.message : "Decision failed");
+      setStatusMessage(error instanceof Error ? error.message : t("planning.decision.failed", "Decision failed"));
     }
   }
 
@@ -270,7 +278,7 @@ export default function DailyPlanningPage() {
           current?.id === item.id ? { ...current, explanation: response.explanation } : current
         );
       } catch (error) {
-        setStatusMessage(error instanceof Error ? error.message : "Explanation request failed");
+        setStatusMessage(error instanceof Error ? error.message : t("planning.explanation.failed", "Explanation request failed"));
       }
     }
   }
@@ -289,7 +297,7 @@ export default function DailyPlanningPage() {
       const response = await agenticApi.reviewCouncil(item.id, language);
       setCouncilReview(response);
     } catch (error) {
-      setCouncilError(error instanceof Error ? error.message : "Agent Council review failed");
+      setCouncilError(error instanceof Error ? error.message : t("planning.council.reviewFailed", "Agent Council review failed"));
     } finally {
       setCouncilLoading(false);
     }
@@ -304,11 +312,15 @@ export default function DailyPlanningPage() {
     );
     const actionForNote = matchingActions[0];
     if (!actionForNote) {
-      throw new Error("No daily-planning recommendation matches the parsed manager note target.");
+      throw new Error(t("planning.managerNote.noMatch", "No daily-planning recommendation matches the parsed manager note target."));
     }
     if (matchingActions.length > 1) {
       setStatusMessage(
-        `Multiple matching recommendations found; using the first match: ${actionForNote.sku_name} at ${actionForNote.outlet_name} (${actionForNote.daypart}).`
+        t("planning.managerNote.multipleMatches", "Multiple matching recommendations found; using the first match: {{sku}} at {{outlet}} ({{daypart}}).", {
+          sku: actionForNote.sku_name,
+          outlet: actionForNote.outlet_name,
+          daypart: actionForNote.daypart,
+        })
       );
     }
     setSelectedAction(actionForNote);
@@ -326,7 +338,7 @@ export default function DailyPlanningPage() {
       setCouncilAfterReview(response.after_review);
       setCouncilReview(response.after_review);
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Agent Council preview failed";
+      const message = error instanceof Error ? error.message : t("planning.managerNote.councilFailed", "Council preview failed");
       setCouncilError(message);
       throw error;
     } finally {
@@ -352,7 +364,7 @@ export default function DailyPlanningPage() {
       setStatusMessage(response.message);
       await loadLatestPlan();
     } catch (error) {
-      setCouncilError(error instanceof Error ? error.message : "Agent Council confirm failed");
+      setCouncilError(error instanceof Error ? error.message : t("planning.council.confirmFailed", "Agent Council confirm failed"));
     } finally {
       setCouncilConfirming(false);
     }

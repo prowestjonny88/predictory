@@ -269,7 +269,7 @@ export default function PrepPlanPage() {
           >
             {runMutation.isPending
               ? t("common.running", "Running...")
-              : "↺ Regenerate Plan"}
+              : t("prep.regeneratePlan", "Regenerate Plan")}
           </button>
         )}
       </Header>

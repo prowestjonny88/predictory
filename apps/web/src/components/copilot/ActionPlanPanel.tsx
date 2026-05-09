@@ -9,9 +9,15 @@ interface Props {
   compact?: boolean;
 }
 
-function targetLabel(action: AgentAction): string | null {
+function targetLabel(
+  action: AgentAction,
+  t: (key: string, fallback: string, values?: Record<string, string | number>) => string
+): string | null {
   if (action.target.sku_name && action.target.outlet_name) {
-    return `${action.target.sku_name} at ${action.target.outlet_name}`;
+    return t("actionPlan.targetSkuAtOutlet", "{{sku}} at {{outlet}}", {
+      sku: action.target.sku_name,
+      outlet: action.target.outlet_name,
+    });
   }
   if (action.target.ingredient_name) {
     return action.target.ingredient_name;
@@ -40,7 +46,7 @@ function urgencyClass(urgency: AgentAction["urgency"]): string {
 
 function ActionRow({ action }: { action: AgentAction }) {
   const { language, t } = useLanguage();
-  const target = targetLabel(action);
+  const target = targetLabel(action, t);
 
   return (
     <div className="rounded-lg border border-neutral-200 bg-white px-4 py-3">

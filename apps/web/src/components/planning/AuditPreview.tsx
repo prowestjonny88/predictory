@@ -1,5 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { useLanguage } from "@/components/i18n/LanguageProvider";
+import { translateStatus } from "@/lib/i18n";
 
 export interface AuditEventPreview {
   id: string;
@@ -14,7 +15,7 @@ interface Props {
 }
 
 export default function AuditPreview({ events }: Props) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   if (events.length === 0) {
     return <p className="text-xs text-neutral-500">{t("planning.audit.noEvents", "No audit events recorded yet.")}</p>;
   }
@@ -24,7 +25,7 @@ export default function AuditPreview({ events }: Props) {
       {events.map((event) => (
         <div key={event.id} className="flex items-center justify-between rounded-lg border border-neutral-100 bg-neutral-50 p-2">
           <div>
-            <p className="text-xs font-semibold text-neutral-900">{event.action}</p>
+            <p className="text-xs font-semibold text-neutral-900">{translateStatus(language, event.action)}</p>
             {event.reason && <p className="text-xs text-neutral-500">{event.reason}</p>}
           </div>
           <div className="text-right">

@@ -22,6 +22,7 @@ export default function ModelBadge({
   onOpenEvidence,
 }: Props) {
   const { t } = useLanguage();
+  const dataSourceLabel = dataSource === "backend" ? t("planning.source.backend", "Backend") : dataSource;
   return (
     <div className="flex flex-wrap items-center gap-3 rounded-xl border border-neutral-200 bg-white px-4 py-3 shadow-sm">
       <div className="flex flex-col">
@@ -39,7 +40,7 @@ export default function ModelBadge({
         </span>
       </div>
       <div className="flex items-center gap-2">
-        <Badge variant="success">{t("planning.source", "Source")}: {dataSource}</Badge>
+        <Badge variant="success">{t("planning.source", "Source")}: {dataSourceLabel}</Badge>
         <Badge variant={modelArtifactAvailable ? "success" : "high"}>
           {t("planning.evidence", "Evidence")}:{" "}
           {modelArtifactAvailable

@@ -28,6 +28,14 @@ export default function ManagerNotePanel({ onParse, onApply, onCouncilPreview }:
     return value;
   }
 
+  function applicationModeLabel(value: string): string {
+    if (value === "prep_edit_only") return t("planning.managerNote.modePrepOnly", "prep edit only");
+    if (value === "forecast_override_recompute") {
+      return t("planning.managerNote.modeForecastRecompute", "forecast override recompute");
+    }
+    return value;
+  }
+
   async function handleParse() {
     setParsing(true);
     setError(null);
@@ -141,7 +149,8 @@ export default function ManagerNotePanel({ onParse, onApply, onCouncilPreview }:
                 {t("planning.managerNote.stepImpact", "Step 2: What will happen")}
               </p>
               <div className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900">
-                {t("planning.managerNote.applicationMode", "Application mode")}: prep_edit_only
+                {t("planning.managerNote.applicationMode", "Application mode")}:{" "}
+                {t("planning.managerNote.modePrepOnly", "prep edit only")}
               </div>
               <ul className="mt-2 space-y-1 text-xs text-neutral-600">
                 <li>{t("planning.managerNote.modeCopy", "Mode: prep edit only")}</li>
@@ -219,7 +228,10 @@ export default function ManagerNotePanel({ onParse, onApply, onCouncilPreview }:
               {t("planning.managerNote.appliedTitle", "Manager note applied")}
             </p>
             <div className="mt-2 grid gap-2 text-xs sm:grid-cols-2">
-              <span>{t("planning.managerNote.applicationMode", "Application mode")}: {applyResult.application_mode}</span>
+              <span>
+                {t("planning.managerNote.applicationMode", "Application mode")}:{" "}
+                {applicationModeLabel(applyResult.application_mode)}
+              </span>
               <span>{t("planning.managerNote.affectedLines", "Affected lines")}: {applyResult.updated_line_ids.length}</span>
               <span>{t("planning.managerNote.auditCount", "Audit events")}: {applyResult.audit_event_ids.length}</span>
               <span>

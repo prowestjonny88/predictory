@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Sparkles } from "lucide-react";
 
+import { useCurrency } from "@/components/CurrencyProvider";
 import { useLanguage } from "@/components/i18n/LanguageProvider";
 import { Button } from "@/components/ui/button";
 import {
@@ -39,6 +40,7 @@ export default function ExplainButton({
   size = "sm",
 }: ExplainButtonProps) {
   const { t, language } = useLanguage();
+  const { formatCurrency } = useCurrency();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loadingStep, setLoadingStep] = useState(0);
@@ -104,7 +106,16 @@ export default function ExplainButton({
           <div className="inline-flex rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700">
             {response?.source_type === "llm_rephrased"
               ? t("explain.sourceGemini", "Source: Gemini explanation")
-              : response?.source_type ?? t("explain.sourcePending", "Source: backend evidence")}
+              : response?.source_type
+                ? t("explain.sourceTyped", "Source: {{source}}", {
+                    source: formatEvidenceValue(
+                      "source",
+                      response.source_type,
+                      (amount, options) => formatCurrency(amount, language, options),
+                      t
+                    ),
+                  })
+                : t("explain.sourcePending", "Source: backend evidence")}
           </div>
 
           {loading && (
@@ -135,8 +146,15 @@ export default function ExplainButton({
                   key={key}
                   className="grid grid-cols-[140px_1fr] gap-3 rounded-md border border-neutral-100 bg-white px-3 py-2 text-xs"
                 >
-                  <span className="font-medium text-neutral-500">{formatEvidenceKey(key)}</span>
-                  <span className="break-words text-neutral-800">{formatEvidenceValue(value)}</span>
+                  <span className="font-medium text-neutral-500">{formatEvidenceKey(key, t)}</span>
+                  <span className="break-words text-neutral-800">
+                    {formatEvidenceValue(
+                      key,
+                      value,
+                      (amount, options) => formatCurrency(amount, language, options),
+                      t
+                    )}
+                  </span>
                 </div>
               ))}
             </div>
@@ -147,51 +165,72 @@ export default function ExplainButton({
   );
 }
 
-function formatEvidenceKey(key: string): string {
-  const labels: Record<string, string> = {
-    metric: "Metric",
-    value_rm: "Amount",
-    scope: "Scope",
-    source: "Source",
-    pending_action_count: "Actions awaiting review",
-    ingredient_shortage_count: "Ingredient shortages",
-    forecast_run_id: "Forecast run",
-    outlet_id: "Outlet ID",
-    outlet_name: "Outlet",
-    sku_id: "SKU ID",
-    sku_name: "SKU",
-    sku_category: "SKU category",
-    daypart: "Daypart",
-    p10: "Low-demand scenario",
-    p50: "Expected-demand scenario",
-    p90: "High-demand scenario",
-    recommended_prep: "Recommended prep",
-    final_prep: "Final prep",
-    current_stock: "Current stock",
-    opening_stock: "Opening stock",
-    batch_size: "Batch size",
-    waste_cost: "Waste cost",
-    stockout_cost: "Stockout cost",
-    stockout_exposure_rm: "Stockout exposure",
-    waste_exposure_rm: "Waste exposure",
-    priority_score: "Priority score",
-    priority_reason: "Priority reason",
-    need_qty: "Need quantity",
-    reorder_qty: "Reorder quantity",
-    urgency: "Urgency",
-    driving_skus: "Driving SKUs",
+function formatEvidenceKey(key: string, t: (key: string, fallback: string) => string): string {
+  const labels: Record<string, [string, string]> = {
+    metric: ["explain.key.metric", "Metric"],
+    value_rm: ["explain.key.amount", "Amount"],
+    scope: ["explain.key.scope", "Scope"],
+    source: ["explain.key.source", "Source"],
+    pending_action_count: ["explain.key.pendingActions", "Actions awaiting review"],
+    ingredient_shortage_count: ["explain.key.ingredientShortages", "Ingredient shortages"],
+    forecast_run_id: ["explain.key.forecastRun", "Forecast run"],
+    outlet_id: ["explain.key.outletId", "Outlet ID"],
+    outlet_name: ["explain.key.outlet", "Outlet"],
+    sku_id: ["explain.key.skuId", "SKU ID"],
+    sku_name: ["explain.key.sku", "SKU"],
+    sku_category: ["explain.key.skuCategory", "SKU category"],
+    daypart: ["explain.key.daypart", "Daypart"],
+    p10: ["explain.key.lowDemand", "Low-demand scenario"],
+    p50: ["explain.key.expectedDemand", "Expected-demand scenario"],
+    p90: ["explain.key.highDemand", "High-demand scenario"],
+    recommended_prep: ["explain.key.recommendedPrep", "Recommended prep"],
+    final_prep: ["explain.key.finalPrep", "Final prep"],
+    current_stock: ["explain.key.currentStock", "Current stock"],
+    opening_stock: ["explain.key.openingStock", "Opening stock"],
+    batch_size: ["explain.key.batchSize", "Batch size"],
+    waste_cost: ["explain.key.wasteCost", "Waste cost"],
+    stockout_cost: ["explain.key.stockoutCost", "Stockout cost"],
+    stockout_exposure_rm: ["explain.key.stockoutExposure", "Stockout exposure"],
+    waste_exposure_rm: ["explain.key.wasteExposure", "Waste exposure"],
+    priority_score: ["explain.key.priorityScore", "Priority score"],
+    priority_reason: ["explain.key.priorityReason", "Priority reason"],
+    need_qty: ["explain.key.needQuantity", "Need quantity"],
+    reorder_qty: ["explain.key.reorderQuantity", "Reorder quantity"],
+    urgency: ["explain.key.urgency", "Urgency"],
+    driving_skus: ["explain.key.drivingSkus", "Driving SKUs"],
   };
-  return labels[key] ?? key.replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
+  const label = labels[key];
+  return label ? t(label[0], label[1]) : key.replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
-function formatEvidenceValue(value: unknown): string {
-  if (value === null || value === undefined || value === "") return "Unavailable";
-  if (value === "full_plan") return "Full plan";
-  if (value === "backend_daily_plan_summary") return "Backend daily-plan summary";
-  if (value === "full_plan_stockout_exposure_rm") return "Stockout exposure across the full plan";
-  if (value === "full_plan_waste_exposure_rm") return "Waste exposure across the full plan";
-  if (typeof value === "number") return Number.isInteger(value) ? String(value) : value.toFixed(2);
+function formatEvidenceValue(
+  key: string,
+  value: unknown,
+  formatMoney: (amount: number, options?: Intl.NumberFormatOptions) => string,
+  t: (key: string, fallback: string) => string
+): string {
+  if (value === null || value === undefined || value === "") return t("common.unavailable", "Unavailable");
+  if (value === "full_plan") return t("common.fullPlan", "Full plan");
+  if (value === "backend_daily_plan_summary") return t("explain.value.backendDailyPlanSummary", "Backend daily-plan summary");
+  if (value === "backend_replenishment_plan") return t("explain.value.backendReplenishmentPlan", "Backend replenishment plan");
+  if (value === "backend_replenishment_breakdown") return t("explain.value.backendReplenishmentBreakdown", "Backend replenishment breakdown");
+  if (value === "backend_waste_alert") return t("explain.value.backendWasteAlert", "Backend waste alert");
+  if (value === "backend_stockout_alert") return t("explain.value.backendStockoutAlert", "Backend stockout alert");
+  if (value === "llm_rephrased") return t("common.source.ai", "AI phrased");
+  if (value === "rules_based") return t("common.source.rulesBased", "Rules-based");
+  if (value === "full_plan_stockout_exposure_rm") return t("explain.value.fullPlanStockoutExposure", "Stockout exposure across the full plan");
+  if (value === "full_plan_waste_exposure_rm") return t("explain.value.fullPlanWasteExposure", "Waste exposure across the full plan");
+  if (typeof value === "number") {
+    if (isMoneyEvidenceKey(key)) {
+      return formatMoney(value, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+    return Number.isInteger(value) ? String(value) : value.toFixed(2);
+  }
   if (typeof value === "string") return value;
-  if (typeof value === "boolean") return value ? "Yes" : "No";
+  if (typeof value === "boolean") return value ? t("common.yes", "Yes") : t("common.no", "No");
   return JSON.stringify(value);
+}
+
+function isMoneyEvidenceKey(key: string): boolean {
+  return key === "value_rm" || key.endsWith("_cost") || key.endsWith("_exposure_rm");
 }

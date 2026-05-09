@@ -23,13 +23,40 @@ const URGENCY_STYLES: Record<UrgencyLevel, string> = {
   low: "bg-green-100 text-green-700",
 };
 
-function formatDrivingSkus(skus: string[], emptyLabel: string): string {
+function formatDrivingSkus(
+  skus: string[],
+  emptyLabel: string,
+  moreLabel: (count: number) => string
+): string {
   if (skus.length === 0) {
     return emptyLabel;
   }
   const visible = skus.slice(0, 3).join(", ");
   const remaining = skus.length - 3;
-  return remaining > 0 ? `${visible} +${remaining} more` : visible;
+  return remaining > 0 ? `${visible} ${moreLabel(remaining)}` : visible;
+}
+
+function formatStockCoverageReason(
+  line: DailyPlanReplenishmentLine,
+  t: (key: string, fallback: string, values?: Record<string, string | number>) => string
+): string {
+  if (line.need_qty <= 0) {
+    return t("replenishment.stockSufficient", "Stock sufficient");
+  }
+
+  const pct = Math.round((line.stock_on_hand / line.need_qty) * 100);
+  const skuList = line.driving_skus.slice(0, 2).join(", ");
+  const tail = line.driving_skus.length > 2
+    ? t("replenishment.moreCount", "+{{count}} more", { count: line.driving_skus.length - 2 })
+    : "";
+
+  return skuList
+    ? t("replenishment.stockCoversForSkus", "Stock covers {{pct}}% of production need for {{skus}}{{tail}}", {
+        pct,
+        skus: skuList,
+        tail,
+      })
+    : t("replenishment.stockCovers", "Stock covers {{pct}}% of production need", { pct });
 }
 
 export default function ReplenishmentPage() {
@@ -80,20 +107,6 @@ export default function ReplenishmentPage() {
       }
       return next;
     });
-  }
-
-  function derivedReason(line: DailyPlanReplenishmentLine): string {
-    if (line.need_qty <= 0) return t("replenishment.stockSufficient", "Stock sufficient");
-    const pct = Math.round((line.stock_on_hand / line.need_qty) * 100);
-    const skuList = line.driving_skus.slice(0, 2).join(", ");
-    const tail = line.driving_skus.length > 2 ? ` +${line.driving_skus.length - 2}` : "";
-    if (language === "ms") {
-      return `Stok meliputi ${pct}% keperluan pengeluaran${skuList ? ` untuk ${skuList}${tail}` : ""}`;
-    }
-    if (language === "zh-CN") {
-      return `库存覆盖生产需求的 ${pct}%${skuList ? `，用于 ${skuList}${tail}` : ""}`;
-    }
-    return `Stock covers ${pct}% of production need${skuList ? ` for ${skuList}${tail}` : ""}`;
   }
 
   return (
@@ -208,7 +221,7 @@ export default function ReplenishmentPage() {
                             {line.ingredient_name}
                           </p>
                           <p className="mt-0.5 text-xs italic text-neutral-400">
-                            {derivedReason(line)}
+                            {formatStockCoverageReason(line, t)}
                           </p>
                         </TableCell>
                         <TableCell className="text-right tabular-nums text-neutral-500">
@@ -242,7 +255,11 @@ export default function ReplenishmentPage() {
                           className="text-xs text-neutral-500"
                           title={line.driving_skus.length > 0 ? line.driving_skus.join(", ") : undefined}
                         >
-                          {formatDrivingSkus(line.driving_skus, t("common.none", "None"))}
+                          {formatDrivingSkus(
+                            line.driving_skus,
+                            t("common.none", "None"),
+                            (count) => t("replenishment.moreCount", "+{{count}} more", { count })
+                          )}
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">

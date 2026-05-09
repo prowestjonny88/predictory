@@ -6,8 +6,8 @@ import "./globals.css";
 import Providers from "./providers";
 
 export const metadata: Metadata = {
-  title: "Predictory - Bakery Intelligence",
-  description: "AI-powered daily planning for bakery operations",
+  title: "Predictory",
+  description: "Predictory",
 };
 
 export default function RootLayout({

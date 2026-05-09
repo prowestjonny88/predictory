@@ -58,6 +58,7 @@ export default function DemandDriversPanel({
   deletePending,
 }: Props) {
   const { t } = useLanguage();
+  const separator = t("common.listSeparator", " • ");
 
   if (isLoading) {
     return (
@@ -129,7 +130,7 @@ export default function DemandDriversPanel({
               title={t("drivers.holiday", "Holiday")}
               value={context.holiday?.label ?? t("drivers.noHolidayFlag", "No holiday flag")}
               subtitle={
-                context.holiday?.details.join(" • ") ??
+                context.holiday?.details.join(separator) ??
                 t("drivers.noHolidayImpact", "No configured holiday impact for this date.")
               }
               badge={context.holiday ? `${context.holiday.adjustment_pct.toFixed(1)}%` : undefined}
@@ -137,7 +138,7 @@ export default function DemandDriversPanel({
             <SignalCard
               title={t("drivers.weather", "Weather")}
               value={context.weather.label}
-              subtitle={context.weather.details.join(" • ")}
+              subtitle={context.weather.details.join(separator)}
               badge={`${context.weather.adjustment_pct.toFixed(1)}%`}
             />
             <SignalCard
@@ -207,8 +208,10 @@ export default function DemandDriversPanel({
                         )}
                       </div>
                       <p className="mt-1 text-xs text-neutral-500">
-                        {(override.notes || t("common.noNotes", "No notes"))} •{" "}
-                        {override.adjustment_pct.toFixed(1)}% •{" "}
+                        {(override.notes || t("common.noNotes", "No notes"))}
+                        {separator}
+                        {override.adjustment_pct.toFixed(1)}%
+                        {separator}
                         {override.enabled
                           ? t("common.enabled", "Enabled")
                           : t("common.disabled", "Disabled")}

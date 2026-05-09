@@ -1,6 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
+import { useCurrency } from "@/components/CurrencyProvider";
 import ExplainButton from "@/components/copilot/ExplainButton";
 import UncertaintyBar from "@/components/planning/UncertaintyBar";
 import { useLanguage } from "@/components/i18n/LanguageProvider";
@@ -16,6 +17,7 @@ interface Props {
 
 export default function RecommendationCard({ item, onOpen, onCouncilReview }: Props) {
   const { t, language } = useLanguage();
+  const { formatCurrency } = useCurrency();
 
   const totalExposure = item.financial_exposure.stockout_exposure_rm + item.financial_exposure.waste_exposure_rm;
   const isCritical = totalExposure >= 500;
@@ -56,7 +58,11 @@ export default function RecommendationCard({ item, onOpen, onCouncilReview }: Pr
             <Badge variant="outline">{translateStatus(language, item.status)}</Badge>
             {totalExposure > 0 && (
               <Badge variant={isCritical ? "critical" : "high"}>
-                {isCritical && "Critical Risk: "}RM {Math.round(totalExposure)}
+                {isCritical && `${t("planning.recommendation.criticalRisk", "Critical Risk")}: `}
+                {formatCurrency(totalExposure, language, {
+                  maximumFractionDigits: 0,
+                  minimumFractionDigits: 0,
+                })}
               </Badge>
             )}
           </div>
@@ -113,8 +119,14 @@ export default function RecommendationCard({ item, onOpen, onCouncilReview }: Pr
       <CardFooter className="border-t bg-neutral-50/50 px-4 py-3 sm:px-6">
         <div className="flex w-full items-center justify-between gap-3">
           <div className="flex flex-col gap-0.5 text-[11px] font-medium text-muted-foreground">
-            <span>{t("planning.recommendation.wasteCost", "Waste cost")} RM {item.waste_cost.toFixed(2)}</span>
-            <span>{t("planning.recommendation.stockoutCost", "Stockout cost")} RM {item.stockout_cost.toFixed(2)}</span>
+            <span>
+              {t("planning.recommendation.wasteCost", "Waste cost")}{" "}
+              {formatCurrency(item.waste_cost, language, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </span>
+            <span>
+              {t("planning.recommendation.stockoutCost", "Stockout cost")}{" "}
+              {formatCurrency(item.stockout_cost, language, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </span>
           </div>
           <div className="flex flex-wrap justify-end gap-2">
             {onCouncilReview && (

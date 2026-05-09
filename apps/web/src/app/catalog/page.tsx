@@ -3,17 +3,15 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 
+import { useCurrency } from "@/components/CurrencyProvider";
 import Header from "@/components/Header";
 import { useLanguage } from "@/components/i18n/LanguageProvider";
 import { api } from "@/lib/api";
 import type { SKU } from "@/types";
 
-function formatPrice(value: number) {
-  return `RM ${value.toFixed(2)}`;
-}
-
 export default function CatalogPage() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const { formatCurrency } = useCurrency();
   const skusQuery = useQuery<SKU[]>({
     queryKey: ["skus"],
     queryFn: api.skus,
@@ -81,10 +79,15 @@ export default function CatalogPage() {
                     <td className="px-4 py-3 text-neutral-600">{sku.category}</td>
                     <td className="px-4 py-3 text-neutral-500">{sku.code}</td>
                     <td className="px-4 py-3 text-right font-semibold text-neutral-900">
-                      {formatPrice(sku.price)}
+                      {formatCurrency(sku.price, language, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </td>
                     <td className="px-4 py-3 text-right text-neutral-700">
-                      {sku.unit_cost == null ? t("common.unavailable", "Unavailable") : formatPrice(sku.unit_cost)}
+                      {sku.unit_cost == null
+                        ? t("common.unavailable", "Unavailable")
+                        : formatCurrency(sku.unit_cost, language, {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          })}
                     </td>
                     <td className="px-4 py-3 text-right text-neutral-600">{sku.freshness_hours}</td>
                     <td className="px-4 py-3 text-center text-neutral-600">

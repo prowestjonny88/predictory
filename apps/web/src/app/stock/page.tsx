@@ -14,6 +14,7 @@ import { Card } from "@/components/ui/card";
 export default function StockPage() {
     const [outletId, setOutletId] = useState<string>("all");
     const { t } = useLanguage();
+    const separator = t("common.listSeparator", " • ");
 
     const outletsQuery = useQuery<Outlet[]>({
         queryKey: ["outlets"],
@@ -110,7 +111,7 @@ export default function StockPage() {
                                                 {outlets.find((o) => o.id === item.outlet_id)?.name ?? `${t("common.outlet", "Outlet")} ${item.outlet_id}`}
                                             </TableCell>
                                             <TableCell className="text-neutral-500 text-xs">
-                                                {item.snapshot_date} • <span className="uppercase text-amber-600">{item.snapshot_time}</span>
+                                                {item.snapshot_date}{separator}<span className="uppercase text-amber-600">{item.snapshot_time}</span>
                                             </TableCell>
                                             <TableCell className="text-right font-semibold tabular-nums text-neutral-800">
                                                 {item.units_on_hand}
@@ -171,7 +172,7 @@ export default function StockPage() {
                                             <TableCell className="font-medium text-neutral-900">{item.name}</TableCell>
                                             <TableCell className="text-neutral-600">{t("stock.centralWarehouse", "Central Warehouse")}</TableCell>
                                             <TableCell className="text-neutral-500 text-xs">
-                                                {new Date().toISOString().split("T")[0]} • <span className="uppercase text-amber-600">{t("stock.live", "LIVE")}</span>
+                                                {new Date().toISOString().split("T")[0]}{separator}<span className="uppercase text-amber-600">{t("stock.live", "LIVE")}</span>
                                             </TableCell>
                                             <TableCell className="text-right font-semibold tabular-nums text-neutral-800">
                                                 {item.stock_on_hand?.toFixed(2) ?? "-"} <span className="text-neutral-500 text-xs font-normal ml-1">{item.unit}</span>

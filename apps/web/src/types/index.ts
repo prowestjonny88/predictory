@@ -370,6 +370,11 @@ export interface ImportResult {
   rows_parsed?: number;
   rows_committed?: number;
   errors: string[];
+  currency_code?: string | null;
+  currency_symbol?: string | null;
+  currency_name?: string | null;
+  currency_country?: string | null;
+  currency_detected_from?: string | null;
 }
 
 export interface HealthResponse {

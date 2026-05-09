@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { useLanguage } from "@/components/i18n/LanguageProvider";
+import { translateDaypart } from "@/lib/i18n";
 import type { CouncilConfirmResponse, CouncilReviewResponse } from "@/lib/api/agentic";
 
 interface Props {
@@ -17,18 +18,43 @@ interface Props {
   onConfirm?: (operatorReason: string, selectedPrep: number) => Promise<void>;
 }
 
-function sourceLabel(value: string): string {
-  if (value === "lightgbm") return "LightGBM";
-  if (value === "optimizer") return "Optimizer";
-  if (value === "judge_synthesized") return "Judge synthesized";
-  if (value === "llm_rephrased") return "LLM rephrased";
-  if (value === "manager_note") return "Manager note";
-  if (value === "rules_based") return "Rules based";
+function sourceLabel(value: string, t: (key: string, fallback: string) => string): string {
+  if (value === "lightgbm") return t("planning.source.lightgbm", "LightGBM");
+  if (value === "optimizer") return t("planning.source.optimizer", "Optimizer");
+  if (value === "judge_synthesized") return t("planning.source.judgeSynthesized", "Judge synthesized");
+  if (value === "llm_rephrased") return t("planning.source.llmRephrased", "LLM rephrased");
+  if (value === "manager_note") return t("planning.source.managerNote", "Manager note");
+  if (value === "rules_based") return t("planning.source.rulesBased", "Rules based");
   return value;
 }
 
-function formatEvidence(value: unknown): string {
-  if (value == null) return "unavailable";
+function applicationModeLabel(value: string, t: (key: string, fallback: string) => string): string {
+  if (value === "prep_edit_only") return t("planning.managerNote.modePrepOnly", "prep edit only");
+  if (value === "forecast_override_recompute") {
+    return t("planning.managerNote.modeForecastRecompute", "forecast override recompute");
+  }
+  return value;
+}
+
+function formatEvidenceKey(key: string, t: (key: string, fallback: string) => string): string {
+  const labels: Record<string, [string, string]> = {
+    p10: ["explain.key.lowDemand", "Low-demand scenario"],
+    p50: ["explain.key.expectedDemand", "Expected-demand scenario"],
+    p90: ["explain.key.highDemand", "High-demand scenario"],
+    recommended_prep: ["explain.key.recommendedPrep", "Recommended prep"],
+    opening_stock: ["explain.key.openingStock", "Opening stock"],
+    stockout_exposure_rm: ["explain.key.stockoutExposure", "Stockout exposure"],
+    waste_exposure_rm: ["explain.key.wasteExposure", "Waste exposure"],
+    priority_score: ["explain.key.priorityScore", "Priority score"],
+    shortage_qty: ["explain.key.shortageQty", "Shortage quantity"],
+    reorder_qty: ["explain.key.reorderQuantity", "Reorder quantity"],
+  };
+  const label = labels[key];
+  return label ? t(label[0], label[1]) : key;
+}
+
+function formatEvidence(value: unknown, t: (key: string, fallback: string) => string): string {
+  if (value == null) return t("planning.managerNote.unavailable", "unavailable");
   if (typeof value === "number") return Number.isInteger(value) ? String(value) : value.toFixed(2);
   if (typeof value === "string") return value;
   return JSON.stringify(value);
@@ -44,8 +70,8 @@ export default function AgentCouncilPanel({
   confirmResult,
   onConfirm,
 }: Props) {
-  const { t } = useLanguage();
-  const [operatorReason, setOperatorReason] = useState("Approved Agent Council recommendation.");
+  const { t, language } = useLanguage();
+  const [operatorReason, setOperatorReason] = useState(t("planning.council.defaultReason", "Approved Agent Council recommendation."));
   const [traceOpen, setTraceOpen] = useState(false);
   const [agentTraceOpen, setAgentTraceOpen] = useState(false);
   const [selectedPrep, setSelectedPrep] = useState<number | null>(null);
@@ -80,16 +106,17 @@ export default function AgentCouncilPanel({
           <CardContent className="grid gap-2 p-3 text-sm text-sky-950 sm:grid-cols-3">
             <p>
               <span className="font-semibold">{t("planning.council.beforeNote", "Before manager note")}:</span>{" "}
-              {beforePrep} units
+              {t("planning.council.unitsValue", "{{count}} units", { count: beforePrep ?? 0 })}
             </p>
             <p>
               <span className="font-semibold">{t("planning.council.afterNote", "After manager note")}:</span>{" "}
-              {afterPrep} units
+              {t("planning.council.unitsValue", "{{count}} units", { count: afterPrep ?? 0 })}
             </p>
             <p>
               <span className="font-semibold">{t("planning.council.delta", "Delta")}:</span>{" "}
-              {delta > 0 ? "+" : ""}
-              {delta} units
+              {t("planning.council.unitsValue", "{{count}} units", {
+                count: `${delta > 0 ? "+" : ""}${delta}`,
+              })}
             </p>
           </CardContent>
         </Card>
@@ -121,7 +148,7 @@ export default function AgentCouncilPanel({
               <p className="mt-1 text-sm text-amber-950">{judge.reasoning_summary}</p>
             </div>
             <div className="flex flex-wrap gap-2">
-              <Badge variant="outline">{sourceLabel(judge.source)}</Badge>
+              <Badge variant="outline">{sourceLabel(judge.source, t)}</Badge>
               <Badge variant="outline">{judge.agent_consensus}</Badge>
               {judge.requires_confirmation && <Badge variant="high">{t("planning.council.confirmation", "Needs confirmation")}</Badge>}
             </div>
@@ -150,11 +177,13 @@ export default function AgentCouncilPanel({
                     checked={selectedPrep === candidate.quantity}
                     onChange={() => setSelectedPrep(candidate.quantity)}
                   />
-                  <p className="text-lg font-semibold text-neutral-900">{candidate.quantity} units</p>
+                  <p className="text-lg font-semibold text-neutral-900">
+                    {t("planning.council.unitsValue", "{{count}} units", { count: candidate.quantity })}
+                  </p>
                 </div>
                 <div className="flex flex-wrap justify-end gap-1">
                   <Badge variant={candidate.source === judge.selected_candidate_source ? "high" : "outline"}>
-                    {candidate.source}
+                    {sourceLabel(candidate.source, t)}
                   </Badge>
                   {candidate.quantity === judge.recommended_prep && (
                     <Badge variant="outline">{t("planning.council.judgePick", "Judge pick")}</Badge>
@@ -186,7 +215,7 @@ export default function AgentCouncilPanel({
                     <p className="text-sm text-neutral-700">{argument.claim}</p>
                   </div>
                   <div className="flex flex-wrap gap-1">
-                    <Badge variant="outline">{sourceLabel(argument.source)}</Badge>
+                    <Badge variant="outline">{sourceLabel(argument.source, t)}</Badge>
                     <Badge variant="outline">{argument.severity}</Badge>
                   </div>
                 </div>
@@ -194,7 +223,7 @@ export default function AgentCouncilPanel({
                   <div className="mt-2 grid gap-1 text-xs text-neutral-500 sm:grid-cols-2">
                     {Object.entries(argument.evidence).slice(0, 6).map(([key, value]) => (
                       <span key={key} className="rounded bg-neutral-50 px-2 py-1">
-                        {key}: {formatEvidence(value)}
+                        {formatEvidenceKey(key, t)}: {formatEvidence(value, t)}
                       </span>
                     ))}
                   </div>
@@ -226,7 +255,9 @@ export default function AgentCouncilPanel({
             </Button>
             {selectedCandidate && (
               <p className="text-xs text-neutral-500">
-                {t("planning.council.selectedCandidate", "Selected candidate")}: {selectedCandidate.quantity} units / {selectedCandidate.source}
+                {t("planning.council.selectedCandidate", "Selected candidate")}:{" "}
+                {t("planning.council.unitsValue", "{{count}} units", { count: selectedCandidate.quantity })} /{" "}
+                {sourceLabel(selectedCandidate.source, t)}
               </p>
             )}
           </CardContent>
@@ -237,7 +268,10 @@ export default function AgentCouncilPanel({
         <Card className="border-emerald-200 bg-emerald-50">
           <CardContent className="space-y-2 p-3 text-sm text-emerald-950">
             <p className="font-semibold">{confirmResult.message}</p>
-            <p>{t("planning.council.applicationMode", "Application mode")}: {confirmResult.application_mode}</p>
+            <p>
+              {t("planning.council.applicationMode", "Application mode")}:{" "}
+              {applicationModeLabel(confirmResult.application_mode, t)}
+            </p>
             {confirmResult.warnings?.map((warning) => (
               <p key={warning} className="rounded border border-amber-200 bg-amber-50 px-2 py-1 text-xs text-amber-900">
                 {warning}
@@ -245,7 +279,13 @@ export default function AgentCouncilPanel({
             ))}
             {confirmResult.line_changes.map((change) => (
               <p key={change.line_id} className="rounded bg-white/70 px-2 py-1 text-xs">
-                {change.outlet_name} / {change.sku_name} / {change.daypart}: {change.before_prep} -&gt; {change.after_prep} units
+                {t("planning.council.lineChange", "{{outlet}} / {{sku}} / {{daypart}}: {{before}} -> {{after}} units", {
+                  outlet: change.outlet_name,
+                  sku: change.sku_name,
+                  daypart: translateDaypart(language, change.daypart),
+                  before: change.before_prep,
+                  after: change.after_prep,
+                })}
               </p>
             ))}
           </CardContent>
@@ -267,7 +307,7 @@ export default function AgentCouncilPanel({
                       <p className="mt-1 text-neutral-700">{item.claim}</p>
                     </div>
                     <div className="flex flex-wrap gap-1">
-                      <Badge variant="outline">{sourceLabel(item.source)}</Badge>
+                      <Badge variant="outline">{sourceLabel(item.source, t)}</Badge>
                       <Badge variant="outline">{item.severity}</Badge>
                     </div>
                   </div>
