@@ -182,9 +182,8 @@ SDG alignment:
 | SDG | Predictory Alignment |
 |---|---|
 | SDG 12: Responsible Consumption and Production | Primary alignment. Forecast-backed prep and BOM replenishment help bakery operators reduce avoidable overproduction and ingredient waste. |
-| SDG 8: Decent Work and Economic Growth | Supports MSME productivity by giving small operators planning capabilities that usually require enterprise tools or analysts. |
-| SDG 9: Industry, Innovation and Infrastructure | Modernizes a manual operational workflow with ML forecasting, APIs, data readiness, and explainable decision support. |
 | SDG 13: Climate Action | Reducing avoidable food waste can lower the climate impact associated with wasted ingredients, production energy, and disposal. |
+| SDG 12 Target 12.3: Food loss and waste reduction | Predictory directly supports the target of reducing food waste at retail and food-service levels through demand-aware production planning. |
 
 Scalability / future roadmap:
 

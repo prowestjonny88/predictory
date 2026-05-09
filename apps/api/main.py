@@ -1,4 +1,4 @@
-from contextlib import asynccontextmanager
+﻿from contextlib import asynccontextmanager
 import logging
 import os
 from fastapi import FastAPI
@@ -43,7 +43,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# ─── CORS ────────────────────────────────────────────────────────────────────
+# CORS
 allowed_origins_raw = os.getenv("ALLOWED_ORIGINS", "*")
 allowed_origins = [o.strip() for o in allowed_origins_raw.split(",")]
 environment = os.getenv("ENVIRONMENT", "development").lower()
@@ -58,7 +58,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ─── Health ───────────────────────────────────────────────────────────────────
+# Health
 @app.get("/health", tags=["health"])
 def health_check():
     db_status = "ok"
@@ -77,7 +77,7 @@ def health_check():
     }
 
 
-# ─── Routers ─────────────────────────────────────────────────────────────────
+# Routers
 app.include_router(catalog_router,     prefix="/api/v1", tags=["catalog"])
 app.include_router(ingestion_router,   prefix="/api/v1", tags=["ingestion"])
 app.include_router(ops_data_router,    prefix="/api/v1", tags=["ops_data"])

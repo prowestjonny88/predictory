@@ -8,12 +8,12 @@ Micro, Small, and Medium Enterprises (MSMEs) are the backbone of the ASEAN econo
 
 Most POS systems today function primarily as inventory management tools and do not offer the ability to predict next-day preparation needs. This is why we created Predictory: to combine inventory visibility with predictive preparation planning in a single solution.
 
-Within the Food & Beverage sector—specifically bakery-cafes—this manifests as a total reliance on manual, intuition-based operations. Lacking access to enterprise-grade supply chain tools, these MSMEs suffer from frequent overproduction (leading to end-of-day food waste) and stockouts during peak hours (leading to lost revenue). They lack the predictive market analytics and digital capabilities needed to optimize their resources, holding them back from scaling and achieving true economic resilience.
+Within the Food & Beverage sector - specifically bakery-cafes - this manifests as a total reliance on manual, intuition-based operations. Lacking access to enterprise-grade supply chain tools, these MSMEs suffer from frequent overproduction (leading to end-of-day food waste) and stockouts during peak hours (leading to lost revenue). They lack the predictive market analytics and digital capabilities needed to optimize their resources, holding them back from scaling and achieving true economic resilience.
 
 ## SDG Alignment
-* **SDG 12: Responsible Consumption and Production** (Primary) – Directly targets bakery food waste reduction and optimized resource/ingredient usage.
-* **SDG 8: Decent Work and Economic Growth** – Empowers traditional MSMEs to increase productivity and scale operations via digital capability upgrades.
-* **SDG 9: Industry, Innovation, and Infrastructure** – Democratizes access to advanced AI-driven supply chain technology for small enterprises.
+* **SDG 12: Responsible Consumption and Production** (Primary) - Directly targets bakery food waste reduction and optimized resource/ingredient usage.
+* **SDG 13: Climate Action** - Reduces avoidable food waste, which can lower emissions linked to wasted ingredients, production energy, and disposal.
+* **SDG 12 Target 12.3: Food loss and waste reduction** - Supports the target of reducing food waste at retail and food-service levels through demand-aware production planning.
 
 ## Solution Overview
 **Predictory** is an AI-assisted prep and replenishment copilot designed specifically for multi-outlet bakery-cafe chains. By providing an AI-driven ecosystem, Predictory democratizes access to enterprise-grade tools like predictive analytics and automated supply chain management. 
