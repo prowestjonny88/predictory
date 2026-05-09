@@ -208,12 +208,14 @@ export default function ReplenishmentPage() {
               ) : (
                 lines.map((line) => {
                     const isOrdered = orderedIds.has(line.ingredient_id);
+                    const isShort = line.stock_on_hand < line.need_qty;
                     return (
                       <TableRow
                         key={`${line.ingredient_id}-${line.ingredient_name}`}
                         className={cn(
                           "transition-colors hover:bg-neutral-50",
                           line.urgency === "critical" && !isOrdered && "bg-red-50/30",
+                          isShort && !isOrdered && "bg-red-50/70 hover:bg-red-50",
                           isOrdered && "opacity-60"
                         )}
                       >
@@ -235,11 +237,15 @@ export default function ReplenishmentPage() {
                           <StockNeedBar
                             stock={line.stock_on_hand}
                             need={line.need_qty}
-                            shortage={line.reorder_qty}
                             unit=""
                           />
                         </TableCell>
-                        <TableCell className="text-right tabular-nums font-semibold text-neutral-800">
+                        <TableCell
+                          className={cn(
+                            "text-right tabular-nums font-semibold text-neutral-800",
+                            isShort && !isOrdered && "text-red-700"
+                          )}
+                        >
                           {line.reorder_qty.toFixed(1)}
                         </TableCell>
                         <TableCell>
@@ -307,5 +313,3 @@ export default function ReplenishmentPage() {
     </div>
   );
 }
-   
- 
