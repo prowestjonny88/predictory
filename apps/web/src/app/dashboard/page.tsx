@@ -378,7 +378,7 @@ function DashboardBriefCard({
       units: topAction.recommended_prep,
       sku: topAction.sku_name,
       outlet: topAction.outlet_name,
-      daypart: topAction.daypart,
+      daypart: translateDaypart(language, topAction.daypart.toLowerCase()),
     }
   );
 
@@ -417,5 +417,7 @@ function DashboardBriefCard({
     </Card>
   );
 }
-   
+  
+ 
+    
  
