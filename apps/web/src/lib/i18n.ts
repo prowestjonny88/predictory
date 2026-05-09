@@ -9,13 +9,20 @@ export const LANGUAGE_STORAGE_KEY = "predictory.language";
 
 const localeMap: Record<LanguageCode, string> = {
   en: "en-MY",
+  ms: "ms-MY",
+  "zh-CN": "zh-CN",
 };
 
 const dictionaries: Record<LanguageCode, Dictionary> = {
   en,
+  ms: en,
+  "zh-CN": en,
 };
 
 export function normalizeLanguage(raw: string | null | undefined): LanguageCode {
+  if (raw === "en" || raw === "ms" || raw === "zh-CN") {
+    return raw;
+  }
   return DEFAULT_LANGUAGE;
 }
 

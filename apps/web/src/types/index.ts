@@ -1,4 +1,4 @@
-export type LanguageCode = "en";
+export type LanguageCode = "en" | "ms" | "zh-CN";
 
 export interface Outlet {
   id: number;
