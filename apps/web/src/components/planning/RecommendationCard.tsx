@@ -46,13 +46,13 @@ export default function RecommendationCard({ item, onOpen, onCouncilReview }: Pr
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <div className="flex items-center gap-2">
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">{item.outlet_name}</p>
+              <p className="text-xs uppercase tracking-wide text-muted-foreground notranslate">{item.outlet_name}</p>
               <Badge variant="outline" className="text-[10px]">{translateDaypart(language, item.daypart.toLowerCase())}</Badge>
             </div>
             <h3 className="mt-1 text-2xl font-bold tracking-tight text-neutral-900">
               {t("planning.recommendation.prepareUnits", "Prepare {{count}} units", { count: item.recommended_prep })}
             </h3>
-            <p className="text-sm text-neutral-500">{item.sku_name}</p>
+            <p className="text-sm text-neutral-500 notranslate">{item.sku_name}</p>
           </div>
           <div className="flex flex-col items-end gap-2">
             <Badge variant="outline">{translateStatus(language, item.status)}</Badge>

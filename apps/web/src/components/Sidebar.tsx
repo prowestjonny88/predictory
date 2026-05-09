@@ -76,7 +76,7 @@ export default function Sidebar() {
       <SidebarHeader className="border-b border-sidebar-border p-4">
         <div className="flex items-center gap-2">
           <ChefHat className="h-6 w-6 text-amber-500" />
-          <span className="text-lg font-bold tracking-tight text-neutral-900">
+          <span className="text-lg font-bold tracking-tight text-neutral-900 notranslate">
             Predict<span className="text-amber-500">ory</span>
           </span>
         </div>
@@ -112,7 +112,7 @@ export default function Sidebar() {
       <SidebarFooter className="border-t border-sidebar-border p-4 space-y-3">
         <div className="text-sm font-medium text-neutral-500">{t("language.label", "Language")}</div>
         <GoogleTranslate />
-        <div className="text-xs text-neutral-400">{t("nav.footer", "Predictory v2")}</div>
+        <div className="text-xs text-neutral-400 notranslate">{t("nav.footer", "Predictory v2")}</div>
       </SidebarFooter>
     </ShadcnSidebar>
   );
