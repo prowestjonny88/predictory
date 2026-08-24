@@ -8,6 +8,20 @@ Design principle:
 
 > Forecast with ML. Optimize with rules. Explain with AI. Approve with humans.
 
+## Product Screenshots
+
+These screenshots are captured from the implemented application. They demonstrate the interface and workflow; their displayed values are demo or sample data, not verified commercial outcomes.
+
+| Daily operations | Demand forecasting |
+| --- | --- |
+| ![Predictory operations dashboard](./docs/screenshot/dashboard.png) | ![Predictory demand forecast and uncertainty view](./docs/screenshot/forecast.png) |
+
+| Prep planning | Evidence-grounded AI copilot |
+| --- | --- |
+| ![Predictory daily prep planning](./docs/screenshot/prep_plan.png) | ![Predictory AI copilot interface](./docs/screenshot/ai_copilot.png) |
+
+Additional authentic workflow captures are available in [docs/screenshot](./docs/screenshot).
+
 ## At A Glance
 
 | Area | What Predictory Does |
@@ -358,11 +372,22 @@ Restart `uvicorn` after changing environment variables.
 
 ### Frontend cannot connect to backend
 
-Check [apps/web/.env.local](./apps/web/.env.local):
+Check `apps/web/.env.local`:
 
 ```env
 NEXT_PUBLIC_API_URL=http://127.0.0.1:8000
 ```
+
+## Limitations and Project Status
+
+- Predictory is a demonstrated software prototype, not evidence of a production rollout or measured customer savings.
+- Numerical forecasts and planning depend on imported operational data plus the committed model artifacts; a clean database does not invent business values.
+- The repository's model metrics describe a bounded offline validation window and are not independently audited production results.
+- Gemini-backed explanations require a configured external provider; Telegram alerts and weather integrations are optional.
+- Landing imagery under `apps/web/public/landing/` includes AI-generated visual assets. Application screenshots above show the implemented interface and may contain demonstration data.
+- No public deployment was independently verified during this review; use the local setup instructions to inspect the application.
+
+**Project context:** `prowestjonny88` is a primary repository contributor. Git history and the existing AI-transparency section provide the authoritative record of implementation and assisted-development context. The [supporting presentation repository](https://github.com/prowestjonny88/predictory-slide-deck) is related material, not a separate flagship project.
 
 ## Reference Docs
 
