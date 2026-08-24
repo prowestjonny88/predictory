@@ -3,6 +3,11 @@
 .env.*
 !.env.example
 
+# Runtime logs and local process output
+*.log
+*.log.*
+logs/
+
 # Python / FastAPI
 __pycache__/
 *.py[cod]
